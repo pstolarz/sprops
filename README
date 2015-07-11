@@ -1,1 +1,134 @@
 Scoped properties configuration library
+=======================================
+
+This project provides a lightweight and flexible library for parsing configuration
+files built of properties (key/value pairs) which may reside inside "scopes",
+that is block of the configuration file with assigned name and optional type.
+A scope may constitute hierarchically nested structure of arbitrary depth.
+
+The library provides small but flexible set of API for accessing properties in
+a configuration file. There is possible to access a property located inside a
+specific (possibly nested) scope when its location (path) is known OR discover
+the configuration file structure by iterating over properties/scopes located on
+the same depth level.
+
+The library was inspired by:
+ - Microsoft INI files API: GetPrivateProfileXXX() family of functions with its
+   simplicity of usage, sections scopes and basic iteration functionality.
+ - JSON serialization format with its C based grammar and elaborates structure
+   definitions.
+
+Configuration file format
+-------------------------
+
+"One word from Chairman Mao is worth ten thousand from others" --Lin Biao
+The same is true with a good example:
+
+    # Comment starts with '#' up to the end of line.
+    # The 2 properties below are located on depth level 0 (global scope)
+    prop1 = value
+
+    # Apostrophes required in property name to avoid parsing problem.
+    # Property value finishes on the end of a line (or at a semicolon).
+    "property 2" = some other value;
+
+    # scope with a type and name
+    scope_type scope_name
+    {
+        # Level depth 1
+
+        # 2 properties w/o a value (defined in the same line)
+        a; b=;
+
+        # Scope w/o type. If no apostrophes have been used, the scope name
+        # would be "name" with type "scope".
+        "scope name"
+        {
+            # Level depth 2
+
+            c = property "c" value \
+                with line \
+                continuation;
+
+            # Property contains escaped characters: ';', LF and ' '
+            d = \;abc\n\x20\\
+        }
+
+        # Property names may contain arbitrary characters, character escapes
+        # may be used. In this example apostrophes are required since '{', '}'
+        # are parser's reserved tokens (start/end of scope marks).
+        "{\tprop name w/o value\t}";
+
+        # Scope "scope name" continuation (with empty body).
+        "scope name" {}
+    }
+
+In this example there have been defined several properties (on global scope) and
+inside 2 scopes. The library provides file path based way of addressing properties.
+Here:
+
+    prop1 OR /prop1 -> "prop1" property path
+    /scope_type:scope_name/a -> "a" inside scope "scope_name" of type "scope_type"
+    /scope_type:scope_name/scope name/c -> "c" property
+
+more information in API specification.
+
+API specification
+-----------------
+
+The library provides two types of API:
+ - low level parser API; header: inc/sp_props/parser.h
+ - hight level functional API; header: inc/sp_props/props.h
+
+The first type of API defines low level, parser specific functionality and is no
+intended to be used unless you need direct cooperation with the parser for some
+specific reason. Basically the interface defines set of callbacks which allows
+an application to be informed about reducing grammar rules.
+
+The second type of API constitutes proper interface (its implementation bases on
+the low level parser API). The API allows addressing accessed properties inside
+hosting scopes AND discover a configuration structure by iteration over its
+content.
+
+NOTE: Basically the API treats properties values as strings built of arbitrary
+characters which are not interpreted: sp_get_prop(). Supplementary API defines
+2 simple functions (referencing sp_get_prop()) to interpret strings as integers
+and enumerations, namely: sp_get_prop_int(), sp_get_prop_enum(). Table/list may
+be easily emulated by dedicated scopes and iterations over its content.
+
+Refer to the dedicated header files for complete API specification and unit test
+ut/sptest.c for an example of API usage.
+
+Compilation
+-----------
+
+Prerequisites:
+ - GNU make,
+ - bison parser generator of version 3 or higher (only in case of regenerating
+   parser.c grammar definition file).
+
+Compilation:
+
+  make
+
+produces static library "libsprops.a" which may be linked into an application.
+
+Unit tests are contained in ut/ directory.
+
+Notes
+-----
+
+ - The library uses standard C library interface and shall be ported with a
+   little effort for any conforming platform.
+ - Memory allocation is performed only by generated grammar parser code while
+   reducing read grammar rules. The bison parser allows a flexible way for
+   configuring such allocations (e.g. via stack alloc() or heap malloc())
+   which may be useful while porting on some constrained embedded platforms.
+   See the bison parser generator documentation for more details.
+ - The API is fully re-entrant. No global variables are used while parsing.
+ - The library is not thread safe. In case of using the API in multi-threaded
+   environment an application must guarantee synchronization of its API calls.
+
+License
+-------
+2 clause BSD license. See LICENSE file for details.
