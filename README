@@ -3,7 +3,7 @@ Scoped properties configuration library
 
 This project provides a lightweight and flexible library for parsing configuration
 files built of properties (key/value pairs) which may reside inside "scopes",
-that is block of the configuration file with assigned name and optional type.
+that is blocks of a configuration file with assigned name and optional type.
 A scope may constitute hierarchically nested structure of arbitrary depth.
 
 The library provides small but flexible set of API for accessing properties in
@@ -12,7 +12,7 @@ specific (possibly nested) scope when its location (path) is known OR discover
 the configuration file structure by iterating over properties/scopes located on
 the same depth level.
 
-The library was inspired by:
+The library is inspired by:
  - Microsoft INI files API: GetPrivateProfileXXX() family of functions with its
    simplicity of usage, sections scopes and basic iteration functionality.
  - JSON serialization format with its C based grammar and elaborates structure

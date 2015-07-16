@@ -622,7 +622,7 @@ static int esc_getc(hndl_eschr_t *p_hndl)
 {
     int c;
     size_t n_esc=0;
-    char esc[8];
+    int esc[8];
 
 #define __GETC() ((c=noesc_getc(p_hndl)), (esc[n_esc++]=c))
 
