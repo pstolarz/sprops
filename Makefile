@@ -12,6 +12,7 @@ all: libsprops.a
 
 clean:
 	rm -f libsprops.a $(OBJS)
+	$(MAKE) -C./ut clean
 
 ./inc/sp_props/props.h=./inc/sp_props/props.h
 ./inc/sp_props/parser.h=./inc/sp_props/parser.h $(./inc/sp_props/props.h)

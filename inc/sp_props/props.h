@@ -61,7 +61,7 @@ typedef struct _sp_tkn_info_t
     sp_loc_t loc;   /* location in the stream */
 } sp_tkn_info_t;
 
-/* Check syntax of a properties set read from an input file 'in' within
+/* Check syntax of a properties set read from an input file 'in' with
    a given parsing scope 'p_parsc'. In case of syntax error (SPEC_SYNTAX)
    'p_line', 'p_col' will be provided with location of the error.
  */
@@ -73,7 +73,7 @@ sp_errc_t sp_check_syntax(
 
 /* Property iteration callback provides name and value of an iterated property
    (NULL terminated strings under 'name', 'val') with their token specific info
-   located under 'p_tkname' and 'p_tkval' (may be NULL for property w/o value).
+   located under 'p_tkname' and 'p_tkval' (may be NULL for property w/o a value).
    'p_ldef' locates overall property definition. 'arg' is passed untouched as
    provided in sp_iterate().
 
@@ -88,8 +88,8 @@ typedef int (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
 
 /* Scope iteration callback provides type and scope name (strings under 'type',
    'name') of an iterated scope. 'p_lbody' points to scope body content location
-   which may be used to retrieve data from it by sp_iterate(). 'p_tktype' and 'p_lbody'
-   may be NULL for untyped scope OR scope w/o body).
+   which may be used to retrieve data from it by sp_iterate(). 'p_tktype' and
+   'p_lbody' may be NULL for untyped scope OR scope w/o a body).
  */
 typedef int (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
     const sp_tkn_info_t *p_tktype, const char *name, const sp_tkn_info_t *p_tkname,
@@ -103,16 +103,16 @@ typedef int (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    In case no ':' is provided 'defsc' is used as the default scope type, in
    which case /id/ is translated to /defsc:id/. As a conclusion: if 'defsc'
    is "" the /id/ is translated to /:id/, that is, it provides an alternative
-   way to address untyped scopes. To address root scope (0-level) 'path' shall
-   be set to NULL, "" or "/".
+   way to address untyped scopes. To address root/global scope (0-level) 'path'
+   shall be set to NULL, "" or "/".
 
    NOTE: id specification may contain escape characters. Primary usage of them
    is escaping colon (: as \x3a) and slash (/ as \x2f) in the 'path' string
-   to avoid ambiguity.
+   to avoid ambiguity with the path specific characters.
 
-   'in' and 'p_parsc' provides input file to parse within a given parsing scope.
-   The parsing scope shall be used only inside scope callback handler to retrieve
-   inner scope content, in all other case 'p_parsc' should be NULL.
+   'in' and 'p_parsc' provide input file to parse with a given parsing scope.
+   The parsing scope shall be used only inside a scope callback handler to
+   retrieve inner scope content, in all other cases 'p_parsc' must be NULL.
 
    'cb_prop' and 'cb_scope' specify property and scope callbacks. The callbacks
    are provided with strings (property name/vale, scope type/name) written under
@@ -131,14 +131,15 @@ typedef struct _sp_prop_info_ex_t
     sp_loc_t ldef;              /* property definition location */
 } sp_prop_info_ex_t;
 
-/* Find property with 'name' and write its value to buffer 'p_val' of length
+/* Find property with 'name' and write its value to a buffer 'p_val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
-   is found SPEC_NOTFOUND is returned. In case many properties with the same
-   name exist the first one is retrieved. If 'p_info' is not NULL it will be
-   filled with property extra information.
+   is found SPEC_NOTFOUND error is returned. In case many properties with the
+   same name exist the first one is retrieved. If 'p_info' is not NULL it will
+   be filled with property extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
-   specification colon and slash chars need not to be escaped.
+   specification colon and slash chars need not to be escaped (there is no
+   ambiguity in this case).
    NOTE 2: if 'name' is NULL then the param name is provided as part of 'path'
    specification (last part of path after '/' char). In this case parameter
    name must not contain '/' or ':' characters which are not escaped by \xYY
@@ -165,9 +166,9 @@ typedef struct _sp_enumval_t
    element filled with zeroes. The matching is case insensitive if 'igncase' is
    !=0. To avoid memory allocation the caller must provide working buffer 'p_buf'
    of length 'blen' to store enum names read from the stream. Length of the
-   buffer must be at least as long as longest enum name + 1; in other case
-   SPEC_SIZE is returned. If read property vale doesn't match any of the names
-   in 'p_evals' SPEC_VAL_ERR is returned.
+   buffer must be at least as long as the longest enum name + 1; in other case
+   SPEC_SIZE error is returned. If read property vale doesn't match any of the
+   names in 'p_evals' SPEC_VAL_ERR error is returned.
  */
 sp_errc_t sp_get_prop_enum(FILE *in, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, const sp_enumval_t *p_evals, int igncase,

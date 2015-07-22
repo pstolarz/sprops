@@ -366,7 +366,12 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL_INIT:
           {
             __INIT_ESC();
-            if ((c==NEWLN || c==';') && !esc) {
+#ifndef NO_SEMICOL_ENDS_VAL
+            if ((c==NEWLN || c==';') && !esc)
+#else
+            if (c==NEWLN && !esc)
+#endif
+            {
                 __CHAR_TOKEN(TKN_VAL);
                 /* mark TKN_VAL as empty */
                 p_lval->beg++;
@@ -382,7 +387,12 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL:
           {
             __INIT_ESC();
-            if ((c==NEWLN || c==';') && !esc) {
+#ifndef NO_SEMICOL_ENDS_VAL
+            if ((c==NEWLN || c==';') && !esc)
+#else
+            if (c==NEWLN && !esc)
+#endif
+            {
                 __MCHAR_TOKEN_END();
                 finish++;
             } else
@@ -677,11 +687,6 @@ static int esc_getc(hndl_eschr_t *p_hndl)
             if (p_hndl->tkn!=TKN_ID || p_hndl->quot_chr!=c) p_hndl->escaped=0;
             break;
 
-        /* TKN_VAL: semicolon */
-        case ';':
-            if (p_hndl->tkn!=TKN_VAL) p_hndl->escaped=0;
-            break;
-
         /* TKN_VAL: line continuation */
         case '\n':
         case '\r':
@@ -714,6 +719,12 @@ static int esc_getc(hndl_eschr_t *p_hndl)
             }
             break;
 
+#ifndef NO_SEMICOL_ENDS_VAL
+        /* TKN_VAL: semicolon */
+        case ';':
+            if (p_hndl->tkn!=TKN_VAL) p_hndl->escaped=0;
+            break;
+#endif
         default:
             p_hndl->escaped=0;
             break;

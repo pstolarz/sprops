@@ -27,8 +27,8 @@ typedef enum _token_t
 
 struct _sp_parser_hndl_t;
 
-/* Property callback provides location of property name (p_lname), value
-   (p_lval; may be NULL for property w/o value) and overall definition of the
+/* Property callback provides location of property name ('p_lname'), value
+   ('p_lval'; may be NULL for property w/o value) and overall definition of the
    property (p_ldef).
 
    Callback return codes:
@@ -39,9 +39,9 @@ struct _sp_parser_hndl_t;
 typedef int (*sp_parser_cb_prop_t)(const struct _sp_parser_hndl_t *p_hndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef);
 
-/* Scope callback provides location of scope's type (p_ltype; may be NULL
-   for scope w/o type), name (p_lname), body (p_lbody; may be NULL for scope
-   w/o body) and overall definition of the scope (p_ldef).
+/* Scope callback provides location of scope's type ('p_ltype'; may be NULL
+   for scope w/o type), name ('p_lname'), body ('p_lbody'; may be NULL for scope
+   w/o a body) and overall definition of the scope ('p_ldef').
  */
 typedef int (*sp_parser_cb_scope_t)(const struct _sp_parser_hndl_t *p_hndl,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
@@ -111,11 +111,11 @@ typedef struct _sp_parser_hndl_t
     } err;
 } sp_parser_hndl_t;
 
-/* Initialize parser handle under 'p_hndl' for input file with handle 'in' to
-   parse (the file must be opened in binary mode). Parsing scope is constrained
-   to 'p_parsc' (if NULL: entire file). Property/scope callbacks are be provided
-   by 'cb_prop' and 'cb_scope' respectively with caller specific argument passed
-   untouched to these functions (cb_arg).
+/* Initialize parser handle under 'p_hndl' for an input file to parse with handle
+   'in'  (the file MUST be opened in the binary mode). Parsing scope is
+   constrained to 'p_parsc' (if NULL: the entire file). Property/scope callbacks
+   are provided by 'cb_prop' and 'cb_scope' respectively with caller specific
+   argument passed untouched to these functions ('cb_arg').
  */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
@@ -134,8 +134,8 @@ sp_errc_t sp_parser_tkn_cpy(const sp_parser_hndl_t *p_phndl, token_t tkn,
 
 /* Compare a token of type 'tkn' from location 'p_loc' with string 'str'.
    'max_num' specifies maximum number of 'str' chars to compare. The function
-   returns -1: strings are not equal, 0 (SPEC_SUCCESS): equal, >0: error of
-   code as returned.
+   returns -1: strings are not equal, 0 (SPEC_SUCCESS): equal, >0: error as
+   returned.
  */
 int sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl, token_t tkn,
     const sp_loc_t *p_loc, const char *str, size_t max_num);
