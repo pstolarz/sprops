@@ -4,7 +4,7 @@ Scoped properties configuration library
 This project provides a lightweight and flexible library for parsing configuration
 files built of properties (key/value pairs) which may reside inside "scopes",
 that is blocks of configuration with assigned name and an optional type. Scopes
-may constitute hierarchical nesting tree of arbitrary depth.
+may constitute hierarchical nesting tree of an arbitrary depth.
 
 The library provides small but flexible set of API for accessing properties in
 a configuration file. There is possible to access a property located inside a
@@ -13,8 +13,8 @@ file structure by iterating over properties/scopes located on the same level of
 depth.
 
 The library is inspired by:
- - Microsoft INI files API: GetPrivateProfileXXX() family of functions with their
-   simplicity of usage, sections and basic iteration functionality.
+ - Microsoft INI files API: GetPrivateProfileXXX() family of functions with
+   their simplicity of usage, sections and basic iteration functionality.
  - JSON serialization format with its C-based grammar and elaborated objects
    definitions.
 
@@ -79,15 +79,15 @@ The library provides two types of API:
  - Low level parser API with header: inc/sp_props/parser.h,
  - Hight level functional API with header: inc/sp_props/props.h.
 
-The first type of API defines low level, parser specific functionality and is not
-intended to be used unless you need a direct cooperation with the parser for some
-specific reason. Basically, the interface defines set of callbacks which allow
-an application to be informed about reducing some specific grammar rules.
+The first type of API defines low level, parser specific functionality and is
+not intended to be used unless you need a direct cooperation with the parser for
+some specific reason. The interface defines set of callbacks which allow an
+application to be informed about reducing some specific grammar rules.
 
-The second type of API constitutes the proper interface (its implementation bases
-on the low level parser API). The API allows addressing properties inside their
-hosting scopes AND to discover a configuration structure by iterating over its
-content.
+The second type of API constitutes the proper interface (its implementation
+bases on the low level parser API). The API allows addressing properties inside
+their hosting scopes AND to discover a configuration structure by iterating over
+its content.
 
 NOTE: Basically, the API treats properties values as strings built of arbitrary
 characters which are not interpreted: sp_get_prop(). Moreover, there have been
@@ -97,7 +97,7 @@ and lists may be easily emulated by dedicated scopes and iterations over their
 content.
 
 Refer to the mentioned header files for complete API specification and the unit
-test ut/sptest.c for an example of usage.
+test ut/sptest.c for an usage example.
 
 Compilation
 -----------
@@ -119,16 +119,23 @@ Notes
 -----
 
  - The library uses standard C library interface and shall be ported with a
-   little effort for any conforming platform.
+   little effort for any conforming platforms.
  - Memory allocation is performed ONLY by the generated grammar parser code for
-   reducing read grammar rules. The bison parser allows flexible way for
+   reducing read grammar rules. The bison parser allows a flexible way for
    configuring such allocations (e.g. via stack alloc() or heap malloc())
-   which may be useful while porting on some constrained embedded platforms.
+   which may be useful for porting on some constrained embedded platforms.
    See the bison parser generator documentation for more details.
- - The API is fully re-entrant. No global variables are used while parsing.
- - The library is intentionally not thread safe. In case of using the API in a
-   multi-threaded environment an application must guarantee synchronization of
-   its API calls.
+ - The API is fully re-entrant. No global variables are used during parsing.
+
+TODO
+----
+
+ - Current version of the library provides read-only/get access to the
+   configuration. Write/set functionality is intended to be added.
+ - Conditionally compiled POSIX threads based synchronization to be added (
+   possibly Windows version too). Conditional support is justified by portability
+   of the library for wide range of platforms where threads synchronization is
+   not possible or needed.
 
 License
 -------

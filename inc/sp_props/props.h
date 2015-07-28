@@ -134,8 +134,9 @@ typedef struct _sp_prop_info_ex_t
 /* Find property with 'name' and write its value to a buffer 'p_val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. In case many properties with the
-   same name exist the first one is retrieved. If 'p_info' is not NULL it will
-   be filled with property extra information.
+   same name exist the first one is retrieved (if other behavior is required, use
+   sp_iterate() method). If 'p_info' is not NULL it will be filled with property
+   extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
    specification colon and slash chars need not to be escaped (there is no
@@ -151,6 +152,9 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
 /* Find integer property with 'name' and write its under 'p_val'. In case of
    integer format error SPEC_VAL_ERR is returned.
+
+   NOTE: This method is a simple wrapper around sp_get_prop() to treat param's
+   value as integer.
  */
 sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, long *p_val, sp_prop_info_ex_t *p_info);
@@ -163,12 +167,16 @@ typedef struct _sp_enumval_t
 
 /* Find enumeration property with 'name' and write its under 'p_val'. Matching
    enumeration names to their values is done via 'p_evals' table with last
-   element filled with zeroes. The matching is case insensitive if 'igncase' is
+   element filled with zeros. The matching is case insensitive if 'igncase' is
    !=0. To avoid memory allocation the caller must provide working buffer 'p_buf'
    of length 'blen' to store enum names read from the stream. Length of the
    buffer must be at least as long as the longest enum name + 1; in other case
    SPEC_SIZE error is returned. If read property vale doesn't match any of the
    names in 'p_evals' SPEC_VAL_ERR error is returned.
+
+   NOTE: This method is a simple wrapper around sp_get_prop() to treat param's
+   value as enum.
+ */
  */
 sp_errc_t sp_get_prop_enum(FILE *in, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, const sp_enumval_t *p_evals, int igncase,
