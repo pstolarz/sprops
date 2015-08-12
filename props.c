@@ -15,26 +15,29 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include "config.h"
 #include "sp_props/parser.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 /* to be used inside callbacks only */
-#define CMPLOC_RG(ph, tkn, loc, str, len) \
-    ret = sp_parser_tkn_cmp((ph), (tkn), (loc), (str), (len)); \
-    if (ret>0) goto finish; \
-    if (ret<0) { ret=0; goto finish; }
+#define CMPLOC_RG(ph, tkn, loc, str, len) { \
+    int equ=0; \
+    ret = (sp_errc_t)sp_parser_tkn_cmp((ph), (tkn), (loc), (str), (len), &equ); \
+    if (ret!=SPEC_SUCCESS) goto finish; \
+    if (!equ) goto finish; \
+}
 
 /* exported; see header for details */
 sp_errc_t sp_check_syntax(
-    FILE *in, const sp_loc_t *p_parsc, int *p_line, int *p_col)
+    FILE *f, const sp_loc_t *p_parsc, int *p_line, int *p_col)
 {
     sp_errc_t ret;
     sp_parser_hndl_t phndl;
 
-    if (!in) { ret=SPEC_INV_ARG; goto finish; }
+    if (!f) { ret=SPEC_INV_ARG; goto finish; }
 
-    EXEC_RG(sp_parser_hndl_init(&phndl, in, p_parsc, NULL, NULL, NULL));
+    EXEC_RG(sp_parser_hndl_init(&phndl, f, p_parsc, NULL, NULL, NULL));
     EXEC_RG(sp_parse(&phndl));
 
 finish:
@@ -79,12 +82,12 @@ typedef struct _iter_hndl_t
     } buf2;
 } iter_hndl_t;
 
-/* follow requested path up to the destination scope */
-static int follow_scope_path(const sp_parser_hndl_t *p_phndl, path_t *p_path,
-    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
-    void *p_pargcpy)
+/* Follow requested path up to the destination scope */
+static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
+    path_t *p_path, const sp_loc_t *p_ltype, const sp_loc_t *p_lname,
+    const sp_loc_t *p_lbody, void *p_pargcpy)
 {
-    int ret=0;
+    sp_errc_t ret=SPEC_SUCCESS;
     size_t typ_len=0, nm_len=0;
     const char *type=NULL, *name=NULL, *beg=p_path->beg, *end=p_path->end;
     const char *col=strchr(beg, ':'), *sl=strchr(beg, '/');
@@ -110,15 +113,15 @@ static int follow_scope_path(const sp_parser_hndl_t *p_phndl, path_t *p_path,
 
     if (!nm_len) { ret=SPEC_INV_PATH; goto finish; }
 
-    CMPLOC_RG(p_phndl, TKN_ID, p_ltype, type, typ_len);
-    CMPLOC_RG(p_phndl, TKN_ID, p_lname, name, nm_len);
+    CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, type, typ_len);
+    CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, name, nm_len);
 
     /* matched scope found; follow the path */
     if (p_lbody) {
         sp_parser_hndl_t phndl;
         p_path->beg = (!*end ? end : end+1);
 
-        EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
+        EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->f, p_lbody,
             p_phndl->cb.prop, p_phndl->cb.scope, p_pargcpy));
 
         EXEC_RG(sp_parse(&phndl));
@@ -128,10 +131,10 @@ finish:
 }
 
 /* sp_iterate() callback: property */
-static int iter_cb_prop(const sp_parser_hndl_t *p_phndl,
+static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
-    int ret=0;
+    sp_errc_t ret=SPEC_SUCCESS;
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
 
     /* ignore props until the destination point */
@@ -139,15 +142,15 @@ static int iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     {
         sp_tkn_info_t tkname, tkval;
 
-        EXEC_RG(sp_parser_tkn_cpy(
-            p_phndl, TKN_ID, p_lname, p_ihndl->buf1.ptr, p_ihndl->buf1.sz, &tkname.len));
-        EXEC_RG(sp_parser_tkn_cpy(
-            p_phndl, TKN_VAL, p_lval, p_ihndl->buf2.ptr, p_ihndl->buf2.sz, &tkval.len));
+        EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_ID,
+            p_lname, p_ihndl->buf1.ptr, p_ihndl->buf1.sz, &tkname.len));
+        EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL,
+            p_lval, p_ihndl->buf2.ptr, p_ihndl->buf2.sz, &tkval.len));
 
         tkname.loc = *p_lname;
         if (p_lval) tkval.loc = *p_lval;
 
-        ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_phndl->in, p_ihndl->buf1.ptr,
+        ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_phndl->f, p_ihndl->buf1.ptr,
             &tkname, p_ihndl->buf2.ptr, (p_lval ? &tkval : NULL), p_ldef);
     }
 finish:
@@ -155,10 +158,11 @@ finish:
 }
 
 /* sp_iterate() callback: scope */
-static int iter_cb_scope(const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltype,
+static sp_errc_t iter_cb_scope(
+    const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltype,
     const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
 {
-    int ret=0;
+    sp_errc_t ret=SPEC_SUCCESS;
     iter_hndl_t *p_ihndl=(iter_hndl_t*)p_phndl->cb.arg;
 
     if (p_ihndl->path.beg < p_ihndl->path.end) {
@@ -170,23 +174,25 @@ static int iter_cb_scope(const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltyp
     {
         sp_tkn_info_t tktype, tkname;
 
-        EXEC_RG(sp_parser_tkn_cpy(
-            p_phndl, TKN_ID, p_ltype, p_ihndl->buf1.ptr, p_ihndl->buf1.sz, &tktype.len));
-        EXEC_RG(sp_parser_tkn_cpy(
-            p_phndl, TKN_ID, p_lname, p_ihndl->buf2.ptr, p_ihndl->buf2.sz, &tkname.len));
+        EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_ID,
+            p_ltype, p_ihndl->buf1.ptr, p_ihndl->buf1.sz, &tktype.len));
+        EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_ID,
+            p_lname, p_ihndl->buf2.ptr, p_ihndl->buf2.sz, &tkname.len));
 
         if (p_ltype) tktype.loc = *p_ltype;
         tkname.loc = *p_lname;
 
-        ret = p_ihndl->cb.scope(p_ihndl->cb.arg, p_phndl->in, p_ihndl->buf1.ptr,
-            (p_ltype ? &tktype : NULL), p_ihndl->buf2.ptr, &tkname, p_lbody, p_ldef);
+        ret = p_ihndl->cb.scope(
+            p_ihndl->cb.arg, p_phndl->f, p_ihndl->buf1.ptr,
+            (p_ltype ? &tktype : NULL), p_ihndl->buf2.ptr, &tkname,
+            p_lbody, p_ldef);
     }
 finish:
     return ret;
 }
 
 /* exported; see header for details */
-sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
+sp_errc_t sp_iterate(FILE *f, const sp_loc_t *p_parsc, const char *path,
     const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
     void *arg, char *p_buf1, size_t b1len, char *p_buf2, size_t b2len)
 {
@@ -194,7 +200,7 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     iter_hndl_t ihndl;
     sp_parser_hndl_t phndl;
 
-    if (!in) { ret=SPEC_INV_ARG; goto finish; }
+    if (!f) { ret=SPEC_INV_ARG; goto finish; }
 
     memset(&ihndl, 0, sizeof(ihndl));
     if (b1len) {
@@ -218,7 +224,7 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     ihndl.cb.scope = cb_scope;
 
     EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
+        &phndl, f, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
     EXEC_RG(sp_parse(&phndl));
 
 finish:
@@ -244,17 +250,17 @@ typedef struct _getprp_hndl_t
 } getprp_hndl_t;
 
 /* sp_get_prop() callback: property */
-static int getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
+static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
-    int ret=0;
+    sp_errc_t ret=SPEC_SUCCESS;
     getprp_hndl_t *p_gphndl = (getprp_hndl_t*)p_phndl->cb.arg;
 
     /* ignore props until the destination point */
     if (p_gphndl->path.beg>=p_gphndl->path.end)
     {
-        CMPLOC_RG(p_phndl, TKN_ID, p_lname, p_gphndl->name, (size_t)-1);
-        EXEC_RG(sp_parser_tkn_cpy(p_phndl, TKN_VAL, p_lval,
+        CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, p_gphndl->name, (size_t)-1);
+        EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
         /* property found; done */
@@ -268,17 +274,18 @@ static int getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
         }
         p_gphndl->p_info->ldef = *p_ldef;
 
-        ret = -1;
+        ret = SPEC_CB_FINISH;
     }
 finish:
     return ret;
 }
 
 /* sp_get_prop() callback: scope */
-static int getprp_cb_scope(const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltype,
+static sp_errc_t getprp_cb_scope(
+    const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltype,
     const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
 {
-    int ret=0;
+    sp_errc_t ret=SPEC_SUCCESS;
     getprp_hndl_t *p_gphndl=(getprp_hndl_t*)p_phndl->cb.arg;
 
     if (p_gphndl->path.beg < p_gphndl->path.end) {
@@ -290,7 +297,7 @@ static int getprp_cb_scope(const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_lt
 }
 
 /* exported; see header for details */
-sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
+sp_errc_t sp_get_prop(FILE *f, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, char *p_val, size_t len,
     sp_prop_info_ex_t *p_info)
 {
@@ -301,7 +308,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     sp_prop_info_ex_t info;
     memset(&info, 0, sizeof(info));
 
-    if (!in || !len) goto finish;
+    if (!f || !len) goto finish;
 
     /* prepare callback handle */
     memset(&gphndl, 0, sizeof(gphndl));
@@ -311,7 +318,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     gphndl.val.ptr[gphndl.val.sz] = 0;
 
     if (!name) {
-        /* param provided as part of the path spec. */
+        /* property name provided as part of the path spec. */
         if (!path) goto finish;
 
         name = strrchr(path, '/');
@@ -337,7 +344,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     gphndl.p_info = &info;
 
     EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
+        &phndl, f, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
     EXEC_RG(sp_parse(&phndl));
 
     /* line & columns are 1-based, if 0, the location of the property
@@ -350,8 +357,17 @@ finish:
 
 }
 
+/* Update 'str' by trimming trailing spaces. Updated string length is returned.
+ */
+static size_t strtrim(char *str)
+{
+    size_t len = strlen(str);
+    for (; len && isspace((int)str[len-1]); len--) str[len-1]=0;
+    return len;
+}
+
 /* exported; see header for details */
-sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
+sp_errc_t sp_get_prop_int(FILE *f, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, long *p_val, sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
@@ -359,9 +375,10 @@ sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
     char val[80], *end;
     long v=0L;
 
-    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, val, sizeof(val), &info));
+    EXEC_RG(
+        sp_get_prop(f, p_parsc, name, path, defsc, val, sizeof(val), &info));
 
-    if (info.val_pres && info.tkval.len>=sizeof(val)) {
+    if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
         ret=SPEC_VAL_ERR;
         goto finish;
     }
@@ -390,8 +407,9 @@ static int __stricmp(const char *str1, const char *str2)
 }
 
 /* exported; see header for details */
-sp_errc_t sp_get_prop_enum(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, const sp_enumval_t *p_evals, int igncase,
+sp_errc_t sp_get_prop_enum(
+    FILE *f, const sp_loc_t *p_parsc, const char *name, const char *path,
+    const char *defsc, const sp_enumval_t *p_evals, int igncase,
     char *p_buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
@@ -402,7 +420,11 @@ sp_errc_t sp_get_prop_enum(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     if (!p_evals) { ret=SPEC_INV_ARG; goto finish; }
 
-    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, p_buf, blen, &info));
+    EXEC_RG(sp_get_prop(f, p_parsc, name, path, defsc, p_buf, blen, &info));
+
+    /* remove leading/trailing spaces */
+    for (; isspace((int)*p_buf); p_buf++);
+    strtrim(p_buf);
 
     for (; p_evals->name; p_evals++)
     {

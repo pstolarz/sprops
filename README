@@ -51,8 +51,9 @@ The same is true with a good example:
                 with line \
                 continuation;
 
-            # Property contains escaped characters: semicolon, LF and space
-            d = \;abc\n\x20\\
+            # Property contains escaped characters: semicolon (0x3b), LF (\n),
+            # space (\x20) and backslash (\\)
+            d = \x3babc\n\x20\\
         }
 
         # Property names may contain arbitrary characters. Escaped characters
@@ -77,11 +78,11 @@ API specification
 
 The library provides two types of API:
  - Low level parser API with header: inc/sp_props/parser.h,
- - Hight level functional API with header: inc/sp_props/props.h.
+ - High level functional API with header: inc/sp_props/props.h.
 
 The first type of API defines low level, parser specific functionality and is
-not intended to be used unless you need a direct cooperation with the parser for
-some specific reason. The interface defines set of callbacks which allow an
+not intended to be used unless, for some reason, you need a direct cooperation
+with the parser. The interface defines set of callbacks which allow an
 application to be informed about reducing some specific grammar rules.
 
 The second type of API constitutes the proper interface (its implementation
@@ -97,7 +98,7 @@ and lists may be easily emulated by dedicated scopes and iterations over their
 content.
 
 Refer to the mentioned header files for complete API specification and the unit
-test ut/sptest.c for an usage example.
+tests located in ut/ directory for an usage example.
 
 Compilation
 -----------
@@ -118,6 +119,8 @@ Unit tests are contained in ut/ directory.
 Notes
 -----
 
+ - Fully support (and auto detect) for UNIX (LF), Windows (CR/LF) and Legacy Mac
+   (CR) end-of-line markers.
  - The library uses standard C library interface and shall be ported with a
    little effort for any conforming platforms.
  - Memory allocation is performed ONLY by the generated grammar parser code for
@@ -126,16 +129,21 @@ Notes
    which may be useful for porting on some constrained embedded platforms.
    See the bison parser generator documentation for more details.
  - The API is fully re-entrant. No global variables are used during parsing.
+ - The library is thread safe in terms of all library objects except passed
+   input file-objects (that is file handles for get-access and physical files
+   for set-access). Since there is no effective way to ensure such file-objects
+   synchronization on the library level, the application is responsible to handle
+   this issue. This may be done via standard thread synchronization approach or
+   by other means, e.g. if many threads get-access a single configuration file,
+   each of the threads may use its own read-only file handle to access the file
+   in a thread safe way (such approach is much more effective than a classical
+   mutext usage).
 
 TODO
 ----
 
- - Current version of the library provides read-only/get access to the
-   configuration. Write/set functionality is intended to be added.
- - Conditionally compiled POSIX threads based synchronization to be added (
-   possibly Windows version too). Conditional support is justified by portability
-   of the library for wide range of platforms where threads synchronization is
-   not possible or needed.
+ - Current version of the library provides get-access to the configuration.
+   Set-access functionality is intended to be added.
 
 License
 -------

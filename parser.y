@@ -15,14 +15,19 @@
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include "config.h"
 #include "sp_props/parser.h"
 
-/* converted new line char code */
-#define NEWLN       (EOF-1)
-#define is_space(c) (isspace(c) || (c)==NEWLN)
+/* converted EOL char code */
+#define EOL         (EOF-1)
+#define is_space(c) (isspace(c) || (c)==EOL)
 
 #define RESERVED_CHRS   "=;{}#"
 #define is_nq_id(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
+
+#define unc_clean(unc) ((unc)->inbuf=0)
+#define unc_getc(unc, def) ((unc)->inbuf ? (unc)->buf[--((unc)->inbuf)] : (def))
+#define unc_ungetc(unc, c) ((unc)->buf[(unc)->inbuf++]=(c))
 
 /* lexical contexts */
 #define LCTX_GLOBAL     0
@@ -37,8 +42,8 @@ typedef struct _lexval_t {
 
 #define YYSTYPE lexval_t
 
-#define YYTOKENTYPE token_t
-typedef token_t yytokentype;
+#define YYTOKENTYPE sp_parser_token_t
+typedef sp_parser_token_t yytokentype;
 
 }   /* code top */
 
@@ -61,19 +66,21 @@ static void set_loc(
 /* temporary macros indented for use in actions
  */
 #define __CALL_CB_PROP(nm, val, def) { \
-    long pos = ftell(p_hndl->in); \
-    int res = p_hndl->cb.prop(p_hndl, (nm), (val), (def)); \
-    if (!res && (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
-    if (res<0) YYACCEPT; \
-    else if (res>0) { p_hndl->err.code=res; YYABORT; } \
+    long pos = ftell(p_hndl->f); \
+    sp_errc_t res = p_hndl->cb.prop(p_hndl, (nm), (val), (def)); \
+    if (res==SPEC_SUCCESS && \
+        (pos==-1L || fseek(p_hndl->f, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
+    if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
+    else if ((int)res<0) { YYACCEPT; } \
 }
 
 #define __CALL_CB_SCOPE(typ, nm, bdy, def) { \
-    long pos = ftell(p_hndl->in); \
-    int res = p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (def)); \
-    if (!res && (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
-    if (res<0) YYACCEPT; \
-    else if (res>0) { p_hndl->err.code=res; YYABORT; } \
+    long pos = ftell(p_hndl->f); \
+    sp_errc_t res = p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (def)); \
+    if (res==SPEC_SUCCESS && \
+        (pos==-1L || fseek(p_hndl->f, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
+    if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
+    else if ((int)res<0) { YYACCEPT; } \
 }
 
 #define __PREP_LOC_PTR(loc) ((loc).beg<=(loc).end ? &(loc) : (sp_loc_t*)NULL)
@@ -84,8 +91,8 @@ static void set_loc(
 %define api.pure full
 %param {sp_parser_hndl_t *p_hndl}
 
-%token TKN_ID
-%token TKN_VAL
+%token SP_TKN_ID
+%token SP_TKN_VAL
 
 %%
 
@@ -111,10 +118,10 @@ scoped_props:
 ;
 
 prop_scope:
-  /* property with value
-     NOTE: TKN_VAL may be empty to define property w/o value
+  /* property with value (EOL/EOF finished)
+     NOTE: SP_TKN_VAL may be empty to define property w/o value
    */
-  TKN_ID '=' TKN_VAL
+  SP_TKN_ID '=' SP_TKN_VAL
     {
         $$.beg = $1.beg;
         $$.end = $3.end;
@@ -128,8 +135,25 @@ prop_scope:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
+  /* property with value (semicolon finished)
+     NOTE: valid only if NO_SEMICOL_ENDS_VAL is not defined
+   */
+| SP_TKN_ID '=' SP_TKN_VAL ';'
+    {
+        $$.beg = $1.beg;
+        $$.end = $4.end;
+        $$.scope_lev = $1.scope_lev;
+
+        if (p_hndl->cb.prop && !$$.scope_lev) {
+            sp_loc_t lname, lval, ldef;
+            set_loc(&lname, &$1, &@1);
+            set_loc(&lval, &$3, &@3);
+            set_loc(&ldef, &$$, &@$);
+            __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
+        }
+    }
   /* property w/o value (alternative) */
-| TKN_ID ';'
+| SP_TKN_ID ';'
     {
         $$.beg = $1.beg;
         $$.end = $2.end;
@@ -143,7 +167,7 @@ prop_scope:
         }
     }
   /* untyped scope with properties */
-| TKN_ID '{' input '}'
+| SP_TKN_ID '{' input '}'
     {
         $$.beg = $1.beg;
         $$.end = $4.end;
@@ -154,11 +178,12 @@ prop_scope:
             set_loc(&lname, &$1, &@1);
             set_loc(&lbody, &$3, &@3);
             set_loc(&ldef, &$$, &@$);
-            __CALL_CB_SCOPE((sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &ldef);
+            __CALL_CB_SCOPE(
+                (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &ldef);
         }
     }
   /* scope with properties */
-| TKN_ID TKN_ID '{' input '}'
+| SP_TKN_ID SP_TKN_ID '{' input '}'
     {
         $$.beg = $1.beg;
         $$.end = $5.end;
@@ -176,9 +201,9 @@ prop_scope:
     }
   /* scope w/o body (alternative)
      NOTE: to avoid ambiguity with no value property, the
-     only way to define untyped scope w/o body is: TKN_ID '{' '}'
+     only way to define untyped scope w/o body is: SP_TKN_ID '{' '}'
    */
-| TKN_ID TKN_ID ';'
+| SP_TKN_ID SP_TKN_ID ';'
     {
         $$.beg = $1.beg;
         $$.end = $3.end;
@@ -189,7 +214,8 @@ prop_scope:
             set_loc(&ltype, &$1, &@1);
             set_loc(&lname, &$2, &@2);
             set_loc(&ldef, &$$, &@$);
-            __CALL_CB_SCOPE(&ltype, __PREP_LOC_PTR(lname), (sp_loc_t*)NULL, &ldef);
+            __CALL_CB_SCOPE(
+                &ltype, __PREP_LOC_PTR(lname), (sp_loc_t*)NULL, &ldef);
         }
     }
 ;
@@ -200,51 +226,51 @@ prop_scope:
 #undef __CALL_CB_SCOPE
 #undef __CALL_CB_PROP
 
-/* get character from the input (lexer) */
+/* Get character from the input (lexer) */
 static int lex_getc(sp_parser_hndl_t *p_hndl)
 {
     int c;
 
     if (p_hndl->lex.end==-1L || p_hndl->lex.off<=p_hndl->lex.end)
     {
-        c = unc_getc(&p_hndl->lex.unc, getc(p_hndl->in));
+        c = unc_getc(&p_hndl->lex.unc, getc(p_hndl->f));
         if (c=='\r' || c=='\n')
         {
-            /* new line marker conversion */
-            switch (p_hndl->lex.nl_typ)
+            /* EOL conversion */
+            switch (p_hndl->lex.eol_typ)
             {
-            case NL_LF:
-                if (c=='\n') c=NEWLN;
+            case EOL_LF:
+                if (c=='\n') c=EOL;
                 break;
-            case NL_CR_LF:
+            case EOL_CR_LF:
                 if (c=='\r') {
-                    if ((c=unc_getc(&p_hndl->lex.unc, getc(p_hndl->in)))=='\n') {
+                    if ((c=unc_getc(&p_hndl->lex.unc, getc(p_hndl->f)))=='\n') {
                         p_hndl->lex.off++;
-                        c = NEWLN;
+                        c = EOL;
                     } else {
                         unc_ungetc(&p_hndl->lex.unc, c);
                         c = '\r';
                     }
                 }
                 break;
-            case NL_CR:
-                if (c=='\r') c=NEWLN;
+            case EOL_CR:
+                if (c=='\r') c=EOL;
                 break;
 
-            /* 1st occurrence of a new line marker */
+            /* 1st occurrence of EOL */
             default:
                 if (c=='\n') {
-                    p_hndl->lex.nl_typ = NL_LF;
+                    p_hndl->lex.eol_typ = EOL_LF;
                 } else {
-                    if ((c=unc_getc(&p_hndl->lex.unc, getc(p_hndl->in)))=='\n') {
+                    if ((c=unc_getc(&p_hndl->lex.unc, getc(p_hndl->f)))=='\n') {
                         p_hndl->lex.off++;
-                        p_hndl->lex.nl_typ = NL_CR_LF;
+                        p_hndl->lex.eol_typ = EOL_CR_LF;
                     } else {
                         unc_ungetc(&p_hndl->lex.unc, c);
-                        p_hndl->lex.nl_typ = NL_CR;
+                        p_hndl->lex.eol_typ = EOL_CR;
                     }
                 }
-                c = NEWLN;
+                c = EOL;
                 break;
             }
         }
@@ -253,29 +279,30 @@ static int lex_getc(sp_parser_hndl_t *p_hndl)
     return c;
 }
 
-/* lexical parser */
+/* Lexical parser */
 static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 {
     /* lexical parser SM states */
     typedef enum _lex_state_t
     {
-        /* token not recognized yet, ignore leading spaces */
+        /* token not recognized yet; initial state */
         LXST_INIT=0,
 
         /* comment; starts with '#' to the end of a line */
         LXST_COMMENT,
 
-        /* TKN_ID token */
+        /* SP_TKN_ID token */
         LXST_ID,            /* non quoted */
-        LXST_ID_QUOTED,     /* quoted */
+        LXST_ID_QUOTED,     /* quoted by apostrophes */
 
-        /* TKN_VAL token; any chars up to the end of a line or semicolon */
-        LXST_VAL_INIT,      /* ignore leading spaces */
-        LXST_VAL            /* track the token */
+        /* SP_TKN_VAL token; any chars up to the end of a line or semicolon
+           (if NO_SEMICOL_ENDS_VAL is not defined); line continuation allowed */
+        LXST_VAL_INIT,      /* value tracking initial state */
+        LXST_VAL            /* value tracking */
     } lex_state_t;
 
     long last_off;
-    int token=0, finish=0, c, last_col, escaped=0, quot_chr;
+    int token=0, finish=0, c, last_col, last_ln, escaped=0, quot_chr;
     lex_state_t state =
         (p_hndl->lex.ctx==LCTX_GLOBAL ? LXST_INIT : LXST_VAL_INIT);
 
@@ -289,17 +316,19 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
     p_lloc->first_column = p_hndl->lex.col; \
     p_lloc->first_line = p_hndl->lex.line; \
     last_col = p_hndl->lex.col; \
+    last_ln = p_hndl->lex.line; \
     p_lval->beg = p_hndl->lex.off; \
     last_off = p_hndl->lex.off; \
     token = (t);
 
 #define __MCHAR_UPDATE_TAIL() \
     last_col = p_hndl->lex.col; \
+    last_ln = p_hndl->lex.line; \
     last_off = p_hndl->lex.off;
 
 #define __MCHAR_TOKEN_END() \
     p_lloc->last_column = last_col; \
-    p_lloc->last_line = p_hndl->lex.line; \
+    p_lloc->last_line = last_ln; \
     p_lval->end = last_off;
 
 #define __INIT_ESC() \
@@ -317,7 +346,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 state=LXST_COMMENT;
             } else
             if (is_nq_id(c)) {
-                __MCHAR_TOKEN_BEG(TKN_ID);
+                __MCHAR_TOKEN_BEG(SP_TKN_ID);
                 if (c=='"' || c=='\'') {
                     quot_chr = c;
                     state = LXST_ID_QUOTED;
@@ -331,14 +360,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             break;
 
         case LXST_COMMENT:
-            if (c==NEWLN) state=LXST_INIT;
+            if (c==EOL) state=LXST_INIT;
             break;
 
         case LXST_ID:
             if (!is_nq_id(c)) {
                 __MCHAR_TOKEN_END();
-                unc_ungetc(&p_hndl->lex.unc, c);
                 finish++;
+                unc_ungetc(&p_hndl->lex.unc, c);
                 continue;
             } else {
                 __MCHAR_UPDATE_TAIL();
@@ -348,7 +377,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_ID_QUOTED:
           {
             __INIT_ESC();
-            if (c==NEWLN) {
+            if (c==EOL) {
                 /* error: quoted id need to be finished by apostrophe */
                 __MCHAR_TOKEN_END();
                 finish++;
@@ -366,19 +395,27 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL_INIT:
           {
             __INIT_ESC();
-#ifndef NO_SEMICOL_ENDS_VAL
-            if ((c==NEWLN || c==';') && !esc)
+#ifdef NO_SEMICOL_ENDS_VAL
+            if (c==EOL && !esc)
 #else
-            if (c==NEWLN && !esc)
+            if ((c==EOL && !esc) || c==';')
 #endif
             {
-                __CHAR_TOKEN(TKN_VAL);
-                /* mark TKN_VAL as empty */
-                p_lval->beg++;
+                __CHAR_TOKEN(SP_TKN_VAL);
+                p_lval->beg++;  /* mark token as empty */
                 finish++;
+#ifndef NO_SEMICOL_ENDS_VAL
+                if (c==';') {
+                    unc_ungetc(&p_hndl->lex.unc, c);
+                    continue;
+                }
+#endif
             } else
-            if (!is_space(c)) {
-                __MCHAR_TOKEN_BEG(TKN_VAL);
+#ifdef CUT_VAL_LEADING_SPACES
+            if (!isspace(c))
+#endif
+            {
+                __MCHAR_TOKEN_BEG(SP_TKN_VAL);
                 state=LXST_VAL;
             }
             break;
@@ -387,16 +424,25 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL:
           {
             __INIT_ESC();
-#ifndef NO_SEMICOL_ENDS_VAL
-            if ((c==NEWLN || c==';') && !esc)
+#ifdef NO_SEMICOL_ENDS_VAL
+            if (c==EOL && !esc)
 #else
-            if (c==NEWLN && !esc)
+            if ((c==EOL && !esc) || c==';')
 #endif
             {
                 __MCHAR_TOKEN_END();
                 finish++;
+#ifndef NO_SEMICOL_ENDS_VAL
+                if (c==';') {
+                    unc_ungetc(&p_hndl->lex.unc, c);
+                    continue;
+                }
+#endif
             } else
-            if (!is_space(c)) {
+#ifdef TRIM_VAL_TRAILING_SPACES
+            if (!isspace(c))
+#endif
+            {
                 __MCHAR_UPDATE_TAIL();
             }
             break;
@@ -404,7 +450,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         }
 
         /* track location of the next char to read */
-        if (c==NEWLN) {
+        if (c==EOL) {
             p_hndl->lex.line++;
             p_hndl->lex.col=1;
         } else {
@@ -413,10 +459,10 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         p_hndl->lex.off++;
     }
 
-    if (c==EOF && (token==TKN_ID || token==TKN_VAL))
+    if (c==EOF && (token==SP_TKN_ID || token==SP_TKN_VAL))
     {
-        /* EOF finishes TKN_ID/TKN_VAL tokens, except
-           quoted id which need to be finished by apostrophe */
+        /* EOF finishes SP_TKN_ID/SP_TKN_VAL tokens, except
+          quoted SP_TKN_ID which need to be finished by apostrophe */
         if (state==LXST_ID_QUOTED) {
             token = YYERRCODE;
         } else {
@@ -442,7 +488,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         p_hndl->lex.ctx=LCTX_VAL;
 
 #ifdef DEBUG
-    printf("token 0x%03x: lval 0x%02lx:0x%02lx, lloc %d:%d|%d:%d, scope %d\n",
+    printf("token 0x%03x: lval 0x%02lx|0x%02lx, lloc %d.%d|%d.%d, scope %d\n",
         token, p_lval->beg, p_lval->end, p_lloc->first_line, p_lloc->first_column,
         p_lloc->last_line, p_lloc->last_column, p_lval->scope_lev);
 #endif
@@ -456,7 +502,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 #undef __CHAR_TOKEN
 }
 
-/* parser error handler */
+/* Parser error handler */
 static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 {
     p_hndl->err.code = SPEC_SYNTAX;
@@ -466,19 +512,19 @@ static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 
 /* exported; see header for details */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
-    FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
+    FILE *f, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
     sp_parser_cb_scope_t cb_scope, void *cb_arg)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_loc_t globsc = {0, -1L, 1, 1, -1, -1};
     if (!p_parsc) p_parsc=&globsc;
 
-    if (!p_hndl || !in) { ret=SPEC_INV_ARG; goto finish; }
-    if (fseek(in, p_parsc->beg, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
+    if (!p_hndl || !f) { ret=SPEC_INV_ARG; goto finish; }
+    if (fseek(f, p_parsc->beg, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
 
-    p_hndl->in = in;
+    p_hndl->f = f;
 
-    p_hndl->lex.nl_typ = NL_UNDEF;
+    p_hndl->lex.eol_typ = EOL_UNDEF;
     p_hndl->lex.line = p_parsc->first_line;
     p_hndl->lex.col = p_parsc->first_column;
     p_hndl->lex.off = p_parsc->beg;
@@ -542,92 +588,93 @@ typedef struct _hndl_eschr_t
             } tab;
         };
         unc_cache_t unc;    /* ungetc cache buffer */
-    } in;
+    } input;
 
-    token_t tkn;        /* type of token which content is to be escaped */
-    newln_t nl_typ;     /* new line type */
-    int quot_chr;       /* quotation char (TKN_ID token) */
+    sp_parser_token_t tkn;  /* type of token which content is to be escaped */
+    eol_t eol_typ;      /* EOL type */
+    int quot_chr;       /* quotation char (SP_TKN_ID token) */
 
     /* set by esc_getc() after each call */
     size_t n_rdc;       /* number of read chars so far */
     int escaped;        /* the returned char is escaped */
 } hndl_eschr_t;
 
-/* initialize esc_getc() handler; stream input */
+/* Initialize esc_getc() handler; stream input */
 static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
-    const sp_parser_hndl_t *p_phndl, token_t tkn, int id_apost)
+    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn, int id_apost)
 {
-    p_hndl->in.is_str = 0;
-    p_hndl->in.f = p_phndl->in;
-    unc_clean(&p_hndl->in.unc);
+    p_hndl->input.is_str = 0;
+    p_hndl->input.f = p_phndl->f;
+    unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
-    p_hndl->nl_typ = p_phndl->lex.nl_typ;
+    p_hndl->eol_typ = p_phndl->lex.eol_typ;
     p_hndl->quot_chr = 0;
 
     p_hndl->n_rdc = 0;
     p_hndl->escaped = 0;
 
-    if (id_apost && tkn==TKN_ID) {
-        int c=getc(p_phndl->in);
+    if (id_apost && tkn==SP_TKN_ID) {
+        int c=getc(p_phndl->f);
         if (c=='"' || c=='\'') {
             p_hndl->quot_chr=c;
             p_hndl->n_rdc++;
         } else {
-            unc_ungetc(&p_hndl->in.unc, c);
+            unc_ungetc(&p_hndl->input.unc, c);
         }
     }
 }
 
-/* initialize esc_getc() handler; string input */
-static void init_hndl_eschr_string(hndl_eschr_t *p_hndl,
-    const char *str, size_t max_num, token_t tkn, newln_t nl_typ, int id_apost)
+/* Initialize esc_getc() handler; string input */
+static void init_hndl_eschr_string(hndl_eschr_t *p_hndl, const char *str,
+    size_t max_num, sp_parser_token_t tkn, eol_t eol_typ, int id_apost)
 {
-    p_hndl->in.is_str = 1;
-    p_hndl->in.tab.str = str;
-    p_hndl->in.tab.max_num = max_num;
-    p_hndl->in.tab.idx = 0;
-    unc_clean(&p_hndl->in.unc);
+    p_hndl->input.is_str = 1;
+    p_hndl->input.tab.str = str;
+    p_hndl->input.tab.max_num = max_num;
+    p_hndl->input.tab.idx = 0;
+    unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
-    p_hndl->nl_typ = nl_typ;
+    p_hndl->eol_typ = eol_typ;
     p_hndl->quot_chr = 0;
 
     p_hndl->n_rdc = 0;
     p_hndl->escaped = 0;
 
-    if (id_apost && tkn==TKN_ID && p_hndl->in.tab.max_num) {
-        int c = p_hndl->in.tab.str[p_hndl->in.tab.idx++];
+    if (id_apost && tkn==SP_TKN_ID && p_hndl->input.tab.max_num) {
+        int c = p_hndl->input.tab.str[p_hndl->input.tab.idx++];
         if (c=='"' || c=='\'') {
             p_hndl->quot_chr = c;
             p_hndl->n_rdc++;
         } else {
-            unc_ungetc(&p_hndl->in.unc, (!c ? EOF : c));
+            unc_ungetc(&p_hndl->input.unc, (!c ? EOF : c));
         }
     }
 }
 
-/* get single char from hndl_eschr_t handle */
+/* Get single char from hndl_eschr_t handle */
 static int noesc_getc(hndl_eschr_t *p_hndl)
 {
     int c;
-    if (p_hndl->in.is_str)
+    if (p_hndl->input.is_str)
     {
         int str_c;
-        if (p_hndl->in.tab.idx < p_hndl->in.tab.max_num) {
-            if (!(str_c=(int)p_hndl->in.tab.str[p_hndl->in.tab.idx])) str_c=EOF;
+        if (p_hndl->input.tab.idx < p_hndl->input.tab.max_num) {
+            if (!(str_c=(int)p_hndl->input.tab.str[p_hndl->input.tab.idx]))
+                str_c=EOF;
         } else
             str_c=EOF;
 
-        c = unc_getc(&p_hndl->in.unc,
-            (str_c!=EOF ? (p_hndl->in.tab.idx++, str_c) : str_c));
+        c = unc_getc(&p_hndl->input.unc,
+            (str_c!=EOF ? (p_hndl->input.tab.idx++, str_c) : str_c));
     } else {
-        c = unc_getc(&p_hndl->in.unc, getc(p_hndl->in.f));
+        c = unc_getc(&p_hndl->input.unc, getc(p_hndl->input.f));
     }
     return c;
 }
 
-/* get and escape (token dependent) single char from hndl_eschr_t handle */
+/* Get and escape (token dependent) single char from hndl_eschr_t handle */
 static int esc_getc(hndl_eschr_t *p_hndl)
 {
     int c;
@@ -681,33 +728,33 @@ static int esc_getc(hndl_eschr_t *p_hndl)
             break;
           }
 
-        /* TKN_ID: single/double apostrophe */
+        /* SP_TKN_ID: single/double apostrophe */
         case '"':
         case '\'':
-            if (p_hndl->tkn!=TKN_ID || p_hndl->quot_chr!=c) p_hndl->escaped=0;
+            if (p_hndl->tkn!=SP_TKN_ID || p_hndl->quot_chr!=c) p_hndl->escaped=0;
             break;
 
-        /* TKN_VAL: line continuation */
+        /* SP_TKN_VAL: line continuation */
         case '\n':
         case '\r':
-            if (p_hndl->tkn!=TKN_VAL)
+            if (p_hndl->tkn!=SP_TKN_VAL)
                 p_hndl->escaped=0;
             else
-            switch (p_hndl->nl_typ)
+            switch (p_hndl->eol_typ)
             {
-            case NL_LF:
+            case EOL_LF:
                 if (c=='\n') {
                     __GETC();
                 } else
                     p_hndl->escaped=0;
                 break;
-            case NL_CR_LF:
+            case EOL_CR_LF:
                 if (c=='\r' && __GETC()=='\n') {
                     __GETC();
                 } else
                     p_hndl->escaped=0;
                 break;
-            case NL_CR:
+            case EOL_CR:
                 if (c=='\r') {
                     __GETC();
                 } else
@@ -719,12 +766,6 @@ static int esc_getc(hndl_eschr_t *p_hndl)
             }
             break;
 
-#ifndef NO_SEMICOL_ENDS_VAL
-        /* TKN_VAL: semicolon */
-        case ';':
-            if (p_hndl->tkn!=TKN_VAL) p_hndl->escaped=0;
-            break;
-#endif
         default:
             p_hndl->escaped=0;
             break;
@@ -735,7 +776,7 @@ static int esc_getc(hndl_eschr_t *p_hndl)
         while (n_esc) {
             n_esc--;
             if (n_esc) {
-                unc_ungetc(&p_hndl->in.unc, esc[n_esc]);
+                unc_ungetc(&p_hndl->input.unc, esc[n_esc]);
             } else
                 c = esc[n_esc];
         }
@@ -749,8 +790,9 @@ static int esc_getc(hndl_eschr_t *p_hndl)
 #undef __GETC
 }
 
-/* get, escape single char from hndl_eschr_t handle,
-   if quotation char occurs it's re-read */
+/* Get, escape single char from hndl_eschr_t handle, if quotation char occurs
+   it's re-read
+ */
 static int esc_reqout_getc(hndl_eschr_t *p_hndl)
 {
     int c;
@@ -764,26 +806,31 @@ reread:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_parser_tkn_cpy(const sp_parser_hndl_t *p_phndl, token_t tkn,
+sp_errc_t sp_parser_tkn_cpy(
+    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
     const sp_loc_t *p_loc, char *p_buf, size_t buf_len, long *p_tklen)
 {
-    sp_errc_t ret=SPEC_SUCCESS;
+    sp_errc_t ret=SPEC_ACCS_ERR;
     int c=0;
     size_t i=0;
     hndl_eschr_t eh;
     long llen=sp_loc_len(p_loc);
 
-    if (!llen || (!buf_len && !p_tklen)) goto finish;
     if (p_tklen) *p_tklen=0;
+    if (!llen || (!buf_len && !p_tklen)) {
+        ret=SPEC_SUCCESS;
+        goto finish;
+    }
 
-    ret=SPEC_ACCS_ERR;
-    if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+    if (fseek(p_phndl->f, p_loc->beg, SEEK_SET)) goto finish;
 
     init_hndl_eschr_stream(&eh, p_phndl, tkn, 1);
 
     while (eh.n_rdc<(size_t)llen && (buf_len || p_tklen))
     {
-        if ((c=esc_getc(&eh))==EOF) break;
+        if ((c=esc_getc(&eh))==EOF || eh.n_rdc>(size_t)llen)
+            break;
+
         if (eh.quot_chr && c==eh.quot_chr && !eh.escaped) {
             eh.quot_chr=0;
         } else {
@@ -794,7 +841,7 @@ sp_errc_t sp_parser_tkn_cpy(const sp_parser_hndl_t *p_phndl, token_t tkn,
             }
         }
     }
-    if (c!=EOF) ret=SPEC_SUCCESS;
+    if (c!=EOF || eh.n_rdc>=(size_t)llen) ret=SPEC_SUCCESS;
 
 finish:
     if (buf_len) p_buf[i]=0;
@@ -802,21 +849,27 @@ finish:
 }
 
 /* exported; see header for details */
-int sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl, token_t tkn,
-    const sp_loc_t *p_loc, const char *str, size_t max_num)
+sp_errc_t sp_parser_tkn_cmp(
+    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
+    const sp_loc_t *p_loc, const char *str, size_t max_num, int *p_equ)
 {
-    int ret=0, c_tkn, c_str;
+    sp_errc_t ret=SPEC_ACCS_ERR;
+    int c_tkn, c_str;
     hndl_eschr_t eh_tkn, eh_str;
     long llen=sp_loc_len(p_loc);
 
 #define __CHK_STREAM() \
-    if (eh_tkn.n_rdc<=(size_t)llen) { if (c_tkn==EOF) goto finish; } else c_tkn=EOF;
+    if (eh_tkn.n_rdc<=(size_t)llen) { if (c_tkn==EOF) goto finish; } \
+    else c_tkn=EOF;
 
-    if (!max_num && !llen) goto finish;
+    if (!max_num && !llen) {
+        ret=SPEC_SUCCESS;
+        if (p_equ) *p_equ=1;
+        goto finish;
+    }
 
-    ret=SPEC_ACCS_ERR;
     if (llen) {
-        if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+        if (fseek(p_phndl->f, p_loc->beg, SEEK_SET)) goto finish;
         init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn, 1);
         c_tkn = esc_reqout_getc(&eh_tkn);
         __CHK_STREAM();
@@ -824,7 +877,7 @@ int sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl, token_t tkn,
         c_tkn=EOF;
 
     if (max_num) {
-        init_hndl_eschr_string(&eh_str, str, max_num, tkn, NL_UNDEF, 0);
+        init_hndl_eschr_string(&eh_str, str, max_num, tkn, EOL_UNDEF, 0);
         if (eh_str.quot_chr) max_num--;
         c_str = esc_reqout_getc(&eh_str);
     } else
@@ -838,7 +891,8 @@ int sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl, token_t tkn,
         c_str = esc_reqout_getc(&eh_str);
     } while (c_tkn!=EOF && c_str!=EOF);
 
-    ret = (c_tkn==c_str ? 0 : -1);
+    ret=SPEC_SUCCESS;
+    if (p_equ) *p_equ=(c_tkn==c_str ? 1 : 0);
 
 finish:
     return ret;
