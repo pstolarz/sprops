@@ -18,7 +18,7 @@
 
 /* sp_iterate() property callback */
 static sp_errc_t cb_prop(
-    void *arg, FILE *f, char *name, const sp_tkn_info_t *p_tkname,
+    void *arg, FILE *in, char *name, const sp_tkn_info_t *p_tkname,
     char *val, const sp_tkn_info_t *p_tkval, const sp_loc_t *p_ldef)
 {
     printf("PROP %s, val-str \"%s\": "
@@ -56,7 +56,7 @@ static sp_errc_t cb_prop(
 }
 
 /* sp_iterate() scope callback */
-static sp_errc_t cb_scope(void *arg, FILE *f, char *type,
+static sp_errc_t cb_scope(void *arg, FILE *in, FILE *out, char *type,
     const sp_tkn_info_t *p_tktype, char *name, const sp_tkn_info_t *p_tkname,
     const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
 {
@@ -153,113 +153,107 @@ static void print_enum_prm(
 
 int main(void)
 {
-    FILE *f = fopen("spget.conf", "rb");
-    /* FILE *f = fopen("spget-1line.conf", "rb"); */
+    int ival;
+    long lval;
+    char buf1[8], buf2[32];
+    sp_errc_t ret=SPEC_SUCCESS;
+    sp_prop_info_ex_t info;
 
-    if (f)
-    {
-        int ival;
-        long lval;
-        char buf[8], buf2[32];
-        sp_errc_t ret;
-        sp_prop_info_ex_t info;
+    sp_enumval_t evals[] =
+        {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
 
-        sp_enumval_t evals[] =
-            {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
+    FILE *in = fopen("spget.conf", "rb");
+    /* FILE *in = fopen("spget-1line.conf", "rb"); */
+    if (!in) goto finish;
 
-        printf("--- Properties read\n");
+    printf("--- Properties read\n");
 
-        EXEC_RG(
-            sp_get_prop(f, NULL, "a", NULL, NULL, buf, sizeof(buf), &info));
-        print_str_prm("a", buf, &info);
+    EXEC_RG(sp_get_prop(in, NULL, "a", NULL, NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("a", buf1, &info);
 
-        /* property name provided as part of path */
-        EXEC_RG(
-            sp_get_prop(f, NULL, NULL, "/b", NULL, buf, sizeof(buf), &info));
-        print_str_prm("b", buf, &info);
+    /* property name provided as part of path */
+    EXEC_RG(sp_get_prop(in, NULL, NULL, "/b", NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("b", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "}'\\\"{", NULL, NULL, buf, sizeof(buf), &info));
-        print_str_prm("}'\\\"{", buf, &info);
+    EXEC_RG(
+        sp_get_prop(in, NULL, "}'\"{", NULL, NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("}'\"{", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, ";\"\\'#", NULL, NULL, buf, sizeof(buf), &info));
-        print_str_prm(";\"\\'#", buf, &info);
+    EXEC_RG(
+        sp_get_prop(in, NULL, ";\"'#", NULL, NULL, buf1, sizeof(buf1), &info));
+    print_str_prm(";\"'#", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "a", "/:'\\x3a \\x2f", NULL, buf, sizeof(buf), &info));
-        print_str_prm("a in untyped scope \"': /\"", buf, &info);
+    EXEC_RG(sp_get_prop(
+        in, NULL, "a", "/:'\\x3a \\x2f", NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("a in untyped scope \"': /\"", buf1, &info);
 
-        /* property name provided as part of path */
-        EXEC_RG(sp_get_prop(
-            f, NULL, NULL, "/1/a", "scope", buf, sizeof(buf), &info));
-        print_str_prm("/scope:1/a", buf, &info);
+    /* property name provided as part of path */
+    EXEC_RG(sp_get_prop(
+        in, NULL, NULL, "/1/a", "scope", buf1, sizeof(buf1), &info));
+    print_str_prm("/scope:1/a", buf1, &info);
 
-        /* truncated to the buf size */
-        EXEC_RG(sp_get_prop(
-            f, NULL, "a", "1/scope:2", "scope", buf, sizeof(buf), &info));
-        print_str_prm("/scope:1/scope:2/a", buf, &info);
+    /* truncated to the buffer size */
+    EXEC_RG(sp_get_prop(
+        in, NULL, "a", "1/scope:2", "scope", buf1, sizeof(buf1), &info));
+    print_str_prm("/scope:1/scope:2/a", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "b", "/1/2", "scope", buf, sizeof(buf), &info));
-        print_str_prm("/scope:1/scope:2/b", buf, &info);
+    EXEC_RG(
+        sp_get_prop(in, NULL, "b", "/1/2", "scope", buf1, sizeof(buf1), &info));
+    print_str_prm("/scope:1/scope:2/b", buf1, &info);
 
-        EXEC_RG(sp_get_prop_int(
-            f, NULL, "a", "1/2/:xxx", "scope", &lval, &info));
-        print_long_prm("/scope:1/scope:2/:xxx/a", lval, &info);
+    EXEC_RG(sp_get_prop_int(in, NULL, "a", "1/2/:xxx", "scope", &lval, &info));
+    print_long_prm("/scope:1/scope:2/:xxx/a", lval, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "a", "1/2/:xxx/d:d", "scope", buf, sizeof(buf), &info));
-        print_str_prm("/scope:1/scope:2/:xxx/d:d/a", buf, &info);
+    EXEC_RG(sp_get_prop(
+        in, NULL, "a", "1/2/:xxx/d:d", "scope", buf1, sizeof(buf1), &info));
+    print_str_prm("/scope:1/scope:2/:xxx/d:d/a", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "a", "/2", "scope", buf, sizeof(buf), &info));
-        print_str_prm("/scope:2/a", buf, &info);
+    EXEC_RG(
+        sp_get_prop(in, NULL, "a", "/2", "scope", buf1, sizeof(buf1), &info));
+    print_str_prm("/scope:2/a", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "b", "/2", "scope", buf, sizeof(buf), &info));
-        print_str_prm("/scope:2/b", buf, &info);
+    EXEC_RG(
+        sp_get_prop(in, NULL, "b", "/2", "scope", buf1, sizeof(buf1), &info));
+    print_str_prm("/scope:2/b", buf1, &info);
 
-        /* truncated to the buf size */
-        EXEC_RG(sp_get_prop(
-            f, NULL, "a", "/:scope", NULL, buf, sizeof(buf), &info));
-        print_str_prm("/:scope/a", buf, &info);
+    /* truncated to the buffer size */
+    EXEC_RG(
+        sp_get_prop(in, NULL, "a", "/:scope", NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("/:scope/a", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "a", "1/2/3", "", buf, sizeof(buf), &info));
-        print_str_prm(":1/:2/:3/a", buf, &info);
+    EXEC_RG(sp_get_prop(in, NULL, "a", "1/2/3", "", buf1, sizeof(buf1), &info));
+    print_str_prm("/:1/:2/:3/a", buf1, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "b", "/1/:2/3", "", buf, sizeof(buf), &info));
-        print_str_prm("/:1/:2/:3/b", buf, &info);
+    EXEC_RG(
+        sp_get_prop(in, NULL, "b", "/1/:2/3", "", buf1, sizeof(buf1), &info));
+    print_str_prm("/:1/:2/:3/b", buf1, &info);
 
-        EXEC_RG(sp_get_prop_enum(f,
-            NULL, "c", "/1/2/3", "", evals, 1, buf, sizeof(buf), &ival, &info));
-        print_enum_prm("/:1/:2/:3/c", ival, &info);
+    EXEC_RG(sp_get_prop_enum(in,
+        NULL, "c", "/1/2/3", "", evals, 1, buf1, sizeof(buf1), &ival, &info));
+    print_enum_prm("/:1/:2/:3/c", ival, &info);
 
-        EXEC_RG(sp_get_prop(
-            f, NULL, "d", ":1/:2/:3", NULL, buf, sizeof(buf), &info));
-        print_str_prm("/:1/:2/:3/d", buf, &info);
+    EXEC_RG(sp_get_prop(
+        in, NULL, "d", ":1/:2/:3", NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("/:1/:2/:3/d", buf1, &info);
 
-        ret = sp_get_prop(
-            f, NULL, "a", "1/2/3/scope:xyz", "", buf, sizeof(buf), &info);
-        assert(ret==SPEC_NOTFOUND);
+    ret = sp_get_prop(
+        in, NULL, "a", "1/2/3/scope:xyz", "", buf1, sizeof(buf1), &info);
+    assert(ret==SPEC_NOTFOUND);
 
-        EXEC_RG(
-            sp_get_prop(f, NULL, "c", NULL, NULL, buf, sizeof(buf), &info));
-        print_str_prm("c", buf, &info);
+    EXEC_RG(sp_get_prop(in, NULL, "c", NULL, NULL, buf1, sizeof(buf1), &info));
+    print_str_prm("c", buf1, &info);
 
-        printf("\n--- Iterating global scope\n");
-        EXEC_RG(sp_iterate(f, NULL, NULL, NULL, cb_prop, cb_scope,
-            NULL, buf, sizeof(buf), buf2, sizeof(buf2)));
+    printf("\n--- Iterating global scope\n");
+    EXEC_RG(sp_iterate(in, NULL, NULL, NULL, cb_prop, cb_scope, NULL, buf1,
+        sizeof(buf1), buf2, sizeof(buf2)));
 
-        printf("\n--- Iterating splitted scope /:1/:2/:3\n");
-        EXEC_RG(sp_iterate(f, NULL, "/1/2/3", "", cb_prop, cb_scope,
-            NULL, buf, sizeof(buf), buf2, sizeof(buf2)));
+    printf("\n--- Iterating splitted scope /:1/:2/:3\n");
+    EXEC_RG(sp_iterate(in, NULL, "/1/2/3", "", cb_prop, cb_scope, NULL, buf1,
+        sizeof(buf1), buf2, sizeof(buf2)));
 
 finish:
-        if (ret) printf("Error: %d\n", ret);
-        fclose(f);
-    }
+    if (ret) printf("Error: %d\n", ret);
+    if (in) fclose(in);
+
     return 0;
 }

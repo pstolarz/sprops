@@ -30,12 +30,14 @@ extern "C" {
 #define SP_CBEC_FLG_FINISH          1
 /* modify property name */
 #define SP_CBEC_FLG_MOD_PROP_NAME   2
-/* modify section type */
-#define SP_CBEC_FLG_MOD_SEC_TYPE    2
+/* modify scope type */
+#define SP_CBEC_FLG_MOD_SCOPE_TYPE  2
 /* modify property value */
 #define SP_CBEC_FLG_MOD_PROP_VAL    4
-/* modify section name */
-#define SP_CBEC_FLG_MOD_SEC_NAME    4
+/* modify scope name */
+#define SP_CBEC_FLG_MOD_SCOPE_NAME  4
+/* remove property/scope definition (don't mix with modify flags) */
+#define SP_CBEC_FLG_DEL_DEF         8
 
 /* Create error code as bit flag; 'c' consists of OR'er SP_CBEC_FLG_XXX flags
  */
@@ -66,6 +68,8 @@ typedef enum _sp_errc_t
     SPEC_SIZE,          /* size exceeding a limit */
     SPEC_VAL_ERR,       /* incorrect value (e.g. number format) */
     SPEC_NONAME,        /* name expected but not provided */
+    SPEC_TMP_CREAT_ERR, /* temporary file creation error */
+    SPEC_CB_RET_ERR,    /* incorrect return provided by a callback */
 
     /* This is the last error in the enumeration, callbacks may
        use this error as a base number to define more failures.
@@ -98,13 +102,13 @@ typedef struct _sp_tkn_info_t
     sp_loc_t loc;
 } sp_tkn_info_t;
 
-/* Check syntax of a properties set read from an input file 'f' (opened in
-   binary mode with read access at least) with a given parsing scope 'p_parsc'.
-   In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col' will be provided with
-   location of the error.
+/* Check syntax of a properties set read from an input file 'in' (must be opened
+   in the binary mode with read access at least) with a given parsing scope
+   'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col' will be
+   provided with location of the error.
  */
 sp_errc_t sp_check_syntax(
-    FILE *f, const sp_loc_t *p_parsc, int *p_line, int *p_col);
+    FILE *in, const sp_loc_t *p_parsc, int *p_line, int *p_col);
 
 /* Macro calculating actual length occupied by a given location */
 #define sp_loc_len(loc) ((!loc) ? 0L : ((loc)->end-(loc)->beg+1))
@@ -113,7 +117,7 @@ sp_errc_t sp_check_syntax(
    (NULL terminated strings under 'name', 'val') with their token specific info
    located under 'p_tkname' and 'p_tkval' (may be NULL for property w/o a value).
    'p_ldef' locates overall property definition. 'arg' is passed untouched as
-   provided in sp_iterate().
+   provided in sp_iterate(). 'in' is the parsed input file handle.
 
    sp_iterate() callback return codes:
        SPEC_CB_FINISH: success; finish parsing
@@ -130,16 +134,23 @@ sp_errc_t sp_check_syntax(
        SPEC_SUCCESS: success; don't modify
        >0 error codes: failure with code as returned; abort parsing
  */
-typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *f, char *name,
+typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, char *name,
     const sp_tkn_info_t *p_tkname, char *val, const sp_tkn_info_t *p_tkval,
     const sp_loc_t *p_ldef);
 
 /* Scope iteration callback provides type and scope name (strings under 'type',
-   'name') of an iterated scope. 'p_lbody' points to scope body content location
-   which may be used to retrieve data from it by sp_iterate(). 'p_tktype' and
-   'p_lbody' may be NULL for untyped scope OR scope w/o a body).
+   'name') of an iterated scope. 'p_lbody' points to the scope body content
+   location which may be used to retrieve data from it by sp_iterate() OR
+   modifications of this scope via sp_iterate_modify(). 'p_tktype' and 'p_lbody'
+   may be NULL for untyped scope OR scope w/o a body).
+
+   'in' is the parsed input file handle, while 'out' - the output file handle
+   which should be used if a callback need to modify the scope body content.
+   'out' is !=NULL only during sp_iterate_modify() iteration and any scope body
+   modifications may be performed only in this context. If scope doesn't have a
+   body any changes written to 'out' are ignored.
  */
-typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *f, char *type,
+typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, FILE *out, char *type,
     const sp_tkn_info_t *p_tktype, char *name, const sp_tkn_info_t *p_tkname,
     const sp_loc_t *p_lbody, const sp_loc_t *p_ldef);
 
@@ -162,16 +173,16 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *f, char *type,
    is escaping colon (: as \x3a) and slash (/ as \x2f) in the 'path' string
    to avoid ambiguity with the path specific characters.
 
-   'f' and 'p_parsc' provide input file (opened in binary mode with read access
-   at least) to parse with a given parsing scope. The parsing scope shall be used
-   only inside a scope callback handler to retrieve inner scope content, in all
-   other cases 'p_parsc' must be NULL.
+   'in' and 'p_parsc' provide input file (must be opened in the binary mode with
+   read access at least) to parse with a given parsing scope. The parsing scope
+   shall be used only inside a scope callback handler to retrieve inner scope
+   content, in all other cases 'p_parsc' must be NULL.
 
    'cb_prop' and 'cb_scope' specify property and scope callbacks. The callbacks
    are provided with strings (property name/vale, scope type/name) written under
    buffers 'buf1' (of 'b1len') and 'buf2' (of 'b2len').
  */
-sp_errc_t sp_iterate(FILE *f, const sp_loc_t *p_parsc, const char *path,
+sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
     void *arg, char *p_buf1, size_t b1len, char *p_buf2, size_t b2len);
 
@@ -198,10 +209,10 @@ typedef struct _sp_prop_info_ex_t
    specification (last part of path after '/' char). In this case property
    name must not contain '/' or ':' characters which are not escaped by \xYY
    sequence.
-   NOTE 3: 'f' input file must be opened in binary mode with read access at
+   NOTE 3: 'in' input file must be opened in the binary mode with read access at
    least.
  */
-sp_errc_t sp_get_prop(FILE *f, const sp_loc_t *p_parsc, const char *name,
+sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, char *p_val, size_t len,
     sp_prop_info_ex_t *p_info);
 
@@ -211,7 +222,7 @@ sp_errc_t sp_get_prop(FILE *f, const sp_loc_t *p_parsc, const char *name,
    NOTE: This method is a simple wrapper around sp_get_prop() to treat property's
    value as integer.
  */
-sp_errc_t sp_get_prop_int(FILE *f, const sp_loc_t *p_parsc, const char *name,
+sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, long *p_val, sp_prop_info_ex_t *p_info);
 
 typedef struct _sp_enumval_t
@@ -237,9 +248,25 @@ typedef struct _sp_enumval_t
    value as enum.
  */
 sp_errc_t sp_get_prop_enum(
-    FILE *f, const sp_loc_t *p_parsc, const char *name, const char *path,
+    FILE *in, const sp_loc_t *p_parsc, const char *name, const char *path,
     const char *defsc, const sp_enumval_t *p_evals, int igncase, char *p_buf,
     size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
+
+/* Iteration with modification. Meaning of this function is similar to
+   sp_iterate() with except the callbacks function may request iterated
+   properties/scopes update by modification of passed callback function arguments
+   and indicating the change by returning proper return code. 'out' is a handle
+   to an output file handle where the modified configuration will be written.
+
+   NOTE: Contrary to 'in' which is a random access stream for every API of the
+   library (therefore must not be 'stdin'), 'out' is written incrementally by
+   the function w/o changing stream's position indicator (fseek() call) during
+   the writing process. This enables 'stdout' to be used as 'out'.
+ */
+sp_errc_t sp_iterate_modify(
+    FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *path,
+    const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
+    void *arg, char *p_buf1, size_t b1len, char *p_buf2, size_t b2len);
 
 #ifdef __cplusplus
 }

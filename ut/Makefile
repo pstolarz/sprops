@@ -3,12 +3,14 @@ CFLAGS=-Wall -I../inc
 
 .PHONY: all clean
 
-all: spget
+TESTS=spget spset_mit
+
+all: $(TESTS)
 
 clean:
-	rm -f spget
+	rm -f $(TESTS)
 
-spget: spget.c ../libsprops.a
+%: %.c ../libsprops.a
 	$(CC) $(CFLAGS) $^ -o $@
 
 ../libsprops.a:

@@ -6,11 +6,14 @@ files built of properties (key/value pairs) which may reside inside "scopes",
 that is blocks of configuration with assigned name and an optional type. Scopes
 may constitute hierarchical nesting tree of an arbitrary depth.
 
-The library provides small but flexible set of API for accessing properties in
-a configuration file. There is possible to access a property located inside a
-specific scope when its location (path) is known OR to discover a configuration
-file structure by iterating over properties/scopes located on the same level of
-depth.
+The library API consists of small but powerful set of C functions for accessing
+properties in a configuration file. There is possible to access a property
+located inside a specific scope when its location (path) is known OR to discover
+a configuration file structure by iterating over properties/scopes located on
+the same level of depth.
+
+Full support for UNIX (LF), Windows (CR/LF) and Legacy Mac (CR) end-of-line
+markers.
 
 The library is inspired by:
  - Microsoft INI files API: GetPrivateProfileXXX() family of functions with
@@ -28,7 +31,7 @@ The same is true with a good example:
     # The 2 properties below are located on the depth level 0 (global scope)
     prop1 = value
 
-    # Apostrophes required in the property name to avoid parsing problem.
+    # Quotation marks required in the property name to avoid parsing problem.
     # A property value finishes at the end of a line or at a semicolon (unless
     # NO_SEMICOL_ENDS_VAL had been defined during library compilation).
     "property 2" = some other value;
@@ -41,7 +44,7 @@ The same is true with a good example:
         # 2 properties w/o their values (defined in the same line)
         a; b=;
 
-        # Scope w/o a type. If no apostrophes had been used, the scope name
+        # Scope w/o a type. If no quotation marks had been used, the scope name
         # would be "name" with type "scope".
         "scope name"
         {
@@ -57,16 +60,16 @@ The same is true with a good example:
         }
 
         # Property names may contain arbitrary characters. Escaped characters
-        # may be used. In this example apostrophes are required since '{', '}'
-        # are parser's reserved tokens (marking start/end of a scope).
+        # may be used. In this example quotation marks are required since '{',
+        # '}' are parser's reserved tokens (marking start/end of a scope).
         "{\tprop name w/o a value\t}";
 
         # Scope "scope name" continuation (with empty body).
         "scope name" {}
     }
 
-In this example there have been defined several properties (in the global scope)
-and inside 2 scopes. The library provides file-path-based method of addressing
+In this example there have been defined several properties (in the global scope
+and 2 nested scopes). The library provides file-path-based method of addressing
 properties. Here:
 
     prop1 OR /prop1 -> "prop1" property path
@@ -119,16 +122,15 @@ Unit tests are contained in ut/ directory.
 Notes
 -----
 
- - Fully support (and auto detect) for UNIX (LF), Windows (CR/LF) and Legacy Mac
-   (CR) end-of-line markers.
  - The library uses standard C library interface and shall be ported with a
    little effort for any conforming platforms.
  - Memory allocation is performed ONLY by the generated grammar parser code for
    reducing read grammar rules. The bison parser allows a flexible way for
    configuring such allocations (e.g. via stack alloc() or heap malloc())
-   which may be useful for porting on some constrained embedded platforms.
+   which may be useful for porting to some constrained embedded platforms.
    See the bison parser generator documentation for more details.
- - The API is fully re-entrant. No global variables are used during parsing.
+ - The API is fully re-entrant. No global variables are used during the parsing
+   process.
  - The library is thread safe in terms of all library objects except passed
    input file-objects (that is file handles for get-access and physical files
    for set-access). Since there is no effective way to ensure such file-objects
