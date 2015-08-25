@@ -730,7 +730,6 @@ static sp_errc_t mod_iter_cb_scope(
     const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-
     long sc_out_len=0;
     int cb_bf=0, is_mod, is_del;
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;

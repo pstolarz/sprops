@@ -86,13 +86,13 @@ int main(void)
     FILE *in = fopen("spset_mit.conf", "rb");
     if (!in) goto finish;
 
-    printf("--- global scope\n");
+    printf("------------------------------------------------- global scope\n");
     EXEC_RG(sp_iterate_modify(in, stdout, NULL, NULL, NULL, cb_prop, cb_scope,
         NULL, buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
-    printf("\n--- inner scope\n");
-    EXEC_RG(sp_iterate_modify(in, stdout, NULL, "scope", "", cb_prop, cb_scope,
-        NULL, buf1, sizeof(buf1), buf2, sizeof(buf2)));
+    printf("\n------------------------------------------------- inner scope\n");
+    EXEC_RG(sp_iterate_modify(in, stdout, NULL, "1/2", "scope", cb_prop,
+        cb_scope, NULL, buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
 finish:
     if (ret) printf("Error: %d\n", ret);

@@ -97,8 +97,7 @@ NOTE: Basically, the API treats properties values as strings built of arbitrary
 characters which are not interpreted: sp_get_prop(). Moreover, there have been
 provided 2 simple functions (referencing sp_get_prop()) to interpret strings as
 integers and enumerations, namely: sp_get_prop_int(), sp_get_prop_enum(). Tables
-and lists may be easily emulated by dedicated scopes and iterations over their
-content.
+and lists may be easily emulated by iterating over dedicated scopes content.
 
 Refer to the mentioned header files for complete API specification and the unit
 tests located in ut/ directory for an usage example.
