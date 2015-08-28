@@ -1799,22 +1799,7 @@ static int lex_getc(sp_parser_hndl_t *p_hndl)
             case EOL_CR:
                 if (c=='\r') c=EOL;
                 break;
-
-            /* 1st occurrence of EOL */
-            default:
-                if (c=='\n') {
-                    p_hndl->lex.eol_typ = EOL_LF;
-                } else {
-                    if ((c=unc_getc(&p_hndl->lex.unc, fgetc(p_hndl->in)))=='\n')
-                    {
-                        p_hndl->lex.off++;
-                        p_hndl->lex.eol_typ = EOL_CRLF;
-                    } else {
-                        unc_ungetc(&p_hndl->lex.unc, c);
-                        p_hndl->lex.eol_typ = EOL_CR;
-                    }
-                }
-                c = EOL;
+            default:    /* will never happen */
                 break;
             }
         }
@@ -2072,16 +2057,34 @@ sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
     sp_parser_cb_scope_t cb_scope, void *cb_arg)
 {
-    sp_errc_t ret=SPEC_SUCCESS;
+    int c;
+    sp_errc_t ret;
     sp_loc_t globsc = {0, -1L, 1, 1, -1, -1};
     if (!p_parsc) p_parsc=&globsc;
 
     if (!p_hndl || !in) { ret=SPEC_INV_ARG; goto finish; }
-    if (fseek(in, p_parsc->beg, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
+
+    ret=SPEC_ACCS_ERR;
+
+    /* detect EOL */
+    p_hndl->lex.eol_typ = EOL_UNDEF;
+    if (fseek(in, 0, SEEK_SET)) goto finish;
+    while ((c=fgetc(in))!=EOF) {
+        if (c=='\n') {
+            p_hndl->lex.eol_typ=EOL_LF;
+            break;
+        } else
+        if (c=='\r') {
+            p_hndl->lex.eol_typ=EOL_CR;
+            if (fgetc(in)=='\n') p_hndl->lex.eol_typ=EOL_CRLF;
+            break;
+        }
+    }
+
+    if (fseek(in, p_parsc->beg, SEEK_SET)) goto finish;
 
     p_hndl->in = in;
 
-    p_hndl->lex.eol_typ = EOL_UNDEF;
     p_hndl->lex.line = p_parsc->first_line;
     p_hndl->lex.col = p_parsc->first_column;
     p_hndl->lex.off = p_parsc->beg;
@@ -2097,6 +2100,8 @@ sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     p_hndl->err.code = SPEC_SUCCESS;
     p_hndl->err.loc.line = 0;
     p_hndl->err.loc.col = 0;
+
+    ret=SPEC_SUCCESS;
 
 finish:
     return ret;

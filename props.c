@@ -65,8 +65,17 @@ typedef struct _mod_iter_hndl_t
        modifications */
     FILE *sc_out;
 
+    /* type of EOL detected on the input */
+    eol_t eol_typ;
+
     /* file offset staring not processed range of the input file; -1: EOF */
     long in_off;
+
+    /* range of consecutive locations to delete (zeroed - not set) */
+    struct _delrng_t {
+        sp_loc_t loc;
+        int eol_ended;
+    } delrng;
 } mod_iter_hndl_t;
 
 /* iteration handle - base struct
@@ -503,14 +512,6 @@ finish:
     return ret;
 }
 
-#define __CHK_MOD_ITER_RET(mb, nb) \
-    if ((int)ret>0 || p_ihndl->path.beg<p_ihndl->path.end) goto finish; \
-    cb_bf = sp_cb_errc((int)ret); \
-    is_mod = cb_bf & (mb); \
-    is_del = cb_bf & SP_CBEC_FLG_DEL_DEF; \
-    if ((is_mod && is_del) || ((cb_bf & (nb)) && !strlen(name))) \
-    { ret=SPEC_CB_RET_ERR; goto finish; }
-
 #define __CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
 #define __CHK_FERR(c) if ((c)<0) { ret=SPEC_ACCS_ERR; goto finish; }
 
@@ -523,7 +524,9 @@ static sp_errc_t cpy_to_out(iter_hndl_t *p_ihndl, long end)
     sp_errc_t ret=SPEC_ACCS_ERR;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
     long beg = p_mihndl->in_off;
+
     FILE *in = p_ihndl->in;
+    FILE *out = p_mihndl->out;
 
     if (beg==EOF) goto finish;
 
@@ -533,7 +536,7 @@ static sp_errc_t cpy_to_out(iter_hndl_t *p_ihndl, long end)
         for (; beg<end || end==EOF; beg++) {
             int c = fgetc(in);
             if (c==EOF && end==EOF) break;
-            if (c==EOF || fputc(c, p_mihndl->out)==EOF) goto finish;
+            if (c==EOF || fputc(c, out)==EOF) goto finish;
         }
         p_mihndl->in_off = end;
     }
@@ -548,20 +551,21 @@ finish:
    on 'del_eol'). The function returns !=0 if trimmed spaces constitute a line
    (finished by EOL), 0 otherwise.
  */
-static int trim_line(iter_hndl_t *p_ihndl, eol_t eol_typ, int del_eol)
+static int trim_line(iter_hndl_t *p_ihndl, int del_eol)
 {
     int c, endc=2;  /* 0:non-space, 1:EOL, 2:EOF */
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+
     FILE *in = p_ihndl->in;
 
-    if (p_mihndl->in_off==EOF || fseek(in, p_mihndl->in_off, SEEK_SET))
-        goto finish;
+    if (p_mihndl->in_off==EOF ||
+        fseek(in, p_mihndl->in_off, SEEK_SET)) goto finish;
 
     for (endc=0; !endc && isspace(c=fgetc(in)); p_mihndl->in_off++)
     {
         if (c!='\r' && c!='\n') continue;
 
-        switch (eol_typ)
+        switch (p_mihndl->eol_typ)
         {
         case EOL_LF:
             if (c=='\n') endc=1;
@@ -570,7 +574,7 @@ static int trim_line(iter_hndl_t *p_ihndl, eol_t eol_typ, int del_eol)
         case EOL_CR:
         case EOL_CRLF:
             if (c=='\r') {
-                if (eol_typ==EOL_CR) endc=1;
+                if (p_mihndl->eol_typ==EOL_CR) endc=1;
                 else {
                     c = fgetc(in);
                     if (c!=EOF) {
@@ -581,52 +585,98 @@ static int trim_line(iter_hndl_t *p_ihndl, eol_t eol_typ, int del_eol)
             }
             break;
 
-        /* to make a compiler happy; will never happen */
-        default: break;
+        default:    /* will never happen */
+            goto break_loop;
         }
     }
+break_loop:
 
     if (endc==1 && !del_eol)
-        p_mihndl->in_off -= (eol_typ==EOL_CRLF ? 2 : 1);
+        p_mihndl->in_off -= (p_mihndl->eol_typ==EOL_CRLF ? 2 : 1);
 finish:
     return (endc==1);
 }
 
-/* Delete a definition */
-static sp_errc_t
-    del_loc(iter_hndl_t *p_ihndl, const sp_loc_t *p_loc, eol_t eol_typ)
+/* Delete concatenated range of locations scheduled to be removed */
+static sp_errc_t del_rng(iter_hndl_t *p_ihndl)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    long org_off, end_off, del_beg=p_loc->beg;
-    int is_line;
 
-    /* detect end offset of definition being deleted */
-    org_off = p_ihndl->p_mihndl->in_off;
-    p_ihndl->p_mihndl->in_off = p_loc->end+1;
-    is_line = trim_line(p_ihndl, eol_typ, 0);
-    end_off = p_ihndl->p_mihndl->in_off;
-    p_ihndl->p_mihndl->in_off = org_off;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    struct _delrng_t *p_delrng = &p_mihndl->delrng;
 
-    if (is_line) {
+    long beg=p_delrng->loc.beg, end=p_delrng->loc.end+1;
+    FILE *in = p_ihndl->in;
+
+    if (!p_delrng->loc.first_column) goto finish;
+
+    if (p_delrng->eol_ended) {
         /* remove leading spaces */
-        int n_lcol=p_loc->first_column-1, n_lsp=n_lcol, i;
+        int n_lcol=p_delrng->loc.first_column-1, n_lsp=n_lcol, i;
 
-        if (n_lcol && !fseek(p_ihndl->in, p_loc->beg-n_lcol, SEEK_SET)) {
+        if (n_lcol && !fseek(in, p_delrng->loc.beg-n_lcol, SEEK_SET)) {
             for (i=n_lcol; i; i--)
-                if (!isspace(fgetc(p_ihndl->in))) n_lsp=i-1;
-            del_beg -= n_lsp;
+                if (!isspace(fgetc(in))) n_lsp=i-1;
+            beg -= n_lsp;
         }
         if (n_lsp==n_lcol)
             /* remove empty line */
-            end_off += (eol_typ==EOL_CRLF ? 2 : 1);
+            end += (p_mihndl->eol_typ==EOL_CRLF ? 2 : 1);
     }
 
-    EXEC_RG(cpy_to_out(p_ihndl, del_beg));
-    p_ihndl->p_mihndl->in_off = end_off;
+    EXEC_RG(cpy_to_out(p_ihndl, beg));
+    p_mihndl->in_off = end;
+
+    /* mark as removed */
+    memset(p_delrng, 0, sizeof(*p_delrng));
 
 finish:
     return ret;
 }
+
+/* Add a location to concatenated range of locations scheduled to be removed */
+static sp_errc_t add_to_delrng(iter_hndl_t *p_ihndl, const sp_loc_t *p_loc)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    long org_off, end_off;
+    int eol_ended;
+
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    struct _delrng_t *p_delrng = &p_mihndl->delrng;
+
+    /* detect end offset of location being deleted */
+    org_off = p_mihndl->in_off;
+    p_mihndl->in_off = p_loc->end+1;
+    eol_ended = trim_line(p_ihndl, 0);
+    end_off = p_mihndl->in_off;
+    p_mihndl->in_off = org_off;
+
+    /* detect range continuation */
+    if (p_delrng->loc.first_column && p_delrng->loc.end+1==p_loc->beg) {
+        p_delrng->loc.last_line = p_loc->last_line;
+        p_delrng->loc.last_column = p_loc->last_column+end_off-org_off-1;
+        p_delrng->loc.end = end_off-1;
+        p_delrng->eol_ended = eol_ended;
+    } else {
+        if (p_delrng->loc.first_column) { EXEC_RG(del_rng(p_ihndl)); }
+        memcpy(&p_delrng->loc, p_loc, sizeof(*p_loc));
+        p_delrng->loc.last_column += end_off-org_off-1;
+        p_delrng->loc.end = end_off-1;
+        p_delrng->eol_ended = eol_ended;
+    }
+
+finish:
+    return ret;
+}
+
+#define __CHK_MOD_ITER_RET(mb, nb) \
+    if ((int)ret>0 || p_ihndl->path.beg<p_ihndl->path.end) goto finish; \
+    cb_bf = sp_cb_errc((int)ret); \
+    is_mod = cb_bf & (mb); \
+    is_del = cb_bf & SP_CBEC_FLG_DEL_DEF; \
+    if ((is_mod && is_del) || ((cb_bf & (nb)) && !strlen(name))) \
+    { ret=SPEC_CB_RET_ERR; goto finish; } \
+    if (!is_del) EXEC_RG(del_rng(p_ihndl));
 
 /* sp_iterate_modify() callback: property */
 static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
@@ -634,13 +684,13 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
 {
     sp_errc_t ret=SPEC_SUCCESS;
     int cb_bf=0, is_mod, is_del;
+
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
-    eol_t eol_typ = p_phndl->lex.eol_typ;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
 
     char *name = p_ihndl->buf1.ptr;
     char *val = p_ihndl->buf2.ptr;
 
-    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
     FILE *out = p_mihndl->out;
 
     /* follow destination path and call property callback */
@@ -653,7 +703,7 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
         goto finish;
 
     if (is_del) {
-        EXEC_RG(del_loc(p_ihndl, p_ldef, eol_typ));
+        EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
     } else
     {
         /* property name
@@ -699,7 +749,7 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
                     __CHK_FERR(fputc(';', out));
 #else
                     /* write EOL */
-                    switch (eol_typ)
+                    switch (p_mihndl->eol_typ)
                     {
                     default:
                     case EOL_LF:
@@ -712,7 +762,7 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
                         __CHK_FERR(fputc('\r', out)|fputc('\n', out));
                         break;
                     }
-                    trim_line(p_ihndl, eol_typ, 1);
+                    trim_line(p_ihndl, 1);
 #endif
                 }
             }
@@ -732,19 +782,32 @@ static sp_errc_t mod_iter_cb_scope(
     sp_errc_t ret=SPEC_SUCCESS;
     long sc_out_len=0;
     int cb_bf=0, is_mod, is_del;
+    sp_loc_t ext_body;
+
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
-    eol_t eol_typ = p_phndl->lex.eol_typ;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
 
     char *type = p_ihndl->buf1.ptr;
     char *name = p_ihndl->buf2.ptr;
 
-    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
     FILE *in = p_ihndl->in;
     FILE *out = p_mihndl->out;
     FILE *sc_out = p_mihndl->sc_out;
 
     if (sc_out && p_lbody) {
         __CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
+
+        if (p_ihndl->path.beg >= p_ihndl->path.end) {
+            /* HACK: extend body range up to the definition end - better
+               text formatting results are obtained in callback's modified
+               scope body for that range */
+            ext_body = *p_lbody;
+            ext_body.end = p_ldef->end-1;
+            ext_body.last_line = p_ldef->last_line;
+            ext_body.last_column = p_ldef->last_column;
+            if (ext_body.last_column > 1) ext_body.last_column--;
+            p_lbody = &ext_body;
+        }
     }
 
     /* follow destination path and call scope callback */
@@ -761,7 +824,7 @@ static sp_errc_t mod_iter_cb_scope(
         goto finish;
 
     if (is_del) {
-        EXEC_RG(del_loc(p_ihndl, p_ldef, eol_typ));
+        EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
     } else
     {
         int c, type_del=0;
@@ -773,7 +836,8 @@ static sp_errc_t mod_iter_cb_scope(
             if (!strlen(type)) {
                 if (p_ltype) {
                     /* delete a type */
-                    EXEC_RG(del_loc(p_ihndl, p_ltype, eol_typ));
+                    EXEC_RG(add_to_delrng(p_ihndl, p_ltype));
+                    EXEC_RG(del_rng(p_ihndl));
                     type_del++;
                 }
             } else {
@@ -837,9 +901,9 @@ finish:
     return ret;
 }
 
+#undef __CHK_MOD_ITER_RET
 #undef __CHK_FERR
 #undef __CHK_FSEEK
-#undef __CHK_MOD_ITER_RET
 
 /* exported; see header for details */
 sp_errc_t sp_iterate_modify(
@@ -868,18 +932,22 @@ sp_errc_t sp_iterate_modify(
         }
     }
 
+    memset(&mihndl, 0, sizeof(mihndl));
     mihndl.out = out;
     mihndl.sc_out = sc_out;
-    mihndl.in_off = 0;
 
     init_iter_hndl(&ihndl, in, path, defsc, cb_prop, cb_scope,
         arg, p_buf1, b1len, p_buf2, b2len, &mihndl);
 
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, mod_iter_cb_prop, mod_iter_cb_scope, &ihndl));
+    mihndl.eol_typ = phndl.lex.eol_typ;
+
     EXEC_RG(sp_parse(&phndl));
 
-    /* copy untouched last part of the input */
+    /* remove last range of locations to delete */
+    EXEC_RG(del_rng(&ihndl));
+    /* ... and copy untouched last part of the input */
     EXEC_RG(cpy_to_out(&ihndl, (p_parsc ? p_parsc->end+1 : EOF)));
 
 finish:
