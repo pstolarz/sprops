@@ -19,6 +19,15 @@
 #include "sp_props/parser.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
+#define CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
+#define CHK_FERR(c) if ((c)<0) { ret=SPEC_ACCS_ERR; goto finish; }
+
+#define FPUT_EOL(eol, out) \
+    switch (eol) { \
+    default: case EOL_LF: CHK_FERR(fputc('\n', (out))); break; \
+    case EOL_CR: CHK_FERR(fputc('\r', (out))); break; \
+    case EOL_CRLF: CHK_FERR(fputc('\r', (out))|fputc('\n', (out))); break; \
+    }
 
 /* to be used inside callbacks only */
 #define CMPLOC_RG(ph, tkn, loc, str, len) { \
@@ -76,6 +85,9 @@ typedef struct _mod_iter_hndl_t
         sp_loc_t loc;
         int eol_ended;
     } delrng;
+
+    /* currently enclosing scope (NULL: global scope) */
+    const sp_loc_t *p_encsc;
 } mod_iter_hndl_t;
 
 /* iteration handle - base struct
@@ -92,7 +104,7 @@ typedef struct _iter_hndl_t
     FILE *in;
 
     /* path to the destination scope
-       NOTE: mutable object not propagated between scopes. */
+       NOTE: mutable object not propagated between scopes */
     path_t path;
 
     struct {
@@ -179,7 +191,7 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
 
     /* ignore props until the destination scope */
-    if (p_ihndl->path.beg>=p_ihndl->path.end && p_ihndl->cb.prop)
+    if ((p_ihndl->path.beg >= p_ihndl->path.end) && p_ihndl->cb.prop)
     {
         sp_tkn_info_t tkname, tkval;
 
@@ -300,7 +312,7 @@ finish:
 typedef struct _getprp_hndl_t
 {
     /* path to the destination scope
-       NOTE: mutable object not propagated between scopes. */
+       NOTE: mutable object not propagated between scopes */
     path_t path;
 
     /* property name */
@@ -418,7 +430,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     /* line & columns are 1-based, if 0, the location of the property
         definition has not been set, therefore has not been found */
-    if (!info.ldef.first_line) ret=SPEC_NOTFOUND;
+    if (!info.ldef.first_column) ret=SPEC_NOTFOUND;
 
 finish:
     if (p_info) *p_info=info;
@@ -512,12 +524,10 @@ finish:
     return ret;
 }
 
-#define __CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
-#define __CHK_FERR(c) if ((c)<0) { ret=SPEC_ACCS_ERR; goto finish; }
-
 /* Copies input file bytes (from the last input offset) to the output file up to
    'end' offset (exclusive). If end==EOF input is copied up to the end of the
-   file.
+   file. In case of success (and there is something to copy) the file offset is
+   set at 'end'.
  */
 static sp_errc_t cpy_to_out(iter_hndl_t *p_ihndl, long end)
 {
@@ -532,7 +542,7 @@ static sp_errc_t cpy_to_out(iter_hndl_t *p_ihndl, long end)
 
     if (beg<end || end==EOF)
     {
-        __CHK_FSEEK(fseek(in, beg, SEEK_SET));
+        CHK_FSEEK(fseek(in, beg, SEEK_SET));
         for (; beg<end || end==EOF; beg++) {
             int c = fgetc(in);
             if (c==EOF && end==EOF) break;
@@ -612,14 +622,14 @@ static sp_errc_t del_rng(iter_hndl_t *p_ihndl)
 
     if (p_delrng->eol_ended) {
         /* remove leading spaces */
-        int n_lcol=p_delrng->loc.first_column-1, n_lsp=n_lcol, i;
+        int n_col=p_delrng->loc.first_column-1, n_sp=n_col, i;
 
-        if (n_lcol && !fseek(in, p_delrng->loc.beg-n_lcol, SEEK_SET)) {
-            for (i=n_lcol; i; i--)
-                if (!isspace(fgetc(in))) n_lsp=i-1;
-            beg -= n_lsp;
+        if (n_col>0 && !fseek(in, p_delrng->loc.beg-n_col, SEEK_SET)) {
+            for (i=n_col; i>0; i--)
+                if (!isspace(fgetc(in))) n_sp=i-1;
+            beg -= n_sp;
         }
-        if (n_lsp==n_lcol)
+        if (n_sp==n_col)
             /* remove empty line */
             end += (p_mihndl->eol_typ==EOL_CRLF ? 2 : 1);
     }
@@ -723,7 +733,7 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
                 {
                     /* delete a value */
                     EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
-                    __CHK_FERR(fputc(';', out));
+                    CHK_FERR(fputc(';', out));
                     p_mihndl->in_off = p_ldef->end+1;
                 }
             } else {
@@ -738,31 +748,39 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
                     /* add a value */
                     EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
 #ifdef CUT_VAL_LEADING_SPACES
-                    __CHK_FERR(fputc(' ', out)|fputc('=', out)|fputc(' ', out));
+                    CHK_FERR(fputc(' ', out)|fputc('=', out)|fputc(' ', out));
 #else
-                    __CHK_FERR(fputc('=', out));
+                    CHK_FERR(fputc('=', out));
 #endif
                     EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_VAL, val));
                     p_mihndl->in_off = p_ldef->end+1;
 
 #ifndef NO_SEMICOL_ENDS_VAL
-                    __CHK_FERR(fputc(';', out));
+                    CHK_FERR(fputc(';', out));
 #else
-                    /* write EOL */
-                    switch (p_mihndl->eol_typ)
+                    /* added value need to be finished by EOL */
+                    FPUT_EOL(p_mihndl->eol_typ, out);
+                    if (!trim_line(p_ihndl, 1))
                     {
-                    default:
-                    case EOL_LF:
-                        __CHK_FERR(fputc('\n', out));
-                        break;
-                    case EOL_CR:
-                        __CHK_FERR(fputc('\r', out));
-                        break;
-                    case EOL_CRLF:
-                        __CHK_FERR(fputc('\r', out)|fputc('\n', out));
-                        break;
+                        int c, n_col;
+                        FILE *in = p_ihndl->in;
+                        const sp_loc_t *p_encsc = p_mihndl->p_encsc;
+
+                        if (!p_encsc || p_encsc->first_line!=p_ldef->first_line)
+                        {
+                            /* preserve indentation */
+                            n_col = p_ldef->first_column-1;
+                            if (n_col>0 && !fseek(in, p_ldef->beg-n_col, SEEK_SET))
+                                while (isspace(c=fgetc(in))) fputc(c, out);
+                        } else
+                        {
+                            /* indent at the enclosing scope body start */
+                            n_col = p_encsc->first_column-1;
+                            if (n_col>0 && !fseek(in, p_encsc->beg-n_col, SEEK_SET))
+                                for (; (c=fgetc(in))!=EOF && n_col>0; n_col--)
+                                    fputc((isspace(c) ? c : ' '), out);
+                        }
                     }
-                    trim_line(p_ihndl, 1);
 #endif
                 }
             }
@@ -795,7 +813,7 @@ static sp_errc_t mod_iter_cb_scope(
     FILE *sc_out = p_mihndl->sc_out;
 
     if (sc_out && p_lbody) {
-        __CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
+        CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
 
         if (p_ihndl->path.beg >= p_ihndl->path.end) {
             /* HACK: extend body range up to the definition end - better
@@ -810,13 +828,15 @@ static sp_errc_t mod_iter_cb_scope(
         }
     }
 
+    if (p_ihndl->path.beg < p_ihndl->path.end) p_mihndl->p_encsc=p_lbody;
+
     /* follow destination path and call scope callback */
     ret = iter_cb_scope(p_phndl, p_ltype, p_lname, p_lbody, p_ldef);
     __CHK_MOD_ITER_RET(SP_CBEC_FLG_MOD_SCOPE_TYPE|SP_CBEC_FLG_MOD_SCOPE_NAME,
         SP_CBEC_FLG_MOD_SCOPE_NAME);
 
     if (sc_out && p_lbody && !is_del) {
-        __CHK_FERR(sc_out_len=ftell(sc_out));
+        CHK_FERR(sc_out_len=ftell(sc_out));
     }
 
     if (!sc_out_len && (!cb_bf || cb_bf==SP_CBEC_FLG_FINISH))
@@ -850,7 +870,7 @@ static sp_errc_t mod_iter_cb_scope(
                     /* add a type */
                     EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
                     EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, type));
-                    __CHK_FERR(fputc(' ', out));
+                    CHK_FERR(fputc(' ', out));
                     p_mihndl->in_off = p_lname->beg;
                 }
             }
@@ -873,10 +893,10 @@ static sp_errc_t mod_iter_cb_scope(
 
             EXEC_RG(cpy_to_out(p_ihndl, off));
 
-            __CHK_FSEEK(fseek(sc_out, off, SEEK_SET));
+            CHK_FSEEK(fseek(sc_out, off, SEEK_SET));
             for (; off<sc_out_len; off++) {
-                __CHK_FERR(c=fgetc(sc_out));
-                __CHK_FERR(fputc(c, out));
+                CHK_FERR(c=fgetc(sc_out));
+                CHK_FERR(fputc(c, out));
             }
             p_mihndl->in_off = p_lbody->end+1;
         } else
@@ -886,11 +906,11 @@ static sp_errc_t mod_iter_cb_scope(
                version of definition to avoid ambiguity */
             EXEC_RG(cpy_to_out(p_ihndl, p_ldef->end));
 
-            __CHK_FERR(c=fgetc(in));
+            CHK_FERR(c=fgetc(in));
             if (c==';') {
-                __CHK_FERR(fputc('{', out)|fputc('}', out));
+                CHK_FERR(fputc('{', out)|fputc('}', out));
             } else {
-                __CHK_FERR(fputc(c, out));
+                CHK_FERR(fputc(c, out));
             }
             p_mihndl->in_off = p_ldef->end+1;
         }
@@ -902,8 +922,6 @@ finish:
 }
 
 #undef __CHK_MOD_ITER_RET
-#undef __CHK_FERR
-#undef __CHK_FSEEK
 
 /* exported; see header for details */
 sp_errc_t sp_iterate_modify(
@@ -935,6 +953,7 @@ sp_errc_t sp_iterate_modify(
     memset(&mihndl, 0, sizeof(mihndl));
     mihndl.out = out;
     mihndl.sc_out = sc_out;
+    mihndl.p_encsc = p_parsc;
 
     init_iter_hndl(&ihndl, in, path, defsc, cb_prop, cb_scope,
         arg, p_buf1, b1len, p_buf2, b2len, &mihndl);

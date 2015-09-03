@@ -28,8 +28,8 @@ typedef enum _sp_parser_token_t
 struct _sp_parser_hndl_t;
 
 /* Property callback provides location of property name ('p_lname'), value
-   ('p_lval'; may be NULL for property w/o value) and overall definition of the
-   property (p_ldef).
+   ('p_lval'; may be NULL for property w/o a value) and overall definition of
+   the property (p_ldef).
 
    Callback return codes:
    SPEC_CB_FINISH: success; finish further parsing
@@ -40,8 +40,8 @@ typedef sp_errc_t (*sp_parser_cb_prop_t)(const struct _sp_parser_hndl_t *p_hndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef);
 
 /* Scope callback provides location of scope's type ('p_ltype'; may be NULL
-   for scope w/o type), name ('p_lname'), body ('p_lbody'; may be NULL for scope
-   w/o a body) and overall definition of the scope ('p_ldef').
+   for scope w/o a type), name ('p_lname'), body ('p_lbody'; may be NULL for
+   scope w/o a body) and overall definition of the scope ('p_ldef').
  */
 typedef sp_errc_t (*sp_parser_cb_scope_t)(const struct _sp_parser_hndl_t *p_hndl,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,

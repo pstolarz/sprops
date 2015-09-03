@@ -175,8 +175,8 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, FILE *out, char *type,
 
    'in' and 'p_parsc' provide input file (must be opened in the binary mode with
    read access at least) to parse with a given parsing scope. The parsing scope
-   shall be used only inside a scope callback handler to retrieve inner scope
-   content, in all other cases 'p_parsc' must be NULL.
+   may be used only inside a scope callback handler to retrieve inner scope body
+   content.
 
    'cb_prop' and 'cb_scope' specify property and scope callbacks. The callbacks
    are provided with strings (property name/vale, scope type/name) written under
@@ -253,15 +253,15 @@ sp_errc_t sp_get_prop_enum(
     size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
 
 /* Iteration with modification. Meaning of this function is similar to
-   sp_iterate() with except the callbacks function may request iterated
+   sp_iterate() with except the callback function may request iterated
    properties/scopes update by modification of passed callback function arguments
    and indicating the change by returning proper return code. 'out' is a handle
    to an output file handle where the modified configuration will be written.
 
    NOTE: Contrary to 'in' which is a random access stream for every API of the
    library (therefore must not be 'stdin'), 'out' is written incrementally by
-   the function w/o changing stream's position indicator (fseek() call) during
-   the writing process. This enables 'stdout' to be used as 'out'.
+   the function w/o changing stream's position indicator (fseek) during the
+   writing process. This enables 'stdout' to be used as 'out'.
  */
 sp_errc_t sp_iterate_modify(
     FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *path,
