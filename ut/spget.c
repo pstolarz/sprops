@@ -144,6 +144,13 @@ static void print_long_prm(
     print_info_ex(p_info);
 }
 
+static void print_double_prm(
+    const char *prm, double val, const sp_prop_info_ex_t *p_info)
+{
+    printf("%s, val-double %f: ", prm, val);
+    print_info_ex(p_info);
+}
+
 static void print_enum_prm(
     const char *prm, int val, const sp_prop_info_ex_t *p_info)
 {
@@ -155,6 +162,7 @@ int main(void)
 {
     int ival;
     long lval;
+    double dval;
     char buf1[8], buf2[32];
     sp_errc_t ret=SPEC_SUCCESS;
     sp_prop_info_ex_t info;
@@ -203,6 +211,9 @@ int main(void)
 
     EXEC_RG(sp_get_prop_int(in, NULL, "a", "1/2/:xxx", "scope", &lval, &info));
     print_long_prm("/scope:1/scope:2/:xxx/a", lval, &info);
+
+    EXEC_RG(sp_get_prop_float(in, NULL, "b", "1/2/:xxx", "scope", &dval, &info));
+    print_double_prm("/scope:1/scope:2/:xxx/b", dval, &info);
 
     EXEC_RG(sp_get_prop(
         in, NULL, "a", "1/2/:xxx/d:d", "scope", buf1, sizeof(buf1), &info));

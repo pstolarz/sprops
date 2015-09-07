@@ -456,19 +456,42 @@ sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
     char val[80], *end;
     long v=0L;
 
-    EXEC_RG(
-        sp_get_prop(in, p_parsc, name, path, defsc, val, sizeof(val), &info));
-
+    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, val, sizeof(val), &info));
     if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
         ret=SPEC_VAL_ERR;
         goto finish;
     }
 
+    errno = 0;
     v = strtol(val, &end, 0);
-    if ((v==LONG_MIN || v==LONG_MAX) && errno==ERANGE) {
+    if (errno==ERANGE) { ret=SPEC_VAL_ERR; goto finish; }
+
+    if (*end) ret=SPEC_VAL_ERR;
+
+finish:
+    if (p_info) *p_info=info;
+    if (p_val) *p_val=v;
+    return ret;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
+    const char *path, const char *defsc, double *p_val, sp_prop_info_ex_t *p_info)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    sp_prop_info_ex_t info;
+    char val[80], *end;
+    double v=0.0;
+
+    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, val, sizeof(val), &info));
+    if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
         ret=SPEC_VAL_ERR;
         goto finish;
     }
+
+    errno = 0;
+    v = strtod(val, &end);
+    if (errno==ERANGE) { ret=SPEC_VAL_ERR; goto finish; }
 
     if (*end) ret=SPEC_VAL_ERR;
 

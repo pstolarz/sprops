@@ -225,6 +225,15 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
     const char *path, const char *defsc, long *p_val, sp_prop_info_ex_t *p_info);
 
+/* Find float property with 'name' and write its under 'p_val'. In case of
+   float format error SPEC_VAL_ERR is returned.
+
+   NOTE: This method is a simple wrapper around sp_get_prop() to treat property's
+   value as float.
+ */
+sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
+    const char *path, const char *defsc, double *p_val, sp_prop_info_ex_t *p_info);
+
 typedef struct _sp_enumval_t
 {
     /* enumeration name; must not contain leading/trailing spaces */
