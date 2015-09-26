@@ -840,7 +840,7 @@ reread:
 /* exported; see header for details */
 sp_errc_t sp_parser_tkn_cpy(
     const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
-    const sp_loc_t *p_loc, char *p_buf, size_t buf_len, long *p_tklen)
+    const sp_loc_t *p_loc, char *buf, size_t buf_len, long *p_tklen)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int c=0;
@@ -868,7 +868,7 @@ sp_errc_t sp_parser_tkn_cpy(
         } else {
             if (p_tklen) (*p_tklen)++;
             if (buf_len) {
-                p_buf[i++] = (char)c;
+                buf[i++] = (char)c;
                 buf_len--;
             }
         }
@@ -876,7 +876,7 @@ sp_errc_t sp_parser_tkn_cpy(
     if (c!=EOF || eh.n_rdc>=(size_t)llen) ret=SPEC_SUCCESS;
 
 finish:
-    if (buf_len) p_buf[i]=0;
+    if (buf_len) buf[i]=0;
     return ret;
 }
 

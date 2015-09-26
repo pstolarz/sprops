@@ -8,7 +8,7 @@
    property value needs to contain a semicolon, it must be escaped by the \x3b
    sequence.
  */
-/* #define NO_SEMICOL_ENDS_VAL */
+#undef NO_SEMICOL_ENDS_VAL
 
 /* If defined: cut leading spaces in a property value.
  */

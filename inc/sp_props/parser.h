@@ -128,7 +128,7 @@ sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl);
  */
 sp_errc_t sp_parser_tkn_cpy(
     const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
-    const sp_loc_t *p_loc, char *p_buf, size_t buf_len, long *p_tklen);
+    const sp_loc_t *p_loc, char *buf, size_t buf_len, long *p_tklen);
 
 /* Compare a token of type 'tkn' from location 'p_loc' with string 'str'.
    'max_num' specifies maximum number of 'str' chars to compare. In case of

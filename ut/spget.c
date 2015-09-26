@@ -171,7 +171,7 @@ int main(void)
         {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
 
     FILE *in = fopen("spget.conf", "rb");
-    /* FILE *in = fopen("spget-1line.conf", "rb"); */
+    /* FILE *in = fopen("spget_1line.conf", "rb"); */
     if (!in) goto finish;
 
     printf("--- Properties read\n");

@@ -147,8 +147,16 @@ typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, char *name,
    'in' is the parsed input file handle, while 'out' - the output file handle
    which should be used if a callback need to modify the scope body content.
    'out' is !=NULL only during sp_iterate_modify() iteration and any scope body
-   modifications may be performed only in this context. If scope doesn't have a
-   body any changes written to 'out' are ignored.
+   modifications may be performed only in this context. The modifications shall
+   be done by a callback in the following way:
+    - If the scope doesn't have a body the callback may only insert content into
+      the body by sp_write_XXX() family of function with 'out' as an argument.
+      NOTE: sp_iterate_modify() doesn't have any sense in this case, since no
+      content means no iteration.
+    - If the scope has a body its modification is possible only by
+      sp_iterate_modify().
+
+   NOTE: The callback must not write to 'out' directly.
  */
 typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, FILE *out, char *type,
     const sp_tkn_info_t *p_tktype, char *name, const sp_tkn_info_t *p_tkname,
@@ -184,7 +192,7 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, FILE *out, char *type,
  */
 sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
-    void *arg, char *p_buf1, size_t b1len, char *p_buf2, size_t b2len);
+    void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len);
 
 typedef struct _sp_prop_info_ex_t
 {
@@ -195,7 +203,7 @@ typedef struct _sp_prop_info_ex_t
     sp_loc_t ldef;              /* property definition location */
 } sp_prop_info_ex_t;
 
-/* Find property with 'name' and write its value to a buffer 'p_val' of length
+/* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. In case many properties with the
    same name exist the first one is retrieved (if other behavior is required, use
@@ -213,7 +221,7 @@ typedef struct _sp_prop_info_ex_t
    least.
  */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, char *p_val, size_t len,
+    const char *path, const char *defsc, char *val, size_t len,
     sp_prop_info_ex_t *p_info);
 
 /* Find integer property with 'name' and write its under 'p_val'. In case of
@@ -246,7 +254,7 @@ typedef struct _sp_enumval_t
 /* Find enumeration property with 'name' and write its under 'p_val'. Matching
    enumeration names to their values is done via 'p_evals' table with last
    element filled with zeros. The matching is case insensitive if 'igncase' is
-   !=0. To avoid memory allocation the caller must provide working buffer 'p_buf'
+   !=0. To avoid memory allocation the caller must provide working buffer 'buf'
    of length 'blen' to store enum names read from the stream. Length of the
    buffer must be at least as long as the longest enum name + 1; in other case
    SPEC_SIZE error is returned. If read property vale doesn't match any of the
@@ -258,8 +266,14 @@ typedef struct _sp_enumval_t
  */
 sp_errc_t sp_get_prop_enum(
     FILE *in, const sp_loc_t *p_parsc, const char *name, const char *path,
-    const char *defsc, const sp_enumval_t *p_evals, int igncase, char *p_buf,
+    const char *defsc, const sp_enumval_t *p_evals, int igncase, char *buf,
     size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
+
+/* Supportive functions to be used inside sp_iterate_modify() callbacks. See
+   the callbacks description for details.
+ */
+sp_errc_t sp_write_prop(FILE *out, const char *name, const char *val);
+sp_errc_t sp_write_empty_scope(FILE *out, const char *type, const char *name);
 
 /* Iteration with modification. Meaning of this function is similar to
    sp_iterate() with except the callback function may request iterated
@@ -275,7 +289,7 @@ sp_errc_t sp_get_prop_enum(
 sp_errc_t sp_iterate_modify(
     FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *path,
     const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
-    void *arg, char *p_buf1, size_t b1len, char *p_buf2, size_t b2len);
+    void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len);
 
 #ifdef __cplusplus
 }

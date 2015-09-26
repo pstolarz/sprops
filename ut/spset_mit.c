@@ -68,9 +68,16 @@ static sp_errc_t cb_scope(void *arg, FILE *in, FILE *out, char *type,
     if (!strncmp(name, "s_dd", 4)) {
         cb_bf = SP_CBEC_FLG_DEL_DEF;
     } else
-    if (!strncmp(name, "s_bm", 4) && p_lbody) {
-        EXEC_RG(sp_iterate_modify(in, out, p_lbody, NULL, NULL, cb_prop,
-            cb_scope, NULL, buf1, sizeof(buf1), buf2, sizeof(buf2)));
+    if (!strncmp(name, "s_bm", 4)) {
+        if (p_lbody) {
+            EXEC_RG(sp_iterate_modify(in, out, p_lbody, NULL, NULL, cb_prop,
+                cb_scope, NULL, buf1, sizeof(buf1), buf2, sizeof(buf2)));
+        } else {
+            sp_write_prop(out, "prop1", NULL);
+            sp_write_prop(out, "prop2", "val");
+            sp_write_empty_scope(out, NULL, "sc1");
+            sp_write_empty_scope(out, "type", "sc2");
+        }
     }
 
     ret = (sp_errc_t)sp_cb_errc(cb_bf);
@@ -84,6 +91,8 @@ int main(void)
     char buf1[32], buf2[32];
 
     FILE *in = fopen("spset_mit.conf", "rb");
+    /* FILE *in = fopen("spset_vadd.conf", "rb"); */
+
     if (!in) goto finish;
 
     printf("------------------------------------------------- global scope\n");
