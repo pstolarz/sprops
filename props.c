@@ -595,6 +595,29 @@ finish:
     return ret;
 }
 
+/* exported; see header for details */
+sp_errc_t sp_write_comment(FILE *out, const char *text)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+
+    if (*text) {
+        CHK_FERR(fputc('#', out)|fputc(' ', out));
+
+        for (; *text; text++) {
+            CHK_FERR(fputc(*text, out));
+            if (*text=='\n' && *(text+1)) {
+                CHK_FERR(fputc('#', out)|fputc(' ', out));
+            }
+        }
+
+        /* write missing EOL */
+        if (*(text-1)!='\n') { CHK_FERR(fputc('\n', out)); }
+    }
+
+finish:
+    return ret;
+}
+
 /* Copies input file bytes (from the last input offset) to the output file up to
    'end' offset (exclusive). If end==EOF input is copied up to the end of the
    file. In case of success (and there is something to copy) the file offset is
@@ -859,22 +882,33 @@ finish:
 
 /* Supportive function for sp_iterate_modify() callbacks */
 static sp_errc_t
-    updif_last_def(const iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
+    upd_lstprt_def(iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret = SPEC_SUCCESS;
-    FILE *out = p_ihndl->p_mihndl->out;
-    const sp_loc_t *p_encsc_bdy = p_ihndl->p_mihndl->encsc.p_lbody;
-    const sp_loc_t *p_encsc_def = p_ihndl->p_mihndl->encsc.p_ldef;
+    int on_eol = __IS_ON_EOL(p_ihndl);
 
-    if (__IS_EOB(p_ldef, p_encsc_bdy) && __IS_ON_EOL(p_ihndl) &&
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    FILE *out = p_mihndl->out;
+
+    const sp_loc_t *p_encsc_bdy = p_mihndl->encsc.p_lbody;
+    const sp_loc_t *p_encsc_def = p_mihndl->encsc.p_ldef;
+
+    if (__IS_EOB(p_ldef, p_encsc_bdy) && on_eol &&
         p_encsc_def && p_encsc_def->last_line==p_ldef->last_line)
     {
         /* EOL has been already written; put missing indent */
         write_defln_ldsp(p_ihndl, p_encsc_def);
 
         CHK_FERR(fputc('}', out));
-        p_ihndl->p_mihndl->in_off = p_encsc_def->end+1;
+        p_mihndl->in_off = p_encsc_def->end+1;
+    } else
+    if (!on_eol) {
+        /* copy untouched last part of the def; if EOL has been
+           written the def is already written to the output stream */
+        EXEC_RG(cpy_to_out(p_ihndl, p_ldef->end+1));
+        p_mihndl->in_off = p_ldef->end+1;
     }
+
 finish:
     return ret;
 }
@@ -965,9 +999,9 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
                 }
             }
         }
+        EXEC_RG(upd_lstprt_def(p_ihndl, p_ldef));
     }
 
-    EXEC_RG(updif_last_def(p_ihndl, p_ldef));
     ret = (cb_bf & SP_CBEC_FLG_FINISH ? SPEC_CB_FINISH : SPEC_SUCCESS);
 finish:
     return ret;
@@ -1034,6 +1068,7 @@ static sp_errc_t mod_iter_cb_scope(
                moves this scope to a new line */
             EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
             write_eol_indent(p_ihndl, p_ldef, EOLIND_CHK_LEAD);
+            p_mihndl->in_off = p_ldef->beg;
         }
 
         /* scope type
@@ -1153,9 +1188,9 @@ static sp_errc_t mod_iter_cb_scope(
             }
             p_mihndl->in_off = p_ldef->end+1;
         }
+        EXEC_RG(upd_lstprt_def(p_ihndl, p_ldef));
     }
 
-    EXEC_RG(updif_last_def(p_ihndl, p_ldef));
     ret = (cb_bf & SP_CBEC_FLG_FINISH ? SPEC_CB_FINISH : SPEC_SUCCESS);
 finish:
     return ret;

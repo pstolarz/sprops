@@ -27,17 +27,17 @@ extern "C" {
 /* callback error codes flags
  */
 /* finish further processing */
-#define SP_CBEC_FLG_FINISH          1
+#define SP_CBEC_FLG_FINISH          0x01
 /* modify property name */
-#define SP_CBEC_FLG_MOD_PROP_NAME   2
+#define SP_CBEC_FLG_MOD_PROP_NAME   0x02
 /* modify scope type */
-#define SP_CBEC_FLG_MOD_SCOPE_TYPE  2
+#define SP_CBEC_FLG_MOD_SCOPE_TYPE  0x02
 /* modify property value */
-#define SP_CBEC_FLG_MOD_PROP_VAL    4
+#define SP_CBEC_FLG_MOD_PROP_VAL    0x04
 /* modify scope name */
-#define SP_CBEC_FLG_MOD_SCOPE_NAME  4
+#define SP_CBEC_FLG_MOD_SCOPE_NAME  0x04
 /* remove property/scope definition (don't mix with modify flags) */
-#define SP_CBEC_FLG_DEL_DEF         8
+#define SP_CBEC_FLG_DEL_DEF         0x08
 
 /* Create error code as bit flag; 'c' consists of OR'er SP_CBEC_FLG_XXX flags
  */
@@ -274,6 +274,7 @@ sp_errc_t sp_get_prop_enum(
  */
 sp_errc_t sp_write_prop(FILE *out, const char *name, const char *val);
 sp_errc_t sp_write_empty_scope(FILE *out, const char *type, const char *name);
+sp_errc_t sp_write_comment(FILE *out, const char *text);
 
 /* Iteration with modification. Meaning of this function is similar to
    sp_iterate() with except the callback function may request iterated

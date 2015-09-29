@@ -75,6 +75,7 @@ static sp_errc_t cb_scope(void *arg, FILE *in, FILE *out, char *type,
         } else {
             sp_write_prop(out, "prop1", NULL);
             sp_write_prop(out, "prop2", "val");
+            sp_write_comment(out, "some comment");
             sp_write_empty_scope(out, NULL, "sc1");
             sp_write_empty_scope(out, "type", "sc2");
         }
