@@ -18,6 +18,11 @@
 #include "config.h"
 #include "sp_props/parser.h"
 
+/* GENERAL NOTE: line & columns in sp_loc_t struct are are 1-based, therefore
+   0 has a special meaning in the code to distinguish uninitialized/special
+   state.
+ */
+
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 #define CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
 #define CHK_FERR(c) if ((c)<0) { ret=SPEC_ACCS_ERR; goto finish; }
@@ -67,28 +72,53 @@ typedef struct _mod_iter_hndl_t
        modifications */
     FILE *sc_out;
 
+    /* parsing scope */
+    const sp_loc_t *p_parsc;
+
     /* type of EOL detected on the input */
     eol_t eol_typ;
 
-    /* file offset staring not processed range of the input file; -1: EOF */
+    /* file offset staring not processed range of the input file */
     long in_off;
 
-    /* range of consecutive locations to delete (zeroed - not set) */
+    /* range of consecutive locations to delete;
+       initially set to an empty range */
     struct _delrng_t {
         sp_loc_t loc;
-        int eol_ended;
+        struct {
+            unsigned eol_ended: 1;
+            unsigned ready: 1;      /* !=0: contains element(s) to delete */
+        };
     } delrng;
 
-    /* currently enclosing scope - iterated scope or its part; if both
-       members are NULL: global scope */
+    /* current enclosing scope (non-global scope) */
     struct {
-        const sp_loc_t *p_lbody;
-        /* may be NULL or the definition is not known */
-        const sp_loc_t *p_ldef;
+        sp_loc_t lbody;
+        sp_loc_t ldef;  /* zeroed - global scope */
+        unsigned set;   /* used to reduce unnecessary copying */
     } encsc;
 
-    /* last 'in_off' for which EOL/indentation occurred */
-    long ind_off;
+    /* used to track the enclosing scope */
+    struct {
+        const sp_loc_t *p_lbody;
+        const sp_loc_t *p_ldef;
+    } trck_encsc;
+
+    /* handled entry definition (initially zeroed) */
+    sp_loc_t ent_ldef;
+
+    /* used to handle indentation after inserted EOL */
+    struct {
+        /* offset range for which EOL is considered;
+           initially set to an empty range */
+        struct {
+            long beg;
+            long end;   /* inclusive */
+        } eol_rng;
+
+        /* !=0: deferred indentation has been requested */
+        unsigned defer;
+    } indent;
 } mod_iter_hndl_t;
 
 /* iteration handle - base struct
@@ -429,8 +459,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
     EXEC_RG(sp_parse(&phndl));
 
-    /* line & columns are 1-based, if 0: the location of the property
-        definition has not been set, therefore has not been found */
+    /* check if the location of the property definition
+       has not been set, therefore has not been found */
     if (!info.ldef.first_column) ret=SPEC_NOTFOUND;
 
 finish:
@@ -632,8 +662,6 @@ static sp_errc_t cpy_to_out(iter_hndl_t *p_ihndl, long end)
     FILE *in = p_ihndl->in;
     FILE *out = p_mihndl->out;
 
-    if (beg==EOF) goto finish;
-
     if (beg<end || end==EOF)
     {
         CHK_FSEEK(fseek(in, beg, SEEK_SET));
@@ -642,7 +670,7 @@ static sp_errc_t cpy_to_out(iter_hndl_t *p_ihndl, long end)
             if (c==EOF && end==EOF) break;
             if (c==EOF || fputc(c, out)==EOF) goto finish;
         }
-        p_mihndl->in_off = end;
+        p_mihndl->in_off = beg;
     }
     ret = SPEC_SUCCESS;
 
@@ -659,12 +687,9 @@ static int trim_line(iter_hndl_t *p_ihndl, int del_eol)
 {
     int c, endc=2;  /* 0:non-space, 1:EOL, 2:EOF */
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
-
     FILE *in = p_ihndl->in;
 
-    if (p_mihndl->in_off==EOF ||
-        fseek(in, p_mihndl->in_off, SEEK_SET)) goto finish;
-
+    if (fseek(in, p_mihndl->in_off, SEEK_SET)) goto finish;
     for (endc=0; !endc && isspace(c=fgetc(in)); p_mihndl->in_off++)
     {
         if (c!='\r' && c!='\n') continue;
@@ -701,8 +726,8 @@ finish:
     return (endc==1);
 }
 
-/* Delete concatenated range of locations scheduled to be removed */
-static sp_errc_t del_rng(iter_hndl_t *p_ihndl)
+/* Delete concatenated range of locations scheduled to be removed. */
+static sp_errc_t del_rng(iter_hndl_t *p_ihndl, int last_upd)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
@@ -712,9 +737,9 @@ static sp_errc_t del_rng(iter_hndl_t *p_ihndl)
     long beg=p_delrng->loc.beg, end=p_delrng->loc.end+1;
     FILE *in = p_ihndl->in;
 
-    if (!p_delrng->loc.first_column) goto finish;
+    if (!p_delrng->ready) goto finish;
 
-    if (p_delrng->eol_ended) {
+    if (p_delrng->eol_ended || last_upd) {
         /* remove leading spaces */
         int n_col=p_delrng->loc.first_column-1, n_sp=n_col, i;
 
@@ -723,17 +748,23 @@ static sp_errc_t del_rng(iter_hndl_t *p_ihndl)
                 if (!isspace(fgetc(in))) n_sp=i-1;
             beg -= n_sp;
         }
-        if (n_sp==n_col)
+        if (n_sp==n_col && p_delrng->eol_ended) {
             /* remove empty line */
             end += (p_mihndl->eol_typ==EOL_CRLF ? 2 : 1);
+        }
     }
 
     EXEC_RG(cpy_to_out(p_ihndl, beg));
     p_mihndl->in_off = end;
 
-    /* mark as removed */
-    memset(p_delrng, 0, sizeof(*p_delrng));
+    /* check if deleted range shall extend indenting EOL range */
+    if ((p_mihndl->indent.eol_rng.end >= 0) &&
+        (p_mihndl->indent.eol_rng.end >= beg-1))
+    {
+        p_mihndl->indent.eol_rng.end = end-1;
+    }
 
+    p_delrng->ready = 0;
 finish:
     return ret;
 }
@@ -748,7 +779,7 @@ static sp_errc_t add_to_delrng(iter_hndl_t *p_ihndl, const sp_loc_t *p_loc)
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
     struct _delrng_t *p_delrng = &p_mihndl->delrng;
 
-    /* detect end offset of location being deleted */
+    /* detect end offset of a location being deleted */
     org_off = p_mihndl->in_off;
     p_mihndl->in_off = p_loc->end+1;
     eol_ended = trim_line(p_ihndl, 0);
@@ -756,74 +787,72 @@ static sp_errc_t add_to_delrng(iter_hndl_t *p_ihndl, const sp_loc_t *p_loc)
     p_mihndl->in_off = org_off;
 
     /* detect range continuation */
-    if (p_delrng->loc.first_column && p_delrng->loc.end+1==p_loc->beg) {
+    if (p_delrng->ready && p_delrng->loc.end+1==p_loc->beg) {
         p_delrng->loc.last_line = p_loc->last_line;
         p_delrng->loc.last_column = p_loc->last_column+end_off-org_off-1;
         p_delrng->loc.end = end_off-1;
         p_delrng->eol_ended = eol_ended;
     } else {
-        if (p_delrng->loc.first_column) { EXEC_RG(del_rng(p_ihndl)); }
+        if (p_delrng->ready) { EXEC_RG(del_rng(p_ihndl, 0)); }
         memcpy(&p_delrng->loc, p_loc, sizeof(*p_loc));
         p_delrng->loc.last_column += end_off-org_off-1;
         p_delrng->loc.end = end_off-1;
         p_delrng->eol_ended = eol_ended;
     }
 
+    p_delrng->ready = 1;
 finish:
     return ret;
 }
 
-/* Write leading spaces of 'p_ldef' line into output. */
-static void write_defln_ldsp(const iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
-{
-    FILE *in = p_ihndl->in;
-    FILE *out = p_ihndl->p_mihndl->out;
-    int c, n_col=p_ldef->first_column-1;
+#define __IS_ENTDEF_SET(ih) ((ih)->p_mihndl->ent_ldef.first_column!=0)
 
-    if (n_col>0 && !fseek(in, p_ldef->beg-n_col, SEEK_SET)) {
-        for (; n_col>0 && isspace(c=fgetc(in)); n_col--)
-            if (fputc(c, out)==EOF) break;
-    }
-}
+#define __IS_ON_GLOBSC(ih) (!((ih)->p_mihndl->encsc.ldef.first_column))
 
-/* Write spaces up to 'p_ldef' beginning. */
-static void write_sp_defstrt(const iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
+#define __IS_ON_EOL(ih) \
+    (((ih)->p_mihndl->indent.eol_rng.beg <= (ih)->p_mihndl->in_off-1) && \
+     ((ih)->p_mihndl->in_off-1 <= (ih)->p_mihndl->indent.eol_rng.end))
+
+#define __GET_ENCSC_BDY(ih) \
+    (!(ih)->p_mihndl->encsc.lbody.first_column ? \
+     (ih)->p_mihndl->p_parsc : &(ih)->p_mihndl->encsc.lbody)
+
+/* Write indent as leading spaces of a given definition starting line. */
+static void
+    write_def_strtln_ldsp(const iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
 {
-    FILE *in = p_ihndl->in;
-    FILE *out = p_ihndl->p_mihndl->out;
     int n_col=p_ldef->first_column-1, c;
-
-    if (n_col>0 && !fseek(in, p_ldef->beg-n_col, SEEK_SET)) {
-        for (; n_col>0 && (c=fgetc(in))!=EOF; n_col--)
-            if (fputc((isspace(c) ? c : ' '), out)==EOF) break;
+    if (n_col>0 && !fseek(p_ihndl->in, p_ldef->beg-n_col, SEEK_SET)) {
+        for (; n_col>0 && isspace(c=fgetc(p_ihndl->in)); n_col--)
+            if (fputc(c, p_ihndl->p_mihndl->out)==EOF)
+                break;
     }
 }
 
-/* Write indent for 'p_ldef' definition except the definition is the last in
-   its enclosing body.
- */
+/* Write indent basing on a given definition start */
+static void
+    write_def_beg_ind(const iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
+{
+    int n_col = p_ldef->first_column-1, c;
+    if (n_col>0 && !fseek(p_ihndl->in, p_ldef->beg-n_col, SEEK_SET)) {
+        for (; n_col>0 && (c=fgetc(p_ihndl->in))!=EOF; n_col--)
+            if (fputc((isspace(c) ? c : ' '), p_ihndl->p_mihndl->out)==EOF)
+                break;
+    }
+}
+
+/* Write indent for a given definition. */
 static void write_indent(const iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
 {
-    const sp_loc_t *p_encsc_bdy = p_ihndl->p_mihndl->encsc.p_lbody;
-    if (!p_encsc_bdy || p_encsc_bdy->first_line!=p_ldef->first_line)
-        write_defln_ldsp(p_ihndl, p_ldef);
-    else
-        write_sp_defstrt(p_ihndl, p_encsc_bdy);
+    const sp_loc_t *p_encsc_bdy = __GET_ENCSC_BDY(p_ihndl);
+    if (!p_encsc_bdy || p_encsc_bdy->first_line < p_ldef->first_line) {
+        write_def_strtln_ldsp(p_ihndl, p_ldef);
+    } else {
+        write_def_beg_ind(p_ihndl, p_encsc_bdy);
+    }
 }
 
-/* no checks */
-#define EOLIND_NO_CHK       0
-/* EOL & indent are not written if last input offset is located at tailing
-   part of a line */
-#define EOLIND_CHK_TAIL     1
-/* EOL & indent are not written if last input offset is located at leading
-   part of a line */
-#define EOLIND_CHK_LEAD     2
-/* Write EOL but not indent if a definition is located at the end of its
-   enclosing scope */
-#define EOLIND_CHK_EOB      4
-
-/* Write EOL marker */
+/* Write the EOL marker. */
 static sp_errc_t write_eol(const iter_hndl_t *p_ihndl)
 {
     sp_errc_t ret=SPEC_SUCCESS;
@@ -845,82 +874,246 @@ finish:
     return ret;
 }
 
-#define __IS_EOB(def, ensc) ((ensc) && (def)->end>=(ensc)->end)
-#define __IS_ON_EOL(ih) ((ih)->p_mihndl->ind_off==(ih)->p_mihndl->in_off)
+/* EOL & indent are not written if beginning of a definition is located as
+   the EOL were been already written (e.g. at the beginning of a line with
+   leading spaces only).
+ */
+#define EOLIND_CHK_EOL      1
 
-/* Write EOL with indent for 'p_ldef' definition. Writing EOL is checked
-   against an error but indent is not (simply cosmetic aspect).
+/* Write EOL with deferred indent. Trailing spaces and EOL are trimmed starting
+   from the last input offset.
+ */
+#define EOLIND_DEFER        2
+
+/* Write EOL with an indent for a definition. Writing EOL is checked
+   against an error but the indent is not (simply cosmetic aspect).
  */
 static sp_errc_t write_eol_indent(
-    iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef, unsigned check)
+    iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef, unsigned flags)
 {
-    sp_errc_t ret=SPEC_SUCCESS;
-    FILE *in = p_ihndl->in;
+    sp_errc_t ret = SPEC_SUCCESS;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    const sp_loc_t *p_encsc_bdy = __GET_ENCSC_BDY(p_ihndl);
+    int eol_ended = 0;
 
-    if ((check & EOLIND_CHK_LEAD)!=0) {
-        int n_col = (__IS_ON_EOL(p_ihndl) ? 0 : p_ldef->first_column-1);
+    if (flags & EOLIND_CHK_EOL)
+    {
+        long chk_beg;
+        int n_col, frst_def=p_encsc_bdy && (p_encsc_bdy->beg==p_ldef->beg);
 
-        if (n_col>0 && !fseek(in, p_ldef->beg-n_col, SEEK_SET)) {
-            for (; n_col>0 && isspace(fgetc(in)); n_col--);
+        if (frst_def || __IS_ON_EOL(p_ihndl)) goto finish;
+
+        /* check if lastly removed range may be concatenated with
+           passed def, if so then extend the def with this range */
+        if ((p_mihndl->delrng.loc.end >= 0) &&
+            (p_mihndl->delrng.loc.end >= p_ldef->beg-1))
+        {
+            chk_beg = p_mihndl->delrng.loc.beg;
+            n_col = p_mihndl->delrng.loc.first_column-1;
+        } else {
+            chk_beg = p_ldef->beg;
+            n_col = p_ldef->first_column-1;
+        }
+
+        if (n_col>0 && !fseek(p_ihndl->in, chk_beg-n_col, SEEK_SET)) {
+            for (; n_col>0 && isspace(fgetc(p_ihndl->in)); n_col--);
         }
         if (!n_col) goto finish;
     }
 
+    p_mihndl->indent.eol_rng.beg =
+        p_mihndl->indent.eol_rng.end = p_mihndl->in_off;
+
+    if (flags & EOLIND_DEFER) {
+        /* trim trailing spaces and EOL */
+        eol_ended = trim_line(p_ihndl, 1);
+        p_mihndl->indent.eol_rng.end = p_mihndl->in_off-1;
+    }
     EXEC_RG(write_eol(p_ihndl));
 
-    if ((!(check & EOLIND_CHK_TAIL) || !trim_line(p_ihndl, 1)) &&
-        (!(check & EOLIND_CHK_EOB) ||
-         !__IS_EOB(p_ldef, p_ihndl->p_mihndl->encsc.p_lbody)))
-    {
+    if (!(flags & EOLIND_DEFER)) {
         write_indent(p_ihndl, p_ldef);
+    } else {
+        if (!eol_ended) p_mihndl->indent.defer=1;
     }
-
 finish:
-    p_ihndl->p_mihndl->ind_off = p_ihndl->p_mihndl->in_off;
     return ret;
 }
 
-/* Supportive function for sp_iterate_modify() callbacks */
-static sp_errc_t
-    upd_lstprt_def(iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
+#define __WRITE_ENDSC_MRK(ih, encdef) \
+    write_def_beg_ind((ih), (encdef)); \
+    CHK_FERR(fputc('}', (ih)->p_mihndl->out)); \
+    (ih)->p_mihndl->in_off = (encdef)->end+1;
+
+/* Handle modification "end" event. */
+static sp_errc_t handle_end_event(iter_hndl_t *p_ihndl)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+
+    /* start with EOL */
+    if (__IS_ENTDEF_SET(p_ihndl)) {
+        if (!__IS_ON_EOL(p_ihndl)) {
+            write_eol_indent(p_ihndl, &p_mihndl->ent_ldef, 0);
+        } else {
+            /* lastly inserted EOL is not indented */
+            write_indent(p_ihndl, &p_mihndl->ent_ldef);
+        }
+    } else
+    if (p_ihndl->path.beg && *p_ihndl->path.beg) {
+        /* scope to iterate not found */
+        goto finish;
+    }
+
+// @@@
+fprintf(p_mihndl->out, "# END");
+
+    /* the update always finishes with EOL */
+    p_mihndl->indent.eol_rng.beg =
+        p_mihndl->indent.eol_rng.end = p_mihndl->in_off-1;
+    EXEC_RG(write_eol(p_ihndl));
+
+finish:
+    return ret;
+}
+
+/* Deferred update (EOL indent, range deletion removal, end event handling).
+   The previous scope is contained in the iteration handler and the current
+   one is passed by 'p_encsc_def'. 'p_encsc_def' is NULL for global scope and
+   the last update of sp_iterate_modify() ('last_upd' != 0).
+
+   NOTE: The function doesn't write indent for lastly inserted EOL.
+ */
+static sp_errc_t deferred_update(
+    iter_hndl_t *p_ihndl, const sp_loc_t *p_encsc_def, int last_upd)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+
+    EXEC_RG(del_rng(p_ihndl, last_upd));
+
+    if (last_upd) { EXEC_RG(handle_end_event(p_ihndl)); }
+
+    if (!p_mihndl->indent.defer && !last_upd) goto finish;
+    p_mihndl->indent.defer = 0;
+
+    if (!last_upd)
+    {
+        /* deferred indentation update */
+        if (__IS_ON_GLOBSC(p_ihndl)) {
+            write_indent(p_ihndl, &p_mihndl->ent_ldef);
+        } else {
+            if (p_encsc_def->beg==p_mihndl->encsc.ldef.beg &&
+                p_encsc_def->end==p_mihndl->encsc.ldef.end)
+            {
+                /* same scope - write deferred indent */
+                write_indent(p_ihndl, &p_mihndl->encsc.ldef);
+            } else
+            {
+                /* if previous scope is in-lined with its last def with inserted
+                   EOL, then the new EOL provides an indentation issue - scope
+                   ending marker need to be written "by hand" */
+                if (p_mihndl->ent_ldef.last_line==p_mihndl->encsc.lbody.last_line)
+                {
+                    __WRITE_ENDSC_MRK(p_ihndl, &p_ihndl->p_mihndl->encsc.ldef);
+                }
+            }
+        }
+    } else {
+        /* scope body ending update */
+        if (!__IS_ON_GLOBSC(p_ihndl))
+        {
+            /* in case of last EOL at last encl. scope there is a need
+               to appropriately indent scope ending marker of the scope */
+            __WRITE_ENDSC_MRK(p_ihndl, &p_ihndl->p_mihndl->encsc.ldef);
+        } else
+        if (__IS_ON_EOL(p_ihndl) && !p_mihndl->p_parsc) {
+            trim_line(p_ihndl, 1);
+            if (__IS_ENTDEF_SET(p_ihndl))
+                write_indent(p_ihndl, &p_mihndl->ent_ldef);
+        }
+    }
+
+finish:
+    return ret;
+}
+
+/* Copies the input up to a definition start with EOL at its beginning. */
+static sp_errc_t strtdef_with_eol(iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    long off = p_mihndl->in_off;
+    FILE *in = p_ihndl->in;
+
+    if (p_mihndl->ent_ldef.last_line==p_ldef->first_line)
+    {
+        /* remove unnecessary spaces between previous def and
+           the inserted EOL if the definitions are in-lined */
+        if (!fseek(in, off, SEEK_SET)) {
+            for (; off<p_ldef->beg; off++) {
+                int c = fgetc(in);
+                if (c!=' ' && c!='\t') break;
+            }
+        }
+        if (off < p_ldef->beg) {
+            EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
+        }
+    } else {
+        EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
+    }
+
+    p_mihndl->in_off = p_ldef->beg;
+    write_eol_indent(p_ihndl, p_ldef, EOLIND_CHK_EOL);
+finish:
+    return ret;
+}
+
+/* Finish a definition modification handling inside a sp_iterate_modify()
+   callback.
+ */
+static sp_errc_t finish_def_handle(iter_hndl_t *p_ihndl, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret = SPEC_SUCCESS;
-    int on_eol = __IS_ON_EOL(p_ihndl);
-
-    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
-    FILE *out = p_mihndl->out;
-
-    const sp_loc_t *p_encsc_bdy = p_mihndl->encsc.p_lbody;
-    const sp_loc_t *p_encsc_def = p_mihndl->encsc.p_ldef;
-
-    if (__IS_EOB(p_ldef, p_encsc_bdy) && on_eol &&
-        p_encsc_def && p_encsc_def->last_line==p_ldef->last_line)
+    if (p_ihndl->p_mihndl->in_off < p_ldef->end+1)
     {
-        /* EOL has been already written; put missing indent */
-        write_defln_ldsp(p_ihndl, p_encsc_def);
-
-        CHK_FERR(fputc('}', out));
-        p_mihndl->in_off = p_encsc_def->end+1;
-    } else
-    if (!on_eol) {
-        /* copy untouched last part of the def; if EOL has been
-           written the def is already written to the output stream */
+        /* copy untouched last part of the def (or the entire definition
+           in case it's modification has not been performed) by a callback */
         EXEC_RG(cpy_to_out(p_ihndl, p_ldef->end+1));
-        p_mihndl->in_off = p_ldef->end+1;
+        p_ihndl->p_mihndl->in_off = p_ldef->end+1;
     }
-
 finish:
     return ret;
 }
 
-#define __CHK_MOD_ITER_RET(mb, nb) \
-    if ((int)ret>0 || p_ihndl->path.beg<p_ihndl->path.end) goto finish; \
+/* Set current enclosing scope */
+static void set_encsc(iter_hndl_t *p_ihndl)
+{
+    mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    if (!p_mihndl->encsc.set && p_mihndl->trck_encsc.p_ldef)
+    {
+        p_mihndl->encsc.ldef = *p_mihndl->trck_encsc.p_ldef;
+        if (p_mihndl->trck_encsc.p_lbody) {
+            p_mihndl->encsc.lbody = *p_mihndl->trck_encsc.p_lbody;
+        } else {
+            /* mark no body */
+            memset(&p_mihndl->encsc.lbody, 0, sizeof(p_mihndl->encsc.lbody));
+        }
+        p_mihndl->encsc.set = 1;
+    }
+}
+
+/* Check callback return and performs deferred updates. */
+#define __POST_CB_ITER_CALL(mb, nb) \
+    if ((int)ret>0 || (p_ihndl->path.beg < p_ihndl->path.end)) goto finish; \
     cb_bf = sp_cb_errc((int)ret); \
     is_mod = cb_bf & (mb); \
     is_del = cb_bf & SP_CBEC_FLG_DEL_DEF; \
     if ((is_mod && is_del) || ((cb_bf & (nb)) && !strlen(name))) \
     { ret=SPEC_CB_RET_ERR; goto finish; } \
-    if (!is_del) EXEC_RG(del_rng(p_ihndl));
+    if (!is_del) { \
+        EXEC_RG(deferred_update(p_ihndl, p_mihndl->trck_encsc.p_ldef, 0)); \
+    }
 
 /* sp_iterate_modify() callback: property */
 static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
@@ -939,12 +1132,8 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
 
     /* follow destination path and call property callback */
     ret = iter_cb_prop(p_phndl, p_lname, p_lval, p_ldef);
-    __CHK_MOD_ITER_RET(SP_CBEC_FLG_MOD_PROP_NAME|SP_CBEC_FLG_MOD_PROP_VAL,
+    __POST_CB_ITER_CALL(SP_CBEC_FLG_MOD_PROP_NAME|SP_CBEC_FLG_MOD_PROP_VAL,
         SP_CBEC_FLG_MOD_PROP_NAME);
-
-    if (!cb_bf || cb_bf==SP_CBEC_FLG_FINISH)
-        /* nothing to modify */
-        goto finish;
 
     if (is_del) {
         EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
@@ -988,29 +1177,24 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
 #endif
                     EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_VAL, val));
                     p_mihndl->in_off = p_ldef->end+1;
-
 #ifndef NO_SEMICOL_ENDS_VAL
                     CHK_FERR(fputc(';', out));
 #else
                     /* added value need to be finished by EOL */
-                    EXEC_RG(write_eol_indent(
-                        p_ihndl, p_ldef, EOLIND_CHK_TAIL|EOLIND_CHK_EOB));
+                    EXEC_RG(write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER));
 #endif
                 }
             }
         }
-        EXEC_RG(upd_lstprt_def(p_ihndl, p_ldef));
+
+        EXEC_RG(finish_def_handle(p_ihndl, p_ldef));
     }
 
+    p_mihndl->ent_ldef = *p_ldef;
     ret = (cb_bf & SP_CBEC_FLG_FINISH ? SPEC_CB_FINISH : SPEC_SUCCESS);
 finish:
     return ret;
 }
-
-#define __IS_EOL(eol, c) \
-    (((eol)==EOL_LF && ((c) & 0xff)=='\n') || \
-     ((eol)==EOL_CR && ((c) & 0xff)=='\r') || \
-     ((eol)==EOL_CRLF && ((c) & 0xffff)==0x0d0a))
 
 /* sp_iterate_modify() callback: scope */
 static sp_errc_t mod_iter_cb_scope(
@@ -1031,44 +1215,34 @@ static sp_errc_t mod_iter_cb_scope(
     FILE *out = p_mihndl->out;
     FILE *sc_out = p_mihndl->sc_out;
 
-    if (sc_out) {
-        CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
-    }
+    if (sc_out) { CHK_FSEEK(fseek(sc_out, 0, SEEK_SET)); }
 
     /* track enclosing scope */
     if (p_ihndl->path.beg < p_ihndl->path.end) {
-        p_mihndl->encsc.p_lbody = p_lbody;
-        p_mihndl->encsc.p_ldef = p_ldef;
+        p_mihndl->trck_encsc.p_lbody = p_lbody;
+        p_mihndl->trck_encsc.p_ldef = p_ldef;
+        p_mihndl->encsc.set = 0;
     }
 
     /* follow destination path and call scope callback */
     ret = iter_cb_scope(p_phndl, p_ltype, p_lname, p_lbody, p_ldef);
-    __CHK_MOD_ITER_RET(SP_CBEC_FLG_MOD_SCOPE_TYPE|SP_CBEC_FLG_MOD_SCOPE_NAME,
+    __POST_CB_ITER_CALL(SP_CBEC_FLG_MOD_SCOPE_TYPE|SP_CBEC_FLG_MOD_SCOPE_NAME,
         SP_CBEC_FLG_MOD_SCOPE_NAME);
 
-    if (sc_out && !is_del) {
-        CHK_FERR(mod_bdy_len=ftell(sc_out));
-    }
+    set_encsc(p_ihndl);
 
-    if (!mod_bdy_len && (!cb_bf || cb_bf==SP_CBEC_FLG_FINISH))
-        /* nothing to modify */
-        goto finish;
+    if (sc_out && !is_del) { CHK_FERR(mod_bdy_len=ftell(sc_out)); }
 
     if (is_del) {
         EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
     } else
     {
         int c, type_del=0;
-        const sp_loc_t *p_encsc_bdy = p_mihndl->encsc.p_lbody;
 
-        if (mod_bdy_len && !p_lbody &&
-            (!p_encsc_bdy || p_encsc_bdy->beg < p_ldef->beg))
-        {
-            /* to avoid indentation issues, adding a body to an empty scope
-               moves this scope to a new line */
-            EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
-            write_eol_indent(p_ihndl, p_ldef, EOLIND_CHK_LEAD);
-            p_mihndl->in_off = p_ldef->beg;
+        if (mod_bdy_len && !p_lbody) {
+            /* to avoid indentation issues, adding a body to
+               an empty scope moves this scope to a new line */
+            EXEC_RG(strtdef_with_eol(p_ihndl, p_ldef));
         }
 
         /* scope type
@@ -1079,7 +1253,7 @@ static sp_errc_t mod_iter_cb_scope(
                 if (p_ltype) {
                     /* delete a type */
                     EXEC_RG(add_to_delrng(p_ihndl, p_ltype));
-                    EXEC_RG(del_rng(p_ihndl));
+                    EXEC_RG(del_rng(p_ihndl, 0));
                     type_del++;
                 }
             } else {
@@ -1117,31 +1291,26 @@ static sp_errc_t mod_iter_cb_scope(
             if (p_lbody) {
                 /* existing body update */
                 long off = p_lname->end+1;
-                int lc, lcs[2]={}; /* last 2 chars of modified body */
 
                 CHK_FSEEK(fseek(sc_out, off, SEEK_SET));
-
                 for (; off<mod_bdy_len; off++) {
                     CHK_FERR(c=fgetc(sc_out));
                     CHK_FERR(fputc(c, out));
-                    if (mod_bdy_len-off<=2) lcs[2-(mod_bdy_len-off)]=c;
                 }
                 p_mihndl->in_off = p_lbody->end+1;
 
-                /* In case the modified body is EOL finished then:
-                   1. Remove trimming spaces,
-                   2. Update ending scope marker '}' if it was in the same
-                      line as the scope body. */
-                lc = (!lcs[1] ? lcs[0] : ((lcs[0]<<8)|lcs[1]));
-                if (__IS_EOL(p_mihndl->eol_typ, lc))
-                {
-                    if (!trim_line(p_ihndl, 1))
-                        p_mihndl->in_off = p_lbody->end+1;
-
-                    if (p_ldef->last_line==p_lbody->last_line) {
-                        write_defln_ldsp(p_ihndl, p_ldef);
-                        CHK_FERR(fputc('}', out));
-                        p_mihndl->in_off = p_ldef->end+1;
+                /* scope body ending update */
+                if ((c=='\n' || c=='\r')) {
+                    if (p_lbody->last_line==p_ldef->last_line)
+                    {
+                        /* if modified body is in-lined with its enclosing scope,
+                           then lastly inserted EOL provides an indentation issue -
+                           scope ending marker need to be written "by hand" */
+                        __WRITE_ENDSC_MRK(p_ihndl, p_ldef);
+                    } else {
+                        /* remove duplicated EOL */
+                        long org_off=p_mihndl->in_off;
+                        if (!trim_line(p_ihndl, 1)) p_mihndl->in_off=org_off;
                     }
                 }
             } else {
@@ -1154,7 +1323,7 @@ static sp_errc_t mod_iter_cb_scope(
 
                 for (c='\n', i=mod_bdy_len+2;; i--) {
                     if (c=='\n') {
-                        EXEC_RG(write_eol_indent(p_ihndl, p_ldef, EOLIND_NO_CHK));
+                        EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0));
                         if (i>2) fputc('\t', out);
                     } else {
                         CHK_FERR(fputc(c, out));
@@ -1170,8 +1339,7 @@ static sp_errc_t mod_iter_cb_scope(
 
                 CHK_FERR(fputc('}', out));
                 p_mihndl->in_off = p_ldef->end+1;
-
-                write_eol_indent(p_ihndl, p_ldef, EOLIND_CHK_TAIL|EOLIND_CHK_EOB);
+                write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER);
             }
         } else
         if (type_del && !p_lbody)
@@ -1188,18 +1356,15 @@ static sp_errc_t mod_iter_cb_scope(
             }
             p_mihndl->in_off = p_ldef->end+1;
         }
-        EXEC_RG(upd_lstprt_def(p_ihndl, p_ldef));
+
+        EXEC_RG(finish_def_handle(p_ihndl, p_ldef));
     }
 
+    p_mihndl->ent_ldef = *p_ldef;
     ret = (cb_bf & SP_CBEC_FLG_FINISH ? SPEC_CB_FINISH : SPEC_SUCCESS);
 finish:
     return ret;
 }
-
-#undef __IS_EOL
-#undef __CHK_MOD_ITER_RET
-#undef __IS_ON_EOL
-#undef __IS_EOB
 
 /* exported; see header for details */
 sp_errc_t sp_iterate_modify(
@@ -1219,8 +1384,8 @@ sp_errc_t sp_iterate_modify(
     }
 
     if (cb_scope) {
-        /* scopes modifications goes to a temporary file before merging
-           them to the final output */
+        /* scopes modifications go to a temporary file
+           before merging them to the final output */
         sc_out = tmpfile();
         if (!sc_out) {
             ret = SPEC_TMP_CREAT_ERR;
@@ -1231,8 +1396,11 @@ sp_errc_t sp_iterate_modify(
     memset(&mihndl, 0, sizeof(mihndl));
     mihndl.out = out;
     mihndl.sc_out = sc_out;
-    /* parsing scope definition is not known, therefore set to NULL */
-    mihndl.encsc.p_lbody = p_parsc;
+    mihndl.p_parsc = p_parsc;
+
+    /* set to empty ranges */
+    mihndl.indent.eol_rng.end = -1;
+    mihndl.delrng.loc.end = -1;
 
     init_iter_hndl(&ihndl, in, path, defsc, cb_prop, cb_scope,
         arg, buf1, b1len, buf2, b2len, &mihndl);
@@ -1243,12 +1411,20 @@ sp_errc_t sp_iterate_modify(
 
     EXEC_RG(sp_parse(&phndl));
 
-    /* remove last range of locations to delete */
-    EXEC_RG(del_rng(&ihndl));
-    /* ... and copy untouched last part of the input */
+    /* last update */
+    EXEC_RG(deferred_update(&ihndl, NULL, 1));
+
+    /* copy untouched last part of the input */
     EXEC_RG(cpy_to_out(&ihndl, (p_parsc ? p_parsc->end+1 : EOF)));
 
 finish:
     if (sc_out) fclose(sc_out);
     return ret;
 }
+
+#undef __POST_CB_ITER_CALL
+#undef __WRITE_ENDSC_MRK
+#undef __GET_ENCSC_BDY
+#undef __IS_ON_EOL
+#undef __IS_ON_GLOBSC
+#undef __IS_ENTDEF_SET

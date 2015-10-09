@@ -48,8 +48,8 @@ typedef enum _sp_errc_t
 {
     /* Negative codes are reserved for callbacks to inform the library how to
        further proceed with the handling process; the codes don't name failures.
-       sp_cb_errc() macro should be used to create callback error codes as bit
-       flags.
+       sp_cb_errc() macro should be used to create callback error code from
+       callback error code flags.
      */
     SPEC_CB_FINISH = sp_cb_errc(SP_CBEC_FLG_FINISH),
 
@@ -174,7 +174,7 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, FILE *out, char *type,
    In case no ':' is provided 'defsc' is used as the default scope type, in
    which case /id/ is translated to /defsc:id/. As a conclusion: if 'defsc'
    is "" the /id/ is translated to /:id/, that is, it provides an alternative
-   way to address untyped scopes. To address root/global scope (0-level) 'path'
+   way to address untyped scopes. To address global scope (0-level) 'path'
    shall be set to NULL, "" or "/".
 
    NOTE: id specification may contain escape characters. Primary usage of them
