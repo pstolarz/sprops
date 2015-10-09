@@ -119,6 +119,8 @@ typedef struct _mod_iter_hndl_t
         /* !=0: deferred indentation has been requested */
         unsigned defer;
     } indent;
+
+    unsigned finish_req: 1;     /* finish requested by a callback */
 } mod_iter_hndl_t;
 
 /* iteration handle - base struct
@@ -951,8 +953,12 @@ static sp_errc_t handle_end_event(iter_hndl_t *p_ihndl)
     sp_errc_t ret=SPEC_SUCCESS;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
 
-    /* start with EOL */
+    if (p_mihndl->finish_req) {
+        /* finish requested; "end" context can't be established */
+        goto finish;
+    } else
     if (__IS_ENTDEF_SET(p_ihndl)) {
+        /* start with EOL */
         if (!__IS_ON_EOL(p_ihndl)) {
             write_eol_indent(p_ihndl, &p_mihndl->ent_ldef, 0);
         } else {
@@ -1191,7 +1197,8 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     }
 
     p_mihndl->ent_ldef = *p_ldef;
-    ret = (cb_bf & SP_CBEC_FLG_FINISH ? SPEC_CB_FINISH : SPEC_SUCCESS);
+    ret = (cb_bf & SP_CBEC_FLG_FINISH ?
+        (p_mihndl->finish_req=1, SPEC_CB_FINISH) : SPEC_SUCCESS);
 finish:
     return ret;
 }
@@ -1361,7 +1368,8 @@ static sp_errc_t mod_iter_cb_scope(
     }
 
     p_mihndl->ent_ldef = *p_ldef;
-    ret = (cb_bf & SP_CBEC_FLG_FINISH ? SPEC_CB_FINISH : SPEC_SUCCESS);
+    ret = (cb_bf & SP_CBEC_FLG_FINISH ?
+        (p_mihndl->finish_req=1, SPEC_CB_FINISH) : SPEC_SUCCESS);
 finish:
     return ret;
 }

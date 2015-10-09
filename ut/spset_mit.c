@@ -39,6 +39,9 @@ static sp_errc_t cb_prop(
     } else
     if (!strncmp(name, "p_dd", 4)) {
         cb_bf = SP_CBEC_FLG_DEL_DEF;
+    } else
+    if (!strcmp(name, "stop")) {
+        cb_bf = SP_CBEC_FLG_FINISH;
     }
 
     return (sp_errc_t)sp_cb_errc(cb_bf);
