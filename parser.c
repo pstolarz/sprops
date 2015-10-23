@@ -1884,7 +1884,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 }
             } else {
                 __CHAR_TOKEN(c);
-                endloop++;
+                endloop=1;
             }
             break;
 
@@ -1895,7 +1895,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_ID:
             if (!is_nq_id(c)) {
                 __MCHAR_TOKEN_END();
-                endloop++;
+                endloop=1;
                 unc_ungetc(&p_hndl->lex.unc, c);
                 continue;
             } else {
@@ -1909,13 +1909,13 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             if (c==EOL) {
                 /* error: quoted id need to be finished by quotation mark */
                 __MCHAR_TOKEN_END();
-                endloop++;
+                endloop=1;
                 token = YYERRCODE;
             } else {
                 __MCHAR_UPDATE_TAIL();
                 if (c==quot_chr && !esc) {
                     __MCHAR_TOKEN_END();
-                    endloop++;
+                    endloop=1;
                 }
             }
             break;
@@ -1933,7 +1933,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 /* mark token as empty */
                 __CHAR_TOKEN(SP_TKN_VAL);
                 p_lval->beg++;
-                endloop++;
+                endloop=1;
 #ifndef NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
@@ -1961,7 +1961,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 #endif
             {
                 __MCHAR_TOKEN_END();
-                endloop++;
+                endloop=1;
 #ifndef NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);

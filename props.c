@@ -120,7 +120,7 @@ typedef struct _mod_iter_hndl_t
         unsigned defer;
     } indent;
 
-    unsigned finish_req: 1;     /* finish requested by a callback */
+    unsigned finish_req;    /* finish requested by a callback */
 } mod_iter_hndl_t;
 
 /* iteration handle - base struct
@@ -681,18 +681,22 @@ finish:
 }
 
 /* Trim line spaces starting from the last input offset. Trimming is finished on
-   the first non-space character or EOL (which may be deleted or not depending
-   on 'del_eol'). The function returns !=0 if trimmed spaces constitute a line
-   (finished by EOL), 0 otherwise.
+   the first non-space character or EOL (which may be deleted or not, depending
+   on 'del_eol'). If a comment is in-lined in the deleted line it's also removed.
+   The function returns !=0 if trimmed spaces constitute a line (finished by EOL),
+   0 otherwise.
  */
 static int trim_line(iter_hndl_t *p_ihndl, int del_eol)
 {
-    int c, endc=2;  /* 0:non-space, 1:EOL, 2:EOF */
+    int endc=2;   /* 0:non-space, 1:EOL, 2:EOF */
+    int c, comment=0;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
     FILE *in = p_ihndl->in;
 
     if (fseek(in, p_mihndl->in_off, SEEK_SET)) goto finish;
-    for (endc=0; !endc && isspace(c=fgetc(in)); p_mihndl->in_off++)
+    for (endc=0;
+        !endc && (isspace(c=fgetc(in)) || (c=='#' ? (comment=1) : 0) || comment);
+        p_mihndl->in_off++)
     {
         if (c!='\r' && c!='\n') continue;
 
@@ -711,7 +715,8 @@ static int trim_line(iter_hndl_t *p_ihndl, int del_eol)
                     if (c!=EOF) {
                         p_mihndl->in_off++;
                         if (c=='\n') endc=1;
-                    } else endc=2;
+                    } else
+                        goto break_loop;
                 }
             }
             break;
@@ -722,6 +727,7 @@ static int trim_line(iter_hndl_t *p_ihndl, int del_eol)
     }
 break_loop:
 
+    if (c==EOF) endc=2;
     if (endc==1 && !del_eol)
         p_mihndl->in_off -= (p_mihndl->eol_typ==EOL_CRLF ? 2 : 1);
 finish:
@@ -947,8 +953,11 @@ finish:
     CHK_FERR(fputc('}', (ih)->p_mihndl->out)); \
     (ih)->p_mihndl->in_off = (encdef)->end+1;
 
-/* Handle modification "end" event. */
-static sp_errc_t handle_end_event(iter_hndl_t *p_ihndl)
+/* Handle modification "end" event. 'p_eol_end' is an in/out param telling if
+   EOL has been inserted at the call of the function and set to 1 in case the
+   function inserts the EOL.
+ */
+static sp_errc_t handle_end_event(iter_hndl_t *p_ihndl, int *p_eol_end)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
@@ -957,36 +966,37 @@ static sp_errc_t handle_end_event(iter_hndl_t *p_ihndl)
         /* finish requested; "end" context can't be established */
         goto finish;
     } else
-    if (__IS_ENTDEF_SET(p_ihndl)) {
+    if (!__IS_ENTDEF_SET(p_ihndl)) {
+        /* no entry handled; in case of global scope the event is applied at
+           the end of the scope, in case of non-global scope it means - no
+           scope has been found */
+        if (p_ihndl->path.beg && *p_ihndl->path.beg) {
+            goto finish;
+        }
+    } else {
         /* start with EOL */
-        if (!__IS_ON_EOL(p_ihndl)) {
+        if (!*p_eol_end) {
             write_eol_indent(p_ihndl, &p_mihndl->ent_ldef, 0);
         } else {
-            /* lastly inserted EOL is not indented */
+            /* lastly inserted EOL is not indented, do it */
             write_indent(p_ihndl, &p_mihndl->ent_ldef);
         }
-    } else
-    if (p_ihndl->path.beg && *p_ihndl->path.beg) {
-        /* scope to iterate not found */
-        goto finish;
     }
 
 // @@@
 fprintf(p_mihndl->out, "# END");
 
-    /* the update always finishes with EOL */
-    p_mihndl->indent.eol_rng.beg =
-        p_mihndl->indent.eol_rng.end = p_mihndl->in_off-1;
+    /* finish with EOL */
+    *p_eol_end=1;
     EXEC_RG(write_eol(p_ihndl));
 
 finish:
     return ret;
 }
 
-/* Deferred update (EOL indent, range deletion removal, end event handling).
-   The previous scope is contained in the iteration handler and the current
-   one is passed by 'p_encsc_def'. 'p_encsc_def' is NULL for global scope and
-   the last update of sp_iterate_modify() ('last_upd' != 0).
+/* Deferred update. The previous scope is contained in the iteration handler and
+   the current one is passed by 'p_encsc_def'. 'p_encsc_def' is NULL for global
+   scope and the last update of sp_iterate_modify() ('last_upd' != 0).
 
    NOTE: The function doesn't write indent for lastly inserted EOL.
  */
@@ -995,52 +1005,47 @@ static sp_errc_t deferred_update(
 {
     sp_errc_t ret=SPEC_SUCCESS;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
+    int on_eol = __IS_ON_EOL(p_ihndl);
 
     EXEC_RG(del_rng(p_ihndl, last_upd));
 
-    if (last_upd) { EXEC_RG(handle_end_event(p_ihndl)); }
+    if (last_upd) { EXEC_RG(handle_end_event(p_ihndl, &on_eol)); }
 
-    if (!p_mihndl->indent.defer && !last_upd) goto finish;
-    p_mihndl->indent.defer = 0;
+    if (!last_upd) {
+        int same_scope =
+            __IS_ON_GLOBSC(p_ihndl) ||
+            (p_encsc_def->beg==p_mihndl->encsc.ldef.beg &&
+             p_encsc_def->end==p_mihndl->encsc.ldef.end);
 
-    if (!last_upd)
-    {
-        /* deferred indentation update */
-        if (__IS_ON_GLOBSC(p_ihndl)) {
-            write_indent(p_ihndl, &p_mihndl->ent_ldef);
+        if (same_scope) {
+            /* deferred indentation update */
+            if (p_mihndl->indent.defer)
+                write_indent(p_ihndl, &p_mihndl->ent_ldef);
         } else {
-            if (p_encsc_def->beg==p_mihndl->encsc.ldef.beg &&
-                p_encsc_def->end==p_mihndl->encsc.ldef.end)
+            /* if previous scope is in-lined with its last def with inserted
+               EOL, then the new EOL provides an indentation issue - scope
+               ending marker need to be written "by hand" */
+            if (on_eol && __IS_ENTDEF_SET(p_ihndl) &&
+                p_mihndl->ent_ldef.last_line==p_mihndl->encsc.lbody.last_line)
             {
-                /* same scope - write deferred indent */
-                write_indent(p_ihndl, &p_mihndl->encsc.ldef);
-            } else
-            {
-                /* if previous scope is in-lined with its last def with inserted
-                   EOL, then the new EOL provides an indentation issue - scope
-                   ending marker need to be written "by hand" */
-                if (p_mihndl->ent_ldef.last_line==p_mihndl->encsc.lbody.last_line)
-                {
-                    __WRITE_ENDSC_MRK(p_ihndl, &p_ihndl->p_mihndl->encsc.ldef);
-                }
+                __WRITE_ENDSC_MRK(p_ihndl, &p_ihndl->p_mihndl->encsc.ldef);
             }
         }
     } else {
         /* scope body ending update */
-        if (!__IS_ON_GLOBSC(p_ihndl))
-        {
-            /* in case of last EOL at last encl. scope there is a need
-               to appropriately indent scope ending marker of the scope */
-            __WRITE_ENDSC_MRK(p_ihndl, &p_ihndl->p_mihndl->encsc.ldef);
+        if (!__IS_ON_GLOBSC(p_ihndl)) {
+            /* in case of EOL at last enclosing scope there is a need to
+               appropriately indent scope ending marker of the scope */
+            if (on_eol) {
+                __WRITE_ENDSC_MRK(p_ihndl, &p_ihndl->p_mihndl->encsc.ldef);
+            }
         } else
-        if (__IS_ON_EOL(p_ihndl) && !p_mihndl->p_parsc) {
+        if (on_eol && !p_mihndl->p_parsc)
             trim_line(p_ihndl, 1);
-            if (__IS_ENTDEF_SET(p_ihndl))
-                write_indent(p_ihndl, &p_mihndl->ent_ldef);
-        }
     }
 
 finish:
+    p_mihndl->indent.defer=0;
     return ret;
 }
 
@@ -1261,7 +1266,7 @@ static sp_errc_t mod_iter_cb_scope(
                     /* delete a type */
                     EXEC_RG(add_to_delrng(p_ihndl, p_ltype));
                     EXEC_RG(del_rng(p_ihndl, 0));
-                    type_del++;
+                    type_del=1;
                 }
             } else {
                 if (p_ltype) {
@@ -1314,11 +1319,8 @@ static sp_errc_t mod_iter_cb_scope(
                            then lastly inserted EOL provides an indentation issue -
                            scope ending marker need to be written "by hand" */
                         __WRITE_ENDSC_MRK(p_ihndl, p_ldef);
-                    } else {
-                        /* remove duplicated EOL */
-                        long org_off=p_mihndl->in_off;
-                        if (!trim_line(p_ihndl, 1)) p_mihndl->in_off=org_off;
-                    }
+                    } else
+                        trim_line(p_ihndl, 1);
                 }
             } else {
                 long i;
@@ -1327,23 +1329,22 @@ static sp_errc_t mod_iter_cb_scope(
                  */
                 CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
                 CHK_FERR(fputc(' ', out)|fputc('{', out));
+                /* start with EOL */
+                write_eol_indent(p_ihndl, p_ldef, 0);
+                fputc('\t', out);
 
-                for (c='\n', i=mod_bdy_len+2;; i--) {
+                for (c=0, i=mod_bdy_len; i>0; i--) {
+                    CHK_FERR(c=fgetc(sc_out));
                     if (c=='\n') {
                         EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0));
-                        if (i>2) fputc('\t', out);
+                        if (i>1) fputc('\t', out);
                     } else {
                         CHK_FERR(fputc(c, out));
                     }
-
-                    if (i>2) {
-                        CHK_FERR(c=fgetc(sc_out));
-                    } else {
-                        if (c!='\n') c='\n';
-                        else break;
-                    }
                 }
 
+                /* finish with EOL */
+                if (c!='\n') { EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0)); }
                 CHK_FERR(fputc('}', out));
                 p_mihndl->in_off = p_ldef->end+1;
                 write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER);
