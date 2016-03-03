@@ -238,6 +238,8 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
 
         ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_ihndl->in, p_ihndl->buf1.ptr,
             &tkname, p_ihndl->buf2.ptr, (p_lval ? &tkval : NULL), p_ldef);
+
+        if ((int)ret<0 && ret!=SPEC_CB_FINISH) ret=SPEC_CB_RET_ERR;
     }
 finish:
     return ret;
@@ -261,7 +263,6 @@ static sp_errc_t iter_cb_scope(
     if (p_ihndl->cb.scope)
     {
         sp_tkn_info_t tktype, tkname;
-        FILE *sc_out = (p_ihndl->p_mihndl ? p_ihndl->p_mihndl->sc_out : NULL);
 
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_ID,
             p_ltype, p_ihndl->buf1.ptr, p_ihndl->buf1.sz, &tktype.len));
@@ -271,9 +272,11 @@ static sp_errc_t iter_cb_scope(
         if (p_ltype) tktype.loc = *p_ltype;
         tkname.loc = *p_lname;
 
-        ret = p_ihndl->cb.scope(p_ihndl->cb.arg, p_ihndl->in, sc_out,
+        ret = p_ihndl->cb.scope(p_ihndl->cb.arg, p_ihndl->in, NULL,
             p_ihndl->buf1.ptr, (p_ltype ? &tktype : NULL),
             p_ihndl->buf2.ptr, &tkname, p_lbody, p_ldef);
+
+        if ((int)ret<0 && ret!=SPEC_CB_FINISH) ret=SPEC_CB_RET_ERR;
     }
 finish:
     return ret;
@@ -1116,7 +1119,7 @@ static void set_encsc(iter_hndl_t *p_ihndl)
 
 /* Check callback return and performs deferred updates. */
 #define __POST_CB_ITER_CALL(mb, nb) \
-    if ((int)ret>0 || (p_ihndl->path.beg < p_ihndl->path.end)) goto finish; \
+    if ((int)ret>0) goto finish; \
     cb_bf = sp_cb_errc((int)ret); \
     is_mod = cb_bf & (mb); \
     is_del = cb_bf & SP_CBEC_FLG_DEL_DEF; \
@@ -1131,79 +1134,95 @@ static sp_errc_t mod_iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    int cb_bf=0, is_mod, is_del;
 
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
 
-    char *name = p_ihndl->buf1.ptr;
-    char *val = p_ihndl->buf2.ptr;
-
-    FILE *out = p_mihndl->out;
-
-    /* follow destination path and call property callback */
-    ret = iter_cb_prop(p_phndl, p_lname, p_lval, p_ldef);
-    __POST_CB_ITER_CALL(SP_CBEC_FLG_MOD_PROP_NAME|SP_CBEC_FLG_MOD_PROP_VAL,
-        SP_CBEC_FLG_MOD_PROP_NAME);
-
-    if (is_del) {
-        EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
-    } else
+    if ((p_ihndl->path.beg >= p_ihndl->path.end) && p_ihndl->cb.prop)
     {
-        /* property name
-         */
-        if (cb_bf & SP_CBEC_FLG_MOD_PROP_NAME) {
-            EXEC_RG(cpy_to_out(p_ihndl, p_lname->beg));
-            EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, name));
-            p_mihndl->in_off = p_lname->end+1;
-        }
+        sp_tkn_info_t tkname, tkval;
+        char *name = p_ihndl->buf1.ptr;
+        char *val = p_ihndl->buf2.ptr;
 
-        /* property value
-         */
-        if (cb_bf & SP_CBEC_FLG_MOD_PROP_VAL)
+        FILE *in = p_ihndl->in;
+        FILE *out = p_mihndl->out;
+
+        int cb_bf=0, is_mod=0, is_del=0;
+
+        EXEC_RG(sp_parser_tkn_cpy(
+            p_phndl, SP_TKN_ID, p_lname, name, p_ihndl->buf1.sz, &tkname.len));
+        EXEC_RG(sp_parser_tkn_cpy(
+            p_phndl, SP_TKN_VAL, p_lval, val, p_ihndl->buf2.sz, &tkval.len));
+
+        tkname.loc = *p_lname;
+        if (p_lval) tkval.loc = *p_lval;
+
+        /* call property callback */
+        ret = p_ihndl->cb.prop(p_ihndl->cb.arg, in,
+            name, &tkname, val, (p_lval ? &tkval : NULL), p_ldef);
+
+        __POST_CB_ITER_CALL(SP_CBEC_FLG_MOD_PROP_NAME|SP_CBEC_FLG_MOD_PROP_VAL,
+            SP_CBEC_FLG_MOD_PROP_NAME);
+
+        if (is_del) {
+            EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
+        } else
         {
-            if (!strlen(val)) {
-                if (p_lval)
-                {
-                    /* delete a value */
-                    EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
-                    CHK_FERR(fputc(';', out));
-                    p_mihndl->in_off = p_ldef->end+1;
-                }
-            } else {
-                if (p_lval)
-                {
-                    /* modify a value */
-                    EXEC_RG(cpy_to_out(p_ihndl, p_lval->beg));
-                    EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_VAL, val));
-                    p_mihndl->in_off = p_lval->end+1;
-                } else
-                {
-                    /* add a value */
-                    EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
+            /* property name
+             */
+            if (cb_bf & SP_CBEC_FLG_MOD_PROP_NAME) {
+                EXEC_RG(cpy_to_out(p_ihndl, p_lname->beg));
+                EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, name));
+                p_mihndl->in_off = p_lname->end+1;
+            }
+
+            /* property value
+             */
+            if (cb_bf & SP_CBEC_FLG_MOD_PROP_VAL)
+            {
+                if (!strlen(val)) {
+                    if (p_lval)
+                    {
+                        /* delete a value */
+                        EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
+                        CHK_FERR(fputc(';', out));
+                        p_mihndl->in_off = p_ldef->end+1;
+                    }
+                } else {
+                    if (p_lval)
+                    {
+                        /* modify a value */
+                        EXEC_RG(cpy_to_out(p_ihndl, p_lval->beg));
+                        EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_VAL, val));
+                        p_mihndl->in_off = p_lval->end+1;
+                    } else
+                    {
+                        /* add a value */
+                        EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
 #ifdef CUT_VAL_LEADING_SPACES
-                    CHK_FERR(fputc(' ', out)|fputc('=', out)|fputc(' ', out));
+                        CHK_FERR(fputc(' ', out)|fputc('=', out)|fputc(' ', out));
 #else
-                    CHK_FERR(fputc('=', out));
+                        CHK_FERR(fputc('=', out));
 #endif
-                    EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_VAL, val));
-                    p_mihndl->in_off = p_ldef->end+1;
+                        EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_VAL, val));
+                        p_mihndl->in_off = p_ldef->end+1;
 #ifndef NO_SEMICOL_ENDS_VAL
-                    CHK_FERR(fputc(';', out));
+                        CHK_FERR(fputc(';', out));
 #else
-                    /* added value need to be finished by EOL */
-                    EXEC_RG(write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER));
+                        /* added value need to be finished by EOL */
+                        EXEC_RG(write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER));
 #endif
+                    }
                 }
             }
+
+            EXEC_RG(finish_def_handle(p_ihndl, p_ldef));
         }
 
-        EXEC_RG(finish_def_handle(p_ihndl, p_ldef));
+        p_mihndl->ent_ldef = *p_ldef;
+        ret = (cb_bf & SP_CBEC_FLG_FINISH ?
+            (p_mihndl->finish_req=1, SPEC_CB_FINISH) : SPEC_SUCCESS);
     }
-
-    p_mihndl->ent_ldef = *p_ldef;
-    ret = (cb_bf & SP_CBEC_FLG_FINISH ?
-        (p_mihndl->finish_req=1, SPEC_CB_FINISH) : SPEC_SUCCESS);
 finish:
     return ret;
 }
@@ -1214,163 +1233,189 @@ static sp_errc_t mod_iter_cb_scope(
     const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    long mod_bdy_len=0;
-    int cb_bf=0, is_mod, is_del;
 
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
     mod_iter_hndl_t *p_mihndl = p_ihndl->p_mihndl;
 
-    char *type = p_ihndl->buf1.ptr;
-    char *name = p_ihndl->buf2.ptr;
+    if (p_ihndl->path.beg < p_ihndl->path.end)
+    {
+        /* clone the handle for the scope being followed */
+        iter_hndl_t ihndl = *p_ihndl;
 
-    FILE *in = p_ihndl->in;
-    FILE *out = p_mihndl->out;
-    FILE *sc_out = p_mihndl->sc_out;
-
-    if (sc_out) { CHK_FSEEK(fseek(sc_out, 0, SEEK_SET)); }
-
-    /* track enclosing scope */
-    if (p_ihndl->path.beg < p_ihndl->path.end) {
+        /* track enclosing scope */
         p_mihndl->trck_encsc.p_lbody = p_lbody;
         p_mihndl->trck_encsc.p_ldef = p_ldef;
         p_mihndl->encsc.set = 0;
-    }
 
-    /* follow destination path and call scope callback */
-    ret = iter_cb_scope(p_phndl, p_ltype, p_lname, p_lbody, p_ldef);
-    __POST_CB_ITER_CALL(SP_CBEC_FLG_MOD_SCOPE_TYPE|SP_CBEC_FLG_MOD_SCOPE_NAME,
-        SP_CBEC_FLG_MOD_SCOPE_NAME);
-
-    set_encsc(p_ihndl);
-
-    if (sc_out && !is_del) { CHK_FERR(mod_bdy_len=ftell(sc_out)); }
-
-    if (is_del) {
-        EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
+        /* follow destination path */
+        ret = follow_scope_path(
+            p_phndl, &ihndl.path, p_ltype, p_lname, p_lbody, &ihndl);
     } else
+    if (p_ihndl->cb.scope)
     {
-        int c, type_del=0;
+        sp_tkn_info_t tktype, tkname;
+        char *type = p_ihndl->buf1.ptr;
+        char *name = p_ihndl->buf2.ptr;
 
-        if (mod_bdy_len && !p_lbody) {
-            /* to avoid indentation issues, adding a body to
-               an empty scope moves this scope to a new line */
-            EXEC_RG(strtdef_with_eol(p_ihndl, p_ldef));
-        }
+        int cb_bf=0, is_mod=0, is_del=0;
 
-        /* scope type
-         */
-        if (cb_bf & SP_CBEC_FLG_MOD_SCOPE_TYPE)
+        FILE *in = p_ihndl->in;
+        FILE *out = p_mihndl->out;
+        FILE *sc_out = p_mihndl->sc_out;
+
+        EXEC_RG(sp_parser_tkn_cpy(
+            p_phndl, SP_TKN_ID, p_ltype, type, p_ihndl->buf1.sz, &tktype.len));
+        EXEC_RG(sp_parser_tkn_cpy(
+            p_phndl, SP_TKN_ID, p_lname, name, p_ihndl->buf2.sz, &tkname.len));
+
+        if (p_ltype) tktype.loc = *p_ltype;
+        tkname.loc = *p_lname;
+
+        /* call scope callback */
+        ret = p_ihndl->cb.scope(p_ihndl->cb.arg, in, sc_out,
+            type, (p_ltype ? &tktype : NULL), name, &tkname, p_lbody, p_ldef);
+
+        __POST_CB_ITER_CALL(SP_CBEC_FLG_MOD_SCOPE_TYPE|SP_CBEC_FLG_MOD_SCOPE_NAME,
+            SP_CBEC_FLG_MOD_SCOPE_NAME);
+
+        set_encsc(p_ihndl);
+
+        if (is_del) {
+            EXEC_RG(add_to_delrng(p_ihndl, p_ldef));
+        } else
         {
-            if (!strlen(type)) {
-                if (p_ltype) {
-                    /* delete a type */
-                    EXEC_RG(add_to_delrng(p_ihndl, p_ltype));
-                    EXEC_RG(del_rng(p_ihndl, 0));
-                    type_del=1;
-                }
-            } else {
-                if (p_ltype) {
-                    /* modify a type */
-                    EXEC_RG(cpy_to_out(p_ihndl, p_ltype->beg));
-                    EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, type));
-                    p_mihndl->in_off = p_ltype->end+1;
-                } else {
-                    /* add a type */
-                    EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
-                    EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, type));
-                    CHK_FERR(fputc(' ', out));
-                    p_mihndl->in_off = p_lname->beg;
-                }
-            }
-        }
+            long mod_bdy_len=0;
+            int c, type_del=0;
 
-        /* scope name
-         */
-        if (cb_bf & SP_CBEC_FLG_MOD_SCOPE_NAME) {
-            EXEC_RG(cpy_to_out(p_ihndl, p_lname->beg));
-            EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, name));
-            p_mihndl->in_off = p_lname->end+1;
-        }
-
-        /* scope body
-         */
-        if (mod_bdy_len)
-        {
-            /* scope body updated by the callback
-             */
-            EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
-
-            if (p_lbody) {
-                /* existing body update */
-                long off = p_lname->end+1;
-
-                CHK_FSEEK(fseek(sc_out, off, SEEK_SET));
-                for (; off<mod_bdy_len; off++) {
-                    CHK_FERR(c=fgetc(sc_out));
-                    CHK_FERR(fputc(c, out));
-                }
-                p_mihndl->in_off = p_lbody->end+1;
-
-                /* scope body ending update */
-                if ((c=='\n' || c=='\r')) {
-                    if (p_lbody->last_line==p_ldef->last_line)
-                    {
-                        /* if modified body is in-lined with its enclosing scope,
-                           then lastly inserted EOL provides an indentation issue -
-                           scope ending marker need to be written "by hand" */
-                        __WRITE_ENDSC_MRK(p_ihndl, p_ldef);
-                    } else
-                        trim_line(p_ihndl, 1);
-                }
-            } else {
-                long i;
-
-                /* empty body update
-                 */
+            if (sc_out) {
                 CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
-                CHK_FERR(fputc(' ', out)|fputc('{', out));
-                /* start with EOL */
-                write_eol_indent(p_ihndl, p_ldef, 0);
-                fputc('\t', out);
+                CHK_FERR(mod_bdy_len=ftell(sc_out));
+            }
 
-                for (c=0, i=mod_bdy_len; i>0; i--) {
-                    CHK_FERR(c=fgetc(sc_out));
-                    if (c=='\n') {
-                        EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0));
-                        if (i>1) fputc('\t', out);
+            if (mod_bdy_len && !p_lbody) {
+                /* to avoid indentation issues, adding a body to
+                   an empty scope moves this scope to a new line */
+                EXEC_RG(strtdef_with_eol(p_ihndl, p_ldef));
+            }
+
+            /* scope type
+             */
+            if (cb_bf & SP_CBEC_FLG_MOD_SCOPE_TYPE)
+            {
+                if (!strlen(type)) {
+                    if (p_ltype) {
+                        /* delete a type */
+                        EXEC_RG(add_to_delrng(p_ihndl, p_ltype));
+                        EXEC_RG(del_rng(p_ihndl, 0));
+                        type_del=1;
+                    }
+                } else {
+                    if (p_ltype) {
+                        /* modify a type */
+                        EXEC_RG(cpy_to_out(p_ihndl, p_ltype->beg));
+                        EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, type));
+                        p_mihndl->in_off = p_ltype->end+1;
                     } else {
-                        CHK_FERR(fputc(c, out));
+                        /* add a type */
+                        EXEC_RG(cpy_to_out(p_ihndl, p_ldef->beg));
+                        EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, type));
+                        CHK_FERR(fputc(' ', out));
+                        p_mihndl->in_off = p_lname->beg;
                     }
                 }
+            }
 
-                /* finish with EOL */
-                if (c!='\n') { EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0)); }
-                CHK_FERR(fputc('}', out));
+            /* scope name
+             */
+            if (cb_bf & SP_CBEC_FLG_MOD_SCOPE_NAME) {
+                EXEC_RG(cpy_to_out(p_ihndl, p_lname->beg));
+                EXEC_RG(sp_parser_tokenize_str(out, SP_TKN_ID, name));
+                p_mihndl->in_off = p_lname->end+1;
+            }
+
+            /* scope body
+             */
+            if (mod_bdy_len)
+            {
+                /* scope body updated by the callback
+                 */
+                EXEC_RG(cpy_to_out(p_ihndl, p_lname->end+1));
+
+                if (p_lbody) {
+                    /* existing body update */
+                    long off = p_lname->end+1;
+
+                    CHK_FSEEK(fseek(sc_out, off, SEEK_SET));
+                    for (; off<mod_bdy_len; off++) {
+                        CHK_FERR(c=fgetc(sc_out));
+                        CHK_FERR(fputc(c, out));
+                    }
+                    p_mihndl->in_off = p_lbody->end+1;
+
+                    /* scope body ending update */
+                    if ((c=='\n' || c=='\r')) {
+                        if (p_lbody->last_line==p_ldef->last_line)
+                        {
+                            /* if modified body is in-lined with its enclosing
+                               scope, then lastly inserted EOL provides an
+                               indentation issue - scope ending marker need to
+                               be written "by hand" */
+                            __WRITE_ENDSC_MRK(p_ihndl, p_ldef);
+                        } else
+                            trim_line(p_ihndl, 1);
+                    }
+                } else {
+                    long i;
+
+                    /* empty body update
+                     */
+                    CHK_FSEEK(fseek(sc_out, 0, SEEK_SET));
+                    CHK_FERR(fputc(' ', out)|fputc('{', out));
+                    /* start with EOL */
+                    write_eol_indent(p_ihndl, p_ldef, 0);
+                    fputc('\t', out);
+
+                    for (c=0, i=mod_bdy_len; i>0; i--) {
+                        CHK_FERR(c=fgetc(sc_out));
+                        if (c=='\n') {
+                            EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0));
+                            if (i>1) fputc('\t', out);
+                        } else {
+                            CHK_FERR(fputc(c, out));
+                        }
+                    }
+
+                    /* finish with EOL */
+                    if (c!='\n') {
+                        EXEC_RG(write_eol_indent(p_ihndl, p_ldef, 0));
+                    }
+                    CHK_FERR(fputc('}', out));
+                    p_mihndl->in_off = p_ldef->end+1;
+                    write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER);
+                }
+            } else
+            if (type_del && !p_lbody)
+            {
+                /* untyped scope w/o a body must not use alternative
+                   version of definition to avoid ambiguity */
+                EXEC_RG(cpy_to_out(p_ihndl, p_ldef->end));
+
+                CHK_FERR(c=fgetc(in));
+                if (c==';') {
+                    CHK_FERR(fputc('{', out)|fputc('}', out));
+                } else {
+                    CHK_FERR(fputc(c, out));
+                }
                 p_mihndl->in_off = p_ldef->end+1;
-                write_eol_indent(p_ihndl, p_ldef, EOLIND_DEFER);
             }
-        } else
-        if (type_del && !p_lbody)
-        {
-            /* untyped scope w/o a body must not use alternative
-               version of definition to avoid ambiguity */
-            EXEC_RG(cpy_to_out(p_ihndl, p_ldef->end));
 
-            CHK_FERR(c=fgetc(in));
-            if (c==';') {
-                CHK_FERR(fputc('{', out)|fputc('}', out));
-            } else {
-                CHK_FERR(fputc(c, out));
-            }
-            p_mihndl->in_off = p_ldef->end+1;
+            EXEC_RG(finish_def_handle(p_ihndl, p_ldef));
         }
 
-        EXEC_RG(finish_def_handle(p_ihndl, p_ldef));
+        p_mihndl->ent_ldef = *p_ldef;
+        ret = (cb_bf & SP_CBEC_FLG_FINISH ?
+            (p_mihndl->finish_req=1, SPEC_CB_FINISH) : SPEC_SUCCESS);
     }
-
-    p_mihndl->ent_ldef = *p_ldef;
-    ret = (cb_bf & SP_CBEC_FLG_FINISH ?
-        (p_mihndl->finish_req=1, SPEC_CB_FINISH) : SPEC_SUCCESS);
 finish:
     return ret;
 }
