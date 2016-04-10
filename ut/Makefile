@@ -3,7 +3,7 @@ CFLAGS=-Wall -I../inc
 
 .PHONY: all clean
 
-TESTS=spget spset_mit
+TESTS=spget
 
 all: $(TESTS)
 

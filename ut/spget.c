@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015 Piotr Stolarz
+   Copyright (c) 2015,2016 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -18,8 +18,8 @@
 
 /* sp_iterate() property callback */
 static sp_errc_t cb_prop(
-    void *arg, FILE *in, char *name, const sp_tkn_info_t *p_tkname,
-    char *val, const sp_tkn_info_t *p_tkval, const sp_loc_t *p_ldef)
+    void *arg, FILE *in, const char *name, const sp_tkn_info_t *p_tkname,
+    const char *val, const sp_tkn_info_t *p_tkval, const sp_loc_t *p_ldef)
 {
     printf("PROP %s, val-str \"%s\": "
         "NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
@@ -56,9 +56,10 @@ static sp_errc_t cb_prop(
 }
 
 /* sp_iterate() scope callback */
-static sp_errc_t cb_scope(void *arg, FILE *in, FILE *out, char *type,
-    const sp_tkn_info_t *p_tktype, char *name, const sp_tkn_info_t *p_tkname,
-    const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
+static sp_errc_t cb_scope(
+    void *arg, FILE *in, const char *type, const sp_tkn_info_t *p_tktype,
+    const char *name, const sp_tkn_info_t *p_tkname, const sp_loc_t *p_lbody,
+    const sp_loc_t *p_ldef)
 {
     printf("SCOPE %s, type \"%s\": "
         "NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",

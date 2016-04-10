@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015 Piotr Stolarz
+   Copyright (c) 2015,2016 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -24,34 +24,13 @@ extern "C" {
 #define NULL    0
 #endif
 
-/* callback error codes flags
- */
-/* finish further processing */
-#define SP_CBEC_FLG_FINISH          0x01
-/* modify property name */
-#define SP_CBEC_FLG_MOD_PROP_NAME   0x02
-/* modify scope type */
-#define SP_CBEC_FLG_MOD_SCOPE_TYPE  0x02
-/* modify property value */
-#define SP_CBEC_FLG_MOD_PROP_VAL    0x04
-/* modify scope name */
-#define SP_CBEC_FLG_MOD_SCOPE_NAME  0x04
-/* remove property/scope definition (don't mix with modify flags) */
-#define SP_CBEC_FLG_DEL_DEF         0x08
-
-/* Create error code as bit flag; 'c' consists of OR'er SP_CBEC_FLG_XXX flags
- */
-#define sp_cb_errc(c)   (-(c))
-
-/* error codes */
+/* Error codes */
 typedef enum _sp_errc_t
 {
     /* Negative codes are reserved for callbacks to inform the library how to
        further proceed with the handling process; the codes don't name failures.
-       sp_cb_errc() macro should be used to create callback error code from
-       callback error code flags.
      */
-    SPEC_CB_FINISH = sp_cb_errc(SP_CBEC_FLG_FINISH),
+    SPEC_CB_FINISH = -1,
 
     /* Success (always 0)
      */
@@ -67,8 +46,6 @@ typedef enum _sp_errc_t
     SPEC_NOTFOUND,      /* addressed element not found */
     SPEC_SIZE,          /* size exceeding a limit */
     SPEC_VAL_ERR,       /* incorrect value (e.g. number format) */
-    SPEC_NONAME,        /* name expected but not provided */
-    SPEC_TMP_CREAT_ERR, /* temporary file creation error */
     SPEC_CB_RET_ERR,    /* incorrect return provided by a callback */
 
     /* This is the last error in the enumeration, callbacks may
@@ -119,47 +96,28 @@ sp_errc_t sp_check_syntax(
    'p_ldef' locates overall property definition. 'arg' is passed untouched as
    provided in sp_iterate(). 'in' is the parsed input file handle.
 
-   sp_iterate() callback return codes:
+   Return codes:
        SPEC_CB_FINISH: success; finish parsing
        SPEC_SUCCESS: success; continue parsing
        >0 error codes: failure with code as returned; abort parsing
-
-   sp_iterate_modify() callback return codes:
-       error codes OR'ed flags SP_CBEC_FLG_XXX converted via sp_cb_errc() macro:
-         modify selected tokens, e.g.:
-         sp_cb_errc(SP_CBEC_FLG_MOD_PROP_VAL|SP_CBEC_FLG_FINISH): informs about
-         property name modification and finish further processing. The new name
-         value is written under 'name' pointer (proper buf1 length must be
-         guaranteed by the caller of the iteration function).
-       SPEC_SUCCESS: success; don't modify
-       >0 error codes: failure with code as returned; abort parsing
  */
-typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, char *name,
-    const sp_tkn_info_t *p_tkname, char *val, const sp_tkn_info_t *p_tkval,
+typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
+    const sp_tkn_info_t *p_tkname, const char *val, const sp_tkn_info_t *p_tkval,
     const sp_loc_t *p_ldef);
 
 /* Scope iteration callback provides type and scope name (strings under 'type',
    'name') of an iterated scope. 'p_lbody' points to the scope body content
-   location which may be used to retrieve data from it by sp_iterate() OR
-   modifications of this scope via sp_iterate_modify(). 'p_tktype' and 'p_lbody'
-   may be NULL for untyped scope OR scope w/o a body).
+   location which may be used to retrieve data from it by sp_iterate().
+   'p_tktype' and 'p_lbody' may be NULL for untyped scope OR scope w/o a body).
+   'in' is the parsed input file handle.
 
-   'in' is the parsed input file handle, while 'out' - the output file handle
-   which should be used if a callback need to modify the scope body content.
-   'out' is !=NULL only during sp_iterate_modify() iteration and any scope body
-   modifications may be performed only in this context. The modifications shall
-   be done by a callback in the following way:
-    - If the scope doesn't have a body the callback may only insert content into
-      the body by sp_write_XXX() family of function with 'out' as an argument.
-      NOTE: sp_iterate_modify() doesn't have any sense in this case, since no
-      content means no iteration.
-    - If the scope has a body its modification is possible only by
-      sp_iterate_modify().
-
-   NOTE: The callback must not write to 'out' directly.
+   Return codes:
+       SPEC_CB_FINISH: success; finish parsing
+       SPEC_SUCCESS: success; continue parsing
+       >0 error codes: failure with code as returned; abort parsing
  */
-typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, FILE *out, char *type,
-    const sp_tkn_info_t *p_tktype, char *name, const sp_tkn_info_t *p_tkname,
+typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
+    const sp_tkn_info_t *p_tktype, const char *name, const sp_tkn_info_t *p_tkname,
     const sp_loc_t *p_lbody, const sp_loc_t *p_ldef);
 
 /* Iterate elements (properties/scopes) under 'path'. This functions acts
@@ -268,29 +226,6 @@ sp_errc_t sp_get_prop_enum(
     FILE *in, const sp_loc_t *p_parsc, const char *name, const char *path,
     const char *defsc, const sp_enumval_t *p_evals, int igncase, char *buf,
     size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
-
-/* Supportive functions to be used inside sp_iterate_modify() callbacks. See
-   the callbacks description for details.
- */
-sp_errc_t sp_write_prop(FILE *out, const char *name, const char *val);
-sp_errc_t sp_write_empty_scope(FILE *out, const char *type, const char *name);
-sp_errc_t sp_write_comment(FILE *out, const char *text);
-
-/* Iteration with modification. Meaning of this function is similar to
-   sp_iterate() with except the callback function may request iterated
-   properties/scopes update by modification of passed callback function arguments
-   and indicating the change by returning proper return code. 'out' is a handle
-   to an output file handle where the modified configuration will be written.
-
-   NOTE: Contrary to 'in' which is a random access stream for every API of the
-   library (therefore must not be 'stdin'), 'out' is written incrementally by
-   the function w/o changing stream's position indicator (fseek) during the
-   writing process. This enables 'stdout' to be used as 'out'.
- */
-sp_errc_t sp_iterate_modify(
-    FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *path,
-    const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
-    void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len);
 
 #ifdef __cplusplus
 }
