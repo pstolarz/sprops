@@ -136,8 +136,8 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    shall be set to NULL, "" or "/".
 
    NOTE: id specification may contain escape characters. Primary usage of them
-   is escaping colon (: as \x3a) and slash (/ as \x2f) in the 'path' string
-   to avoid ambiguity with the path specific characters.
+   is escaping colon (\x3a) and slash (\x2f) in the 'path' string to avoid
+   ambiguity with the path specific characters.
 
    'in' and 'p_parsc' provide input file (must be opened in the binary mode with
    read access at least) to parse with a given parsing scope. The parsing scope

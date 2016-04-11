@@ -207,10 +207,10 @@ int main(void)
     print_str_prm("/scope:1/scope:2/a", buf1, &info);
 
     EXEC_RG(
-        sp_get_prop(in, NULL, "b", "/1/2", "scope", buf1, sizeof(buf1), &info));
+        sp_get_prop(in, NULL, "b", "/1/2/", "scope", buf1, sizeof(buf1), &info));
     print_str_prm("/scope:1/scope:2/b", buf1, &info);
 
-    EXEC_RG(sp_get_prop_int(in, NULL, "a", "1/2/:xxx", "scope", &lval, &info));
+    EXEC_RG(sp_get_prop_int(in, NULL, "a", "1/2/:xxx/", "scope", &lval, &info));
     print_long_prm("/scope:1/scope:2/:xxx/a", lval, &info);
 
     EXEC_RG(sp_get_prop_float(in, NULL, "b", "1/2/:xxx", "scope", &dval, &info));
@@ -259,7 +259,7 @@ int main(void)
     EXEC_RG(sp_iterate(in, NULL, NULL, NULL, cb_prop, cb_scope, NULL, buf1,
         sizeof(buf1), buf2, sizeof(buf2)));
 
-    printf("\n--- Iterating splitted scope /:1/:2/:3\n");
+    printf("\n--- Iterating split scope /:1/:2/:3\n");
     EXEC_RG(sp_iterate(in, NULL, "/1/2/3", "", cb_prop, cb_scope, NULL, buf1,
         sizeof(buf1), buf2, sizeof(buf2)));
 

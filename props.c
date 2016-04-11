@@ -18,6 +18,11 @@
 #include "config.h"
 #include "sp_props/parser.h"
 
+/* path separators */
+#define SEP_SCP     '/'
+#define SEP_TYP     ':'
+#define SEP_SIND    '@'
+
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 /* to be used inside callbacks only */
@@ -106,13 +111,13 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     sp_errc_t ret=SPEC_SUCCESS;
     size_t typ_len=0, nm_len=0;
     const char *type=NULL, *name=NULL, *beg=p_path->beg, *end=p_path->end;
-    const char *col=strchr(beg, ':'), *sl=strchr(beg, '/');
+    const char *col=strchr(beg, SEP_TYP), *sl=strchr(beg, SEP_SCP);
 
     if (sl) end=sl;
     if (col>=end) col=NULL;
 
     if (col) {
-        /* type ':' name */
+        /* type and name specified */
         type = beg;
         typ_len = col-beg;
         name = col+1;
@@ -231,7 +236,7 @@ static void init_iter_hndl(iter_hndl_t *p_ihndl, FILE *in, const char *path,
         p_ihndl->buf2.ptr[p_ihndl->buf2.sz] = 0;
     }
 
-    if (path && *path=='/') path++;
+    if (path && *path==SEP_SCP) path++;
     p_ihndl->path.beg = path;
     p_ihndl->path.end = (!path ? NULL : p_ihndl->path.beg+strlen(path));
     p_ihndl->path.defsc = defsc;
@@ -366,7 +371,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         /* property name provided as part of the path spec. */
         if (!path) goto finish;
 
-        name = strrchr(path, '/');
+        name = strrchr(path, SEP_SCP);
         if (name) {
             gphndl.path.beg = path;
             gphndl.path.end = name++;
@@ -374,8 +379,6 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
             name = path;
             gphndl.path.beg = gphndl.path.end = NULL;
         }
-
-        if (strchr(name, ':')) goto finish;
     } else {
         gphndl.path.beg = path;
         gphndl.path.end = (!path ? NULL : gphndl.path.beg+strlen(path));
@@ -383,7 +386,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     gphndl.name = name;
 
-    if (gphndl.path.beg && *gphndl.path.beg=='/') gphndl.path.beg++;
+    if (gphndl.path.beg && *gphndl.path.beg==SEP_SCP) gphndl.path.beg++;
     gphndl.path.defsc = defsc;
 
     gphndl.p_info = &info;
