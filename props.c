@@ -282,8 +282,12 @@ typedef struct _getprp_hndl_t
        NOTE: mutable object not propagated between scopes */
     path_t path;
 
-    /* property name */
+    /* property name & index */
     const char *name;
+    int prop_ind;
+
+    /* incremental index of matched props */
+    int mtch_ind;
 
     /* property value buffer */
     struct {
@@ -309,18 +313,26 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
-        /* property found; done */
-        p_gphndl->p_info->tkname.len = strlen(p_gphndl->name);
-        p_gphndl->p_info->tkname.loc = *p_lname;
-        if (p_lval) {
-            p_gphndl->p_info->val_pres = 1;
-            p_gphndl->p_info->tkval.loc = *p_lval;
-        } else {
-            p_gphndl->p_info->val_pres = 0;
-        }
-        p_gphndl->p_info->ldef = *p_ldef;
+        /* matching property found */
+        p_gphndl->mtch_ind++;
 
-        ret = SPEC_CB_FINISH;
+        if (p_gphndl->prop_ind==p_gphndl->mtch_ind ||
+            p_gphndl->prop_ind==IND_LAST)
+        {
+            p_gphndl->p_info->tkname.len = strlen(p_gphndl->name);
+            p_gphndl->p_info->tkname.loc = *p_lname;
+            if (p_lval) {
+                p_gphndl->p_info->val_pres = 1;
+                p_gphndl->p_info->tkval.loc = *p_lval;
+            } else {
+                p_gphndl->p_info->val_pres = 0;
+            }
+            p_gphndl->p_info->ldef = *p_ldef;
+        }
+
+        if (p_gphndl->prop_ind==p_gphndl->mtch_ind)
+            /* requested property found, stop further processing */
+            ret=SPEC_CB_FINISH;
     }
 finish:
     return ret;
@@ -346,7 +358,7 @@ static sp_errc_t getprp_cb_scope(
 
 /* exported; see header for details */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, char *val, size_t len,
+    int ind, const char *path, const char *defsc, char *val, size_t len,
     sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_INV_ARG;
@@ -386,6 +398,10 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     gphndl.name = name;
 
+    if (ind<0 && ind!=IND_LAST) goto finish;
+    gphndl.prop_ind = ind;
+    gphndl.mtch_ind = -1;
+
     if (gphndl.path.beg && *gphndl.path.beg==SEP_SCP) gphndl.path.beg++;
     gphndl.path.defsc = defsc;
 
@@ -416,14 +432,16 @@ static size_t strtrim(char *str)
 
 /* exported; see header for details */
 sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, long *p_val, sp_prop_info_ex_t *p_info)
+    int ind, const char *path, const char *defsc, long *p_val,
+    sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_prop_info_ex_t info;
     char val[80], *end;
     long v=0L;
 
-    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, val, sizeof(val), &info));
+    EXEC_RG(sp_get_prop(
+        in, p_parsc, name, ind, path, defsc, val, sizeof(val), &info));
     if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
         ret=SPEC_VAL_ERR;
         goto finish;
@@ -443,14 +461,16 @@ finish:
 
 /* exported; see header for details */
 sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, double *p_val, sp_prop_info_ex_t *p_info)
+    int ind, const char *path, const char *defsc, double *p_val,
+    sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_prop_info_ex_t info;
     char val[80], *end;
     double v=0.0;
 
-    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, val, sizeof(val), &info));
+    EXEC_RG(sp_get_prop(
+        in, p_parsc, name, ind, path, defsc, val, sizeof(val), &info));
     if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
         ret=SPEC_VAL_ERR;
         goto finish;
@@ -480,9 +500,9 @@ static int __stricmp(const char *str1, const char *str2)
 
 /* exported; see header for details */
 sp_errc_t sp_get_prop_enum(
-    FILE *in, const sp_loc_t *p_parsc, const char *name, const char *path,
-    const char *defsc, const sp_enumval_t *p_evals, int igncase,
-    char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info)
+    FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
+    const char *path, const char *defsc, const sp_enumval_t *p_evals,
+    int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     int v=0;
@@ -492,7 +512,7 @@ sp_errc_t sp_get_prop_enum(
 
     if (!p_evals) { ret=SPEC_INV_ARG; goto finish; }
 
-    EXEC_RG(sp_get_prop(in, p_parsc, name, path, defsc, buf, blen, &info));
+    EXEC_RG(sp_get_prop(in, p_parsc, name, ind, path, defsc, buf, blen, &info));
 
     /* remove leading/trailing spaces */
     for (; isspace((int)*buf); buf++);

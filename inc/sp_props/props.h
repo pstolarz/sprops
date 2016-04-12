@@ -161,25 +161,26 @@ typedef struct _sp_prop_info_ex_t
     sp_loc_t ldef;              /* property definition location */
 } sp_prop_info_ex_t;
 
+#define IND_LAST    -1
+
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
-   is found SPEC_NOTFOUND error is returned. In case many properties with the
-   same name exist the first one is retrieved (if other behavior is required, use
-   sp_iterate() method). If 'p_info' is not NULL it will be filled with property
-   extra information.
+   is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
+   (0-based) used to distinguish unambiguity in case many properties with
+   the same name exist (used IND_LAST for last property index). If 'p_info' is
+   not NULL it will be filled with property extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
    specification colon and slash chars need not to be escaped (there is no
    ambiguity in this case).
    NOTE 2: if 'name' is NULL then the property name is provided as part of 'path'
    specification (last part of path after '/' char). In this case property
-   name must not contain '/' or ':' characters which are not escaped by \xYY
-   sequence.
+   name must not contain '/' character which need to be escaped by \x2f sequence.
    NOTE 3: 'in' input file must be opened in the binary mode with read access at
    least.
  */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, char *val, size_t len,
+    int ind, const char *path, const char *defsc, char *val, size_t len,
     sp_prop_info_ex_t *p_info);
 
 /* Find integer property with 'name' and write its under 'p_val'. In case of
@@ -189,7 +190,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
    value as integer.
  */
 sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, long *p_val, sp_prop_info_ex_t *p_info);
+    int ind, const char *path, const char *defsc, long *p_val,
+    sp_prop_info_ex_t *p_info);
 
 /* Find float property with 'name' and write its under 'p_val'. In case of
    float format error SPEC_VAL_ERR is returned.
@@ -198,7 +200,8 @@ sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
    value as float.
  */
 sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    const char *path, const char *defsc, double *p_val, sp_prop_info_ex_t *p_info);
+    int ind, const char *path, const char *defsc, double *p_val,
+    sp_prop_info_ex_t *p_info);
 
 typedef struct _sp_enumval_t
 {
@@ -223,9 +226,9 @@ typedef struct _sp_enumval_t
    value as enum.
  */
 sp_errc_t sp_get_prop_enum(
-    FILE *in, const sp_loc_t *p_parsc, const char *name, const char *path,
-    const char *defsc, const sp_enumval_t *p_evals, int igncase, char *buf,
-    size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
+    FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
+    const char *path, const char *defsc, const sp_enumval_t *p_evals,
+    int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
 
 #ifdef __cplusplus
 }
