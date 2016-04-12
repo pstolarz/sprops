@@ -166,9 +166,9 @@ typedef struct _sp_prop_info_ex_t
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
-   (0-based) used to distinguish unambiguity in case many properties with
-   the same name exist (use IND_LAST for last property index). If 'p_info' is
-   not NULL it will be filled with property extra information.
+   (0-based) used to avoid ambiguity in case many properties with the same name
+   exist (use IND_LAST for last property index). If 'p_info' is not NULL it will
+   be filled with property extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
    specification '/' char need not to be escaped (there is no ambiguity in this
