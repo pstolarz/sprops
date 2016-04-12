@@ -127,17 +127,17 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    iteration should take place.
 
    The path is defined as: [/][id1][:]id2/[id1][:]id2/...
-   where id1 and id2 specify scope type and name on a given path level with
-   colon char ':' as a separator. To address untyped scope /:id/ shall be used.
-   In case no ':' is provided 'defsc' is used as the default scope type, in
+   where id1 and id2 specify scope type and name on a given path level with ':'
+   character as a separator. To address untyped scope /:id/ shall be used.
+   In case ':' is not provided 'defsc' is used as the default scope type, in
    which case /id/ is translated to /defsc:id/. As a conclusion: if 'defsc'
    is "" the /id/ is translated to /:id/, that is, it provides an alternative
    way to address untyped scopes. To address global scope (0-level) 'path'
    shall be set to NULL, "" or "/".
 
    NOTE: id specification may contain escape characters. Primary usage of them
-   is escaping colon (\x3a) and slash (\x2f) in the 'path' string to avoid
-   ambiguity with the path specific characters.
+   is escaping ':' (\x3a) and '/' (\x2f) in the 'path' string to avoid ambiguity
+   with the path specific characters.
 
    'in' and 'p_parsc' provide input file (must be opened in the binary mode with
    read access at least) to parse with a given parsing scope. The parsing scope
@@ -167,12 +167,12 @@ typedef struct _sp_prop_info_ex_t
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
    (0-based) used to distinguish unambiguity in case many properties with
-   the same name exist (used IND_LAST for last property index). If 'p_info' is
+   the same name exist (use IND_LAST for last property index). If 'p_info' is
    not NULL it will be filled with property extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
-   specification colon and slash chars need not to be escaped (there is no
-   ambiguity in this case).
+   specification '/' char need not to be escaped (there is no ambiguity in this
+   case).
    NOTE 2: if 'name' is NULL then the property name is provided as part of 'path'
    specification (last part of path after '/' char). In this case property
    name must not contain '/' character which need to be escaped by \x2f sequence.
@@ -218,9 +218,9 @@ typedef struct _sp_enumval_t
    !=0. To avoid memory allocation the caller must provide working buffer 'buf'
    of length 'blen' to store enum names read from the stream. Length of the
    buffer must be at least as long as the longest enum name + 1; in other case
-   SPEC_SIZE error is returned. If read property vale doesn't match any of the
+   SPEC_SIZE error is returned. If read property value doesn't match any of the
    names in 'p_evals' OR the working buffer is to small to read a checked
-   property SPEC_VAL_ERR error is returned.
+   property, SPEC_VAL_ERR error is returned.
 
    NOTE: This method is a simple wrapper around sp_get_prop() to treat property's
    value as enum.
