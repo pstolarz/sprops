@@ -18,10 +18,14 @@
 #include "config.h"
 #include "sp_props/parser.h"
 
-/* path separators */
-#define SEP_SCP     '/'
-#define SEP_TYP     ':'
-#define SEP_SIND    '@'
+/* path separators markers */
+#define C_SEP_SCP    '/'
+#define C_SEP_TYP    ':'
+#define C_SEP_SIND   '@'
+
+/* scope index markers */
+#define C_IND_ALL   '*'
+#define C_IND_LAST  '$'
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
@@ -62,7 +66,7 @@ typedef struct _path_t
 
 /* Iteration handle
 
-   NOTE: This struct is cloned during upward-downward process of following
+   NOTE: This struct is copied during upward-downward process of following
    a destination scope path, so any changes made on it are not propagated to
    scopes on higher or the same scope level. Therefore, if such propagation is
    required a struct's field must be an immutable pointer to an object
@@ -70,48 +74,104 @@ typedef struct _path_t
  */
 typedef struct _iter_hndl_t
 {
-    /* parsed input file handle */
+    /* parsed input file handle (const) */
     FILE *in;
 
-    /* path to the destination scope
-       NOTE: mutable object not propagated between scopes */
+    /* path to the destination scope (not propagated) */
     path_t path;
 
+    /* incremental index used to track split scope (not propagated) */
+    int splt_ind_n;
+
     struct {
-        /* argument passed untouched */
+        /* argument passed untouched (const) */
         void *arg;
 
-        /* user API callbacks */
+        /* user API callbacks (const) */
         sp_cb_prop_t prop;
         sp_cb_scope_t scope;
     } cb;
 
-    /* buffer 1 (property name/scope type name) */
+    /* buffer 1 (property name/scope type name; const) */
     struct {
         char *ptr;
         size_t sz;
     } buf1;
 
-    /* buffer 2 (property vale/scope name) */
+    /* buffer 2 (property vale/scope name; const) */
     struct {
         char *ptr;
         size_t sz;
     } buf2;
 } iter_hndl_t;
 
-/* Follow requested path up to the destination scope. 'p_pargcpy' is a pointer
-   to a clone of a parser's callback arg-object associated with the scope being
-   followed. Path object pointed by 'p_path' is modified accordingly to the
-   scope being followed.
+/* Extract index value from prop/scope name and write the result under 'p_ind'.
+   Number of chars read and constituting the index specification is written under
+   'p_ind_len' (0 if such spec. is absent). If the spec. is present but erroneous
+   SPEC_INV_PATH is returned.
  */
-static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
-    path_t *p_path, const sp_loc_t *p_ltype, const sp_loc_t *p_lname,
-    const sp_loc_t *p_lbody, void *p_pargcpy)
+static sp_errc_t get_ind_from_name(
+    const char *p_name, size_t name_len, int *p_ind, size_t *p_ind_len)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    size_t typ_len=0, nm_len=0;
+    size_t i;
+
+    *p_ind=0;
+    *p_ind_len=0;
+
+    for (i=name_len, p_name+=name_len-1;
+        i && *p_name!=C_SEP_SIND;
+        i--, p_name--);
+
+    if (!i)
+        /* no index spec. */
+        goto finish;
+
+     *p_ind_len=name_len-i+1;
+     if (*p_ind_len <= 1) {
+        /* no chars after marker */
+        ret=SPEC_INV_PATH;
+        goto finish;
+    }
+
+    p_name++;
+
+    if (*p_ind_len==2 && (*p_name==C_IND_ALL || *p_name==C_IND_LAST)) {
+        *p_ind = (*p_name==C_IND_LAST ? IND_LAST : IND_ALL);
+    } else {
+        /* parse decimal number after marker */
+        for (i=1; i<*p_ind_len; i++, p_name++) {
+            if (*p_name>='0' && *p_name<='9') {
+                *p_ind = *p_ind*10 + (*p_name-'0');
+            } else {
+                /* invalid number */
+                *p_ind=0;
+                ret=SPEC_INV_PATH;
+                goto finish;
+            }
+        }
+    }
+
+finish:
+    return ret;
+}
+
+/* Follow requested path up to the destination scope. 'p_pargcpy' is a pointer
+   to a clone of a parser's callback arg-object associated with the scope being
+   followed. Path object and a tracking split index pointed by 'p_path' and
+   'p_splt_ind_n' respectively are modified according to the scope being
+   followed.
+ */
+static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
+    path_t *p_path, int *p_splt_ind_n, const sp_loc_t *p_ltype,
+    const sp_loc_t *p_lname, const sp_loc_t *p_lbody, void *p_pargcpy)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+
+    int ind;
+    size_t typ_len=0, nm_len=0, ind_len;
     const char *type=NULL, *name=NULL, *beg=p_path->beg, *end=p_path->end;
-    const char *col=strchr(beg, SEP_TYP), *sl=strchr(beg, SEP_SCP);
+    const char *col=strchr(beg, C_SEP_TYP), *sl=strchr(beg, C_SEP_SCP);
 
     if (sl) end=sl;
     if (col>=end) col=NULL;
@@ -134,11 +194,19 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
 
     if (!nm_len) { ret=SPEC_INV_PATH; goto finish; }
 
+    EXEC_RG(get_ind_from_name(name, nm_len, &ind, &ind_len));
+    if (ind==IND_LAST || !(nm_len-=ind_len)) { ret=SPEC_INV_PATH; goto finish; }
+    if (!ind_len) ind=IND_ALL;  /* if not specified, IND_ALL is assumed */
+
     CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, type, typ_len);
     CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, name, nm_len);
 
-    /* matched scope found; follow the path */
-    if (p_lbody) {
+    /* scope with maching name found */
+    (*p_splt_ind_n)++;
+
+    /* follow the path only if the index matches */
+    if (p_lbody && (ind==IND_ALL || *p_splt_ind_n==ind))
+    {
         sp_parser_hndl_t phndl;
         p_path->beg = (!*end ? end : end+1);
 
@@ -189,10 +257,12 @@ static sp_errc_t iter_cb_scope(
 
     if (p_ihndl->path.beg < p_ihndl->path.end)
     {
-        /* clone the handle for the scope being followed */
+        /* prepare a handle for the scope being followed */
         iter_hndl_t ihndl = *p_ihndl;
-        ret = follow_scope_path(
-            p_phndl, &ihndl.path, p_ltype, p_lname, p_lbody, &ihndl);
+        ihndl.splt_ind_n = -1;
+
+        ret = follow_scope_path(p_phndl, &ihndl.path,
+                &p_ihndl->splt_ind_n, p_ltype, p_lname, p_lbody, &ihndl);
     } else
     if (p_ihndl->cb.scope)
     {
@@ -236,10 +306,12 @@ static void init_iter_hndl(iter_hndl_t *p_ihndl, FILE *in, const char *path,
         p_ihndl->buf2.ptr[p_ihndl->buf2.sz] = 0;
     }
 
-    if (path && *path==SEP_SCP) path++;
+    if (path && *path==C_SEP_SCP) path++;
     p_ihndl->path.beg = path;
     p_ihndl->path.end = (!path ? NULL : p_ihndl->path.beg+strlen(path));
     p_ihndl->path.defsc = defsc;
+
+    p_ihndl->splt_ind_n = -1;
 
     p_ihndl->cb.arg = arg;
     p_ihndl->cb.prop = cb_prop;
@@ -278,25 +350,31 @@ finish:
  */
 typedef struct _getprp_hndl_t
 {
-    /* path to the destination scope
-       NOTE: mutable object not propagated between scopes */
+    /* path to the destination scope (not propagated) */
     path_t path;
 
-    /* property name & index */
+    /* incremental index used to track split scope (not propagated) */
+    int splt_ind_n;
+
+    /* property name & index (const) */
     const char *name;
-    int prop_ind;
+    size_t name_len;
+    int ind;
 
-    /* incremental index of matched props */
-    int mtch_ind;
+    /* matched props incremental index (shared) */
+    int *p_prop_ind_n;
 
-    /* property value buffer */
+    /* property value buffer (const) */
     struct {
         char *ptr;
         size_t sz;
     } val;
 
-    /* extra info will be written under this address */
+    /* extra info will be written under this address (shared) */
     sp_prop_info_ex_t *p_info;
+
+    /* pointer to the finish flag (shared) */
+    int *p_finish;
 } getprp_hndl_t;
 
 /* sp_get_prop() callback: property */
@@ -309,17 +387,18 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     /* ignore props until the destination scope */
     if (p_gphndl->path.beg>=p_gphndl->path.end)
     {
-        CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, p_gphndl->name, (size_t)-1);
+        CMPLOC_RG(
+            p_phndl, SP_TKN_ID, p_lname, p_gphndl->name, p_gphndl->name_len);
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
         /* matching property found */
-        p_gphndl->mtch_ind++;
+        *p_gphndl->p_prop_ind_n += 1;
 
-        if (p_gphndl->prop_ind==p_gphndl->mtch_ind ||
-            p_gphndl->prop_ind==IND_LAST)
+        if (p_gphndl->ind==*p_gphndl->p_prop_ind_n ||
+            p_gphndl->ind==IND_LAST)
         {
-            p_gphndl->p_info->tkname.len = strlen(p_gphndl->name);
+            p_gphndl->p_info->tkname.len = p_gphndl->name_len;
             p_gphndl->p_info->tkname.loc = *p_lname;
             if (p_lval) {
                 p_gphndl->p_info->val_pres = 1;
@@ -330,9 +409,11 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
             p_gphndl->p_info->ldef = *p_ldef;
         }
 
-        if (p_gphndl->prop_ind==p_gphndl->mtch_ind)
+        if (p_gphndl->ind==*p_gphndl->p_prop_ind_n) {
             /* requested property found, stop further processing */
-            ret=SPEC_CB_FINISH;
+            ret = SPEC_CB_FINISH;
+            *p_gphndl->p_finish = 1;
+        }
     }
 finish:
     return ret;
@@ -348,10 +429,15 @@ static sp_errc_t getprp_cb_scope(
 
     if (p_gphndl->path.beg < p_gphndl->path.end)
     {
-        /* clone the handle for the scope being followed */
+        /* prepare a handle for the scope being followed */
         getprp_hndl_t gphndl = *p_gphndl;
-        ret = follow_scope_path(
-            p_phndl, &gphndl.path, p_ltype, p_lname, p_lbody, &gphndl);
+        gphndl.splt_ind_n = -1;
+
+        ret = follow_scope_path(p_phndl, &gphndl.path,
+            &p_gphndl->splt_ind_n, p_ltype, p_lname, p_lbody, &gphndl);
+
+        if (ret==SPEC_SUCCESS && *(p_gphndl->p_finish)!=0)
+           ret = SPEC_CB_FINISH;
     }
     return ret;
 }
@@ -364,6 +450,9 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     sp_errc_t ret=SPEC_INV_ARG;
     getprp_hndl_t gphndl;
     sp_parser_hndl_t phndl;
+
+    int f_finish = 0;       /* shared processing finish flag */
+    int prop_ind_n = -1;    /* shared matched props inc. index */
 
     /* line & columns are 1-based, therefore 0 has a special
        meaning to distinguish uninitialized state. */
@@ -383,7 +472,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         /* property name provided as part of the path spec. */
         if (!path) goto finish;
 
-        name = strrchr(path, SEP_SCP);
+        name = strrchr(path, C_SEP_SCP);
         if (name) {
             gphndl.path.beg = path;
             gphndl.path.end = name++;
@@ -397,15 +486,30 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     }
 
     gphndl.name = name;
+    gphndl.name_len = strlen(name);
 
-    if (ind<0 && ind!=IND_LAST) goto finish;
-    gphndl.prop_ind = ind;
-    gphndl.mtch_ind = -1;
+    if (ind<0 && ind!=IND_LAST && ind!=IND_INPRM) goto finish;
+    if (ind==IND_INPRM) {
+        size_t ind_len;
 
-    if (gphndl.path.beg && *gphndl.path.beg==SEP_SCP) gphndl.path.beg++;
+        EXEC_RG(get_ind_from_name(name, gphndl.name_len, &ind, &ind_len));
+        if (ind==IND_ALL || !(gphndl.name_len-=ind_len)) {
+            ret=SPEC_INV_PATH;
+            goto finish;
+        }
+        /* if not specified, 0 is assumed */
+        if (!ind_len) ind=0;
+    }
+
+    gphndl.ind = ind;
+    gphndl.p_prop_ind_n = &prop_ind_n;
+
+    if (gphndl.path.beg && *gphndl.path.beg==C_SEP_SCP) gphndl.path.beg++;
     gphndl.path.defsc = defsc;
 
+    gphndl.splt_ind_n = -1;
     gphndl.p_info = &info;
+    gphndl.p_finish = &f_finish;
 
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));

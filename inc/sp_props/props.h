@@ -42,7 +42,7 @@ typedef enum _sp_errc_t
     SPEC_NOMEM,         /* no memory */
     SPEC_SYNTAX,        /* grammar syntax error */
     SPEC_ACCS_ERR,      /* stream access error */
-    SPEC_INV_PATH,      /* invalid path specification syntax */
+    SPEC_INV_PATH,      /* invalid path/prop name specification syntax */
     SPEC_NOTFOUND,      /* addressed element not found */
     SPEC_SIZE,          /* size exceeding a limit */
     SPEC_VAL_ERR,       /* incorrect value (e.g. number format) */
@@ -126,18 +126,24 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    principal difference is sp_iterate() allows to address specific location the
    iteration should take place.
 
-   The path is defined as: [/][id1][:]id2/[id1][:]id2/...
-   where id1 and id2 specify scope type and name on a given path level with ':'
-   character as a separator. To address untyped scope /:id/ shall be used.
+   The path is defined as: [/][TYPE][:]NAME/[TYPE][:]NAME/...
+   where TYPE and NAME specify scope type and name on a given path level with ':'
+   character as a separator. To address untyped scope /:NAME/ shall be used.
    In case ':' is not provided 'defsc' is used as the default scope type, in
-   which case /id/ is translated to /defsc:id/. As a conclusion: if 'defsc'
-   is "" the /id/ is translated to /:id/, that is, it provides an alternative
+   which case /NAME/ is translated to /defsc:NAME/. As a conclusion: if 'defsc'
+   is "" the /NAME/ is translated to /:NAME/, that is, it provides an alternative
    way to address untyped scopes. To address global scope (0-level) 'path'
    shall be set to NULL, "" or "/".
 
-   NOTE: id specification may contain escape characters. Primary usage of them
-   is escaping ':' (\x3a) and '/' (\x2f) in the 'path' string to avoid ambiguity
-   with the path specific characters.
+   For split scopes there is possible to provide specific split-scope index
+   (0-based) where the iteration shall occur, by appending "@n" to the scope name
+   in the NAME token. "@*" names overall (combined) scope and is assumed if no
+   @-specification is provided in NAME. For performance reason the "@$"
+   notation (as the last split-scope index) is not supported.
+
+   NOTE: Both TYPE and NAME may contain escape characters. Primary usage of them
+   is escaping ':' (\x3a), '/' (\x2f) and '@' (\x40) in the 'path' string to
+   avoid ambiguity with the path specific characters.
 
    'in' and 'p_parsc' provide input file (must be opened in the binary mode with
    read access at least) to parse with a given parsing scope. The parsing scope
@@ -162,13 +168,16 @@ typedef struct _sp_prop_info_ex_t
 } sp_prop_info_ex_t;
 
 #define IND_LAST    -1
+#define IND_ALL     -2
+#define IND_INPRM   -3
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
-   (0-based) used to avoid ambiguity in case many properties with the same name
-   exist (use IND_LAST for last property index). If 'p_info' is not NULL it will
-   be filled with property extra information.
+   used to avoid ambiguity in case many properties with the same name
+   exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
+   IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
+   property extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
    specification '/' char need not to be escaped (there is no ambiguity in this
@@ -176,7 +185,12 @@ typedef struct _sp_prop_info_ex_t
    NOTE 2: if 'name' is NULL then the property name is provided as part of 'path'
    specification (last part of path after '/' char). In this case property
    name must not contain '/' character which need to be escaped by \x2f sequence.
-   NOTE 3: 'in' input file must be opened in the binary mode with read access at
+   NOTE 3: Property index may by provided in the property name by passing
+   IND_INPRM in 'ind' and appending "@n" to the prop's name to specify n index
+   value or "@$" as synonymous of IND_LAST. In this case property name must not
+   contain '@' character which need to be escaped by \x40 sequence. If no
+   @-specification is provided with IND_INPRM, 0 index is assumed.
+   NOTE 4: 'in' input file must be opened in the binary mode with read access at
    least.
  */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
