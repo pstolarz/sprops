@@ -62,6 +62,7 @@ typedef struct _path_t
     const char *beg;        /* start pointer */
     const char *end;        /* end pointer (exclusive) */
     const char *defsc;      /* default scope */
+    int splt_ind_n;         /* incremental index used to track split scope */
 } path_t;
 
 /* Iteration handle
@@ -79,9 +80,6 @@ typedef struct _iter_hndl_t
 
     /* path to the destination scope (not propagated) */
     path_t path;
-
-    /* incremental index used to track split scope (not propagated) */
-    int splt_ind_n;
 
     struct {
         /* argument passed untouched (const) */
@@ -103,6 +101,9 @@ typedef struct _iter_hndl_t
         char *ptr;
         size_t sz;
     } buf2;
+
+    /* pointer to the finish flag (shared) */
+    int *p_finish;
 } iter_hndl_t;
 
 /* Extract index value from prop/scope name and write the result under 'p_ind'.
@@ -241,7 +242,10 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
         ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_ihndl->in, p_ihndl->buf1.ptr,
             &tkname, p_ihndl->buf2.ptr, (p_lval ? &tkval : NULL), p_ldef);
 
-        if ((int)ret<0 && ret!=SPEC_CB_FINISH) ret=SPEC_CB_RET_ERR;
+        if (ret==SPEC_CB_FINISH)
+            *p_ihndl->p_finish = 1;
+        else if ((int)ret<0)
+            ret=SPEC_CB_RET_ERR;
     }
 finish:
     return ret;
@@ -259,10 +263,13 @@ static sp_errc_t iter_cb_scope(
     {
         /* prepare a handle for the scope being followed */
         iter_hndl_t ihndl = *p_ihndl;
-        ihndl.splt_ind_n = -1;
+        ihndl.path.splt_ind_n = -1;
 
         ret = follow_scope_path(p_phndl, &ihndl.path,
-                &p_ihndl->splt_ind_n, p_ltype, p_lname, p_lbody, &ihndl);
+                &p_ihndl->path.splt_ind_n, p_ltype, p_lname, p_lbody, &ihndl);
+
+        if (ret==SPEC_SUCCESS && *(p_ihndl->p_finish)!=0)
+           ret = SPEC_CB_FINISH;
     } else
     if (p_ihndl->cb.scope)
     {
@@ -280,42 +287,13 @@ static sp_errc_t iter_cb_scope(
             p_ihndl->buf1.ptr, (p_ltype ? &tktype : NULL),
             p_ihndl->buf2.ptr, &tkname, p_lbody, p_ldef);
 
-        if ((int)ret<0 && ret!=SPEC_CB_FINISH) ret=SPEC_CB_RET_ERR;
+        if (ret==SPEC_CB_FINISH)
+            *p_ihndl->p_finish = 1;
+        else if ((int)ret<0)
+            ret=SPEC_CB_RET_ERR;
     }
 finish:
     return ret;
-}
-
-/* Initialize iter_hndl_t handle */
-static void init_iter_hndl(iter_hndl_t *p_ihndl, FILE *in, const char *path,
-    const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
-    void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len)
-{
-    memset(p_ihndl, 0, sizeof(*p_ihndl));
-
-    p_ihndl->in = in;
-
-    if (b1len) {
-        p_ihndl->buf1.ptr = buf1;
-        p_ihndl->buf1.sz = b1len-1;
-        p_ihndl->buf1.ptr[p_ihndl->buf1.sz] = 0;
-    }
-    if (b2len) {
-        p_ihndl->buf2.ptr = buf2;
-        p_ihndl->buf2.sz = b2len-1;
-        p_ihndl->buf2.ptr[p_ihndl->buf2.sz] = 0;
-    }
-
-    if (path && *path==C_SEP_SCP) path++;
-    p_ihndl->path.beg = path;
-    p_ihndl->path.end = (!path ? NULL : p_ihndl->path.beg+strlen(path));
-    p_ihndl->path.defsc = defsc;
-
-    p_ihndl->splt_ind_n = -1;
-
-    p_ihndl->cb.arg = arg;
-    p_ihndl->cb.prop = cb_prop;
-    p_ihndl->cb.scope = cb_scope;
 }
 
 /* exported; see header for details */
@@ -327,13 +305,39 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     iter_hndl_t ihndl;
     sp_parser_hndl_t phndl;
 
+    int f_finish = 0;       /* shared processing finish flag */
+
     if (!in || (!cb_prop && !cb_scope)) {
         ret=SPEC_INV_ARG;
         goto finish;
     }
 
-    init_iter_hndl(&ihndl, in, path, defsc, cb_prop, cb_scope, arg,
-        buf1, b1len, buf2, b2len);
+    memset(&ihndl, 0, sizeof(ihndl));
+
+    ihndl.in = in;
+
+    if (b1len) {
+        ihndl.buf1.ptr = buf1;
+        ihndl.buf1.sz = b1len-1;
+        ihndl.buf1.ptr[ihndl.buf1.sz] = 0;
+    }
+    if (b2len) {
+        ihndl.buf2.ptr = buf2;
+        ihndl.buf2.sz = b2len-1;
+        ihndl.buf2.ptr[ihndl.buf2.sz] = 0;
+    }
+
+    if (path && *path==C_SEP_SCP) path++;
+    ihndl.path.beg = path;
+    ihndl.path.end = (!path ? NULL : ihndl.path.beg+strlen(path));
+    ihndl.path.defsc = defsc;
+    ihndl.path.splt_ind_n = -1;
+
+    ihndl.cb.arg = arg;
+    ihndl.cb.prop = cb_prop;
+    ihndl.cb.scope = cb_scope;
+
+    ihndl.p_finish = &f_finish;
 
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
@@ -352,9 +356,6 @@ typedef struct _getprp_hndl_t
 {
     /* path to the destination scope (not propagated) */
     path_t path;
-
-    /* incremental index used to track split scope (not propagated) */
-    int splt_ind_n;
 
     /* property name & index (const) */
     const char *name;
@@ -431,10 +432,10 @@ static sp_errc_t getprp_cb_scope(
     {
         /* prepare a handle for the scope being followed */
         getprp_hndl_t gphndl = *p_gphndl;
-        gphndl.splt_ind_n = -1;
+        gphndl.path.splt_ind_n = -1;
 
         ret = follow_scope_path(p_phndl, &gphndl.path,
-            &p_gphndl->splt_ind_n, p_ltype, p_lname, p_lbody, &gphndl);
+            &p_gphndl->path.splt_ind_n, p_ltype, p_lname, p_lbody, &gphndl);
 
         if (ret==SPEC_SUCCESS && *(p_gphndl->p_finish)!=0)
            ret = SPEC_CB_FINISH;
@@ -506,8 +507,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     if (gphndl.path.beg && *gphndl.path.beg==C_SEP_SCP) gphndl.path.beg++;
     gphndl.path.defsc = defsc;
+    gphndl.path.splt_ind_n = -1;
 
-    gphndl.splt_ind_n = -1;
     gphndl.p_info = &info;
     gphndl.p_finish = &f_finish;
 

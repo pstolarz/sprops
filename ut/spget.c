@@ -12,6 +12,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include "sp_props/props.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
@@ -21,6 +22,11 @@ static sp_errc_t cb_prop(
     void *arg, FILE *in, const char *name, const sp_tkn_info_t *p_tkname,
     const char *val, const sp_tkn_info_t *p_tkval, const sp_loc_t *p_ldef)
 {
+    if (!strcmp(name, "FINISH")) {
+        printf("Iteration aborted on FINISH!\n");
+        return SPEC_CB_FINISH;
+    }
+
     printf("PROP %s, val-str \"%s\": "
         "NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
         name, val,
