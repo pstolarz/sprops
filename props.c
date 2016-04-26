@@ -219,6 +219,18 @@ finish:
     return ret;
 }
 
+/* Prepare nested scope handle (basing on the enclosing scope handle 'p_hndl')
+   of type 'hndl_t' and follow the scope path. After the call finish flag is
+   checked. To be used inside scope callbacks only.
+ */
+#define CALL_FOLLOW_SCOPE_PATH(hndl_t, p_hndl) \
+    hndl_t hndl = *p_hndl; \
+    hndl.path.splt_ind_n = -1; \
+    ret = follow_scope_path(p_phndl, &hndl.path, \
+        &p_hndl->path.splt_ind_n, p_ltype, p_lname, p_lbody, &hndl); \
+    if (ret==SPEC_SUCCESS && *(p_hndl->p_finish)!=0) \
+        ret = SPEC_CB_FINISH;
+
 /* sp_iterate() callback: property */
 static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
@@ -259,17 +271,8 @@ static sp_errc_t iter_cb_scope(
     sp_errc_t ret=SPEC_SUCCESS;
     iter_hndl_t *p_ihndl=(iter_hndl_t*)p_phndl->cb.arg;
 
-    if (p_ihndl->path.beg < p_ihndl->path.end)
-    {
-        /* prepare a handle for the scope being followed */
-        iter_hndl_t ihndl = *p_ihndl;
-        ihndl.path.splt_ind_n = -1;
-
-        ret = follow_scope_path(p_phndl, &ihndl.path,
-                &p_ihndl->path.splt_ind_n, p_ltype, p_lname, p_lbody, &ihndl);
-
-        if (ret==SPEC_SUCCESS && *(p_ihndl->p_finish)!=0)
-           ret = SPEC_CB_FINISH;
+    if (p_ihndl->path.beg < p_ihndl->path.end) {
+        CALL_FOLLOW_SCOPE_PATH(iter_hndl_t, p_ihndl);
     } else
     if (p_ihndl->cb.scope)
     {
@@ -428,17 +431,8 @@ static sp_errc_t getprp_cb_scope(
     sp_errc_t ret=SPEC_SUCCESS;
     getprp_hndl_t *p_gphndl=(getprp_hndl_t*)p_phndl->cb.arg;
 
-    if (p_gphndl->path.beg < p_gphndl->path.end)
-    {
-        /* prepare a handle for the scope being followed */
-        getprp_hndl_t gphndl = *p_gphndl;
-        gphndl.path.splt_ind_n = -1;
-
-        ret = follow_scope_path(p_phndl, &gphndl.path,
-            &p_gphndl->path.splt_ind_n, p_ltype, p_lname, p_lbody, &gphndl);
-
-        if (ret==SPEC_SUCCESS && *(p_gphndl->p_finish)!=0)
-           ret = SPEC_CB_FINISH;
+    if (p_gphndl->path.beg < p_gphndl->path.end) {
+        CALL_FOLLOW_SCOPE_PATH(getprp_hndl_t, p_gphndl);
     }
     return ret;
 }
