@@ -92,6 +92,7 @@ static sp_errc_t init_base_hndl(base_hndl_t *p_base, int *const p_finish,
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
+    *p_finish = 0;
     p_base->p_finish = p_finish;
 
     if (p_name && !*p_name)
@@ -211,22 +212,29 @@ finish:
     return ret;
 }
 
-/* Follow requested path up to the destination scope. 'p_pargcpy' is a pointer
-   to a copy of a parser's callback arg-object associated with the scope being
-   followed. Path object and a tracking split index pointed by 'p_path' and
-   'p_splt_ind_n' respectively are modified according to the scope being
-   followed.
+/* Follow requested path up to the destination scope.
+
+   The function accepts a clone of enclosing scope handle pointed by 'ph_nst'
+   which is next updated (actually its base part pointed by 'ph_nstb'), to
+   represent nesting scope. The nesting scope is followed if its characteristic
+   meets scope criteria provided in the path). The function also provides
+   appropriate changes to the enclosing scope handle (actually its base part
+   pointed by 'ph_encb').
  */
 static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
-    path_t *p_path, int *p_splt_ind_n, const sp_loc_t *p_ltype,
-    const sp_loc_t *p_lname, const sp_loc_t *p_lbody, void *p_pargcpy)
+    base_hndl_t *ph_encb, base_hndl_t *ph_nstb, void *ph_nst,
+    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
     int ind;
     size_t typ_len=0, nm_len=0, ind_len;
-    const char *type=NULL, *name=NULL, *beg=p_path->beg, *end=p_path->end;
+    const char *type=NULL, *name=NULL;
+    const path_t *p_path = &ph_nstb->path;
+    const char *beg=p_path->beg, *end=p_path->end;
     const char *col=strchr(beg, C_SEP_TYP), *sl=strchr(beg, C_SEP_SCP);
+
+    ph_nstb->path.splt_ind_n = -1;
 
     if (sl) end=sl;
     if (col>=end) col=NULL;
@@ -256,32 +264,31 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, type, typ_len);
     CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, name, nm_len);
 
-    /* scope with maching name found */
-    (*p_splt_ind_n)++;
+    /* scope with matching name found */
+    ph_encb->path.splt_ind_n++;
 
     /* follow the path only if the index matches */
-    if (p_lbody && (ind==IND_ALL || *p_splt_ind_n==ind))
+    if (p_lbody && (ind==IND_ALL || ph_encb->path.splt_ind_n==ind))
     {
         sp_parser_hndl_t phndl;
-        p_path->beg = (!*end ? end : end+1);
+        ph_nstb->path.beg = (!*end ? end : end+1);
 
         EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
-            p_phndl->cb.prop, p_phndl->cb.scope, p_pargcpy));
+            p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
         EXEC_RG(sp_parse(&phndl));
     }
 finish:
     return ret;
 }
 
-/* Prepare nested scope handle (basing on the enclosing scope handle 'p_hndl')
+/* Clone nested scope handle (basing on the enclosing scope handle 'p_hndl')
    of type 'hndl_t' and follow the scope path. After the call finish flag is
    checked. To be used inside scope callbacks only.
  */
 #define CALL_FOLLOW_SCOPE_PATH(hndl_t, p_hndl) \
     hndl_t hndl = *p_hndl; \
-    hndl.b.path.splt_ind_n = -1; \
-    ret = follow_scope_path(p_phndl, &hndl.b.path, \
-        &p_hndl->b.path.splt_ind_n, p_ltype, p_lname, p_lbody, &hndl); \
+    ret = follow_scope_path( \
+        p_phndl, &p_hndl->b, &hndl.b, &hndl, p_ltype, p_lname, p_lbody); \
     if (ret==SPEC_SUCCESS && *(p_hndl->b.p_finish)!=0) \
         ret = SPEC_CB_FINISH;
 
@@ -363,7 +370,8 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     iter_hndl_t ihndl;
     sp_parser_hndl_t phndl;
 
-    int f_finish = 0;       /* processing finish flag (shared) */
+    /* processing finish flag (shared) */
+    int f_finish;
 
     if (!in || (!cb_prop && !cb_scope)) {
         ret=SPEC_INV_ARG;
@@ -490,8 +498,10 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     getprp_hndl_t gphndl;
     sp_parser_hndl_t phndl;
 
-    int f_finish = 0;       /* processing finish flag (shared) */
-    int prop_ind_n = -1;    /* matched props inc. index (shared) */
+    /* processing finish flag (shared) */
+    int f_finish;
+    /* matched props inc. index (shared) */
+    int prop_ind_n;
 
     /* line & columns are 1-based, therefore 0 has a special
        meaning to distinguish uninitialized state. */
@@ -521,6 +531,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     }
 
     gphndl.ind = ind;
+    prop_ind_n = -1;
     gphndl.p_prop_ind_n = &prop_ind_n;
 
     gphndl.val.ptr = val;
