@@ -65,21 +65,78 @@ typedef struct _path_t
     int splt_ind_n;         /* incremental index used to track split scope */
 } path_t;
 
+/* Base struct for other handlers like iter_hndl_t or getprp_hndl_t.
+
+   NOTE: Along with its deriving structs, base_hndl_t is copied during
+   upward-downward process of following a destination scope path.
+ */
+typedef struct _base_hndl_t
+{
+    /* path to the destination scope (not propagated) */
+    path_t path;
+
+    /* pointer to the finish flag (shared) */
+    int *p_finish;
+} base_hndl_t;
+
+/* Initialize base_hndl_t struct.
+
+   NOTE: Property name may be a part of path spec pointed by 'path'. In this
+   case 'p_name' shall be !=NULL. If *p_name!=NULL then it indicates that a prop
+   name has been already specified, therefore no prop specification is expected
+   in the path. Otherwise prop name is expected in the path and the pointer to
+   name will be written under 'p_name'.
+ */
+static sp_errc_t init_base_hndl(base_hndl_t *p_base, int *const p_finish,
+    const char *path, const char **p_name, const char *defsc)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+
+    p_base->p_finish = p_finish;
+
+    if (p_name && !*p_name)
+    {
+        /* property name provided as part of the path spec. */
+        if (!path) {
+            ret = SPEC_INV_ARG;
+            goto finish;
+        }
+
+        *p_name = strrchr(path, C_SEP_SCP);
+        if (*p_name) {
+            p_base->path.beg = path;
+            p_base->path.end = (*p_name)++;
+        } else {
+            *p_name = path;
+            p_base->path.beg = p_base->path.end = NULL;
+        }
+    } else {
+        p_base->path.beg = path;
+        p_base->path.end = (!path ? NULL : p_base->path.beg+strlen(path));
+    }
+
+    if (p_base->path.beg && *p_base->path.beg==C_SEP_SCP) p_base->path.beg++;
+    p_base->path.defsc = defsc;
+    p_base->path.splt_ind_n = -1;
+
+finish:
+    return ret;
+}
+
 /* Iteration handle
 
    NOTE: This struct is copied during upward-downward process of following
    a destination scope path, so any changes made on it are not propagated to
    scopes on higher or the same scope level. Therefore, if such propagation is
    required a struct's field must be an immutable pointer to an object
-   containing propagated information (aka virtual inheritance).
+   containing propagated information.
  */
 typedef struct _iter_hndl_t
 {
+    base_hndl_t b;
+
     /* parsed input file handle (const) */
     FILE *in;
-
-    /* path to the destination scope (not propagated) */
-    path_t path;
 
     struct {
         /* argument passed untouched (const) */
@@ -101,9 +158,6 @@ typedef struct _iter_hndl_t
         char *ptr;
         size_t sz;
     } buf2;
-
-    /* pointer to the finish flag (shared) */
-    int *p_finish;
 } iter_hndl_t;
 
 /* Extract index value from prop/scope name and write the result under 'p_ind'.
@@ -158,7 +212,7 @@ finish:
 }
 
 /* Follow requested path up to the destination scope. 'p_pargcpy' is a pointer
-   to a clone of a parser's callback arg-object associated with the scope being
+   to a copy of a parser's callback arg-object associated with the scope being
    followed. Path object and a tracking split index pointed by 'p_path' and
    'p_splt_ind_n' respectively are modified according to the scope being
    followed.
@@ -225,11 +279,18 @@ finish:
  */
 #define CALL_FOLLOW_SCOPE_PATH(hndl_t, p_hndl) \
     hndl_t hndl = *p_hndl; \
-    hndl.path.splt_ind_n = -1; \
-    ret = follow_scope_path(p_phndl, &hndl.path, \
-        &p_hndl->path.splt_ind_n, p_ltype, p_lname, p_lbody, &hndl); \
-    if (ret==SPEC_SUCCESS && *(p_hndl->p_finish)!=0) \
+    hndl.b.path.splt_ind_n = -1; \
+    ret = follow_scope_path(p_phndl, &hndl.b.path, \
+        &p_hndl->b.path.splt_ind_n, p_ltype, p_lname, p_lbody, &hndl); \
+    if (ret==SPEC_SUCCESS && *(p_hndl->b.p_finish)!=0) \
         ret = SPEC_CB_FINISH;
+
+/* check iteration callback return code */
+#define CHK_ITER_CB_RET() \
+    if (ret==SPEC_CB_FINISH) \
+        *p_ihndl->b.p_finish = 1; \
+    else if ((int)ret<0) \
+        ret=SPEC_CB_RET_ERR;
 
 /* sp_iterate() callback: property */
 static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
@@ -239,7 +300,7 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     iter_hndl_t *p_ihndl = (iter_hndl_t*)p_phndl->cb.arg;
 
     /* ignore props until the destination scope */
-    if ((p_ihndl->path.beg >= p_ihndl->path.end) && p_ihndl->cb.prop)
+    if ((p_ihndl->b.path.beg >= p_ihndl->b.path.end) && p_ihndl->cb.prop)
     {
         sp_tkn_info_t tkname, tkval;
 
@@ -254,10 +315,7 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
         ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_ihndl->in, p_ihndl->buf1.ptr,
             &tkname, p_ihndl->buf2.ptr, (p_lval ? &tkval : NULL), p_ldef);
 
-        if (ret==SPEC_CB_FINISH)
-            *p_ihndl->p_finish = 1;
-        else if ((int)ret<0)
-            ret=SPEC_CB_RET_ERR;
+        CHK_ITER_CB_RET();
     }
 finish:
     return ret;
@@ -271,7 +329,7 @@ static sp_errc_t iter_cb_scope(
     sp_errc_t ret=SPEC_SUCCESS;
     iter_hndl_t *p_ihndl=(iter_hndl_t*)p_phndl->cb.arg;
 
-    if (p_ihndl->path.beg < p_ihndl->path.end) {
+    if (p_ihndl->b.path.beg < p_ihndl->b.path.end) {
         CALL_FOLLOW_SCOPE_PATH(iter_hndl_t, p_ihndl);
     } else
     if (p_ihndl->cb.scope)
@@ -290,10 +348,7 @@ static sp_errc_t iter_cb_scope(
             p_ihndl->buf1.ptr, (p_ltype ? &tktype : NULL),
             p_ihndl->buf2.ptr, &tkname, p_lbody, p_ldef);
 
-        if (ret==SPEC_CB_FINISH)
-            *p_ihndl->p_finish = 1;
-        else if ((int)ret<0)
-            ret=SPEC_CB_RET_ERR;
+        CHK_ITER_CB_RET();
     }
 finish:
     return ret;
@@ -308,7 +363,7 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     iter_hndl_t ihndl;
     sp_parser_hndl_t phndl;
 
-    int f_finish = 0;       /* shared processing finish flag */
+    int f_finish = 0;       /* processing finish flag (shared) */
 
     if (!in || (!cb_prop && !cb_scope)) {
         ret=SPEC_INV_ARG;
@@ -316,8 +371,13 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     }
 
     memset(&ihndl, 0, sizeof(ihndl));
+    EXEC_RG(init_base_hndl(&ihndl.b, &f_finish, path, NULL, defsc));
 
     ihndl.in = in;
+
+    ihndl.cb.arg = arg;
+    ihndl.cb.prop = cb_prop;
+    ihndl.cb.scope = cb_scope;
 
     if (b1len) {
         ihndl.buf1.ptr = buf1;
@@ -330,18 +390,6 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
         ihndl.buf2.ptr[ihndl.buf2.sz] = 0;
     }
 
-    if (path && *path==C_SEP_SCP) path++;
-    ihndl.path.beg = path;
-    ihndl.path.end = (!path ? NULL : ihndl.path.beg+strlen(path));
-    ihndl.path.defsc = defsc;
-    ihndl.path.splt_ind_n = -1;
-
-    ihndl.cb.arg = arg;
-    ihndl.cb.prop = cb_prop;
-    ihndl.cb.scope = cb_scope;
-
-    ihndl.p_finish = &f_finish;
-
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
     EXEC_RG(sp_parse(&phndl));
@@ -352,13 +400,12 @@ finish:
 
 /* sp_get_prop() iteration handle struct.
 
-   NOTE: This struct is cloned during upward-downward process of following
+   NOTE: This struct is copied during upward-downward process of following
    a destination scope path.
  */
 typedef struct _getprp_hndl_t
 {
-    /* path to the destination scope (not propagated) */
-    path_t path;
+    base_hndl_t b;
 
     /* property name & index (const) */
     const char *name;
@@ -376,9 +423,6 @@ typedef struct _getprp_hndl_t
 
     /* extra info will be written under this address (shared) */
     sp_prop_info_ex_t *p_info;
-
-    /* pointer to the finish flag (shared) */
-    int *p_finish;
 } getprp_hndl_t;
 
 /* sp_get_prop() callback: property */
@@ -389,7 +433,7 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     getprp_hndl_t *p_gphndl = (getprp_hndl_t*)p_phndl->cb.arg;
 
     /* ignore props until the destination scope */
-    if (p_gphndl->path.beg>=p_gphndl->path.end)
+    if (p_gphndl->b.path.beg>=p_gphndl->b.path.end)
     {
         CMPLOC_RG(
             p_phndl, SP_TKN_ID, p_lname, p_gphndl->name, p_gphndl->name_len);
@@ -416,7 +460,7 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
         if (p_gphndl->ind==*p_gphndl->p_prop_ind_n) {
             /* requested property found, stop further processing */
             ret = SPEC_CB_FINISH;
-            *p_gphndl->p_finish = 1;
+            *p_gphndl->b.p_finish = 1;
         }
     }
 finish:
@@ -431,7 +475,7 @@ static sp_errc_t getprp_cb_scope(
     sp_errc_t ret=SPEC_SUCCESS;
     getprp_hndl_t *p_gphndl=(getprp_hndl_t*)p_phndl->cb.arg;
 
-    if (p_gphndl->path.beg < p_gphndl->path.end) {
+    if (p_gphndl->b.path.beg < p_gphndl->b.path.end) {
         CALL_FOLLOW_SCOPE_PATH(getprp_hndl_t, p_gphndl);
     }
     return ret;
@@ -446,8 +490,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     getprp_hndl_t gphndl;
     sp_parser_hndl_t phndl;
 
-    int f_finish = 0;       /* shared processing finish flag */
-    int prop_ind_n = -1;    /* shared matched props inc. index */
+    int f_finish = 0;       /* processing finish flag (shared) */
+    int prop_ind_n = -1;    /* matched props inc. index (shared) */
 
     /* line & columns are 1-based, therefore 0 has a special
        meaning to distinguish uninitialized state. */
@@ -458,27 +502,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     /* prepare callback handle */
     memset(&gphndl, 0, sizeof(gphndl));
-
-    gphndl.val.ptr = val;
-    gphndl.val.sz = len-1;
-    gphndl.val.ptr[gphndl.val.sz] = 0;
-
-    if (!name) {
-        /* property name provided as part of the path spec. */
-        if (!path) goto finish;
-
-        name = strrchr(path, C_SEP_SCP);
-        if (name) {
-            gphndl.path.beg = path;
-            gphndl.path.end = name++;
-        } else {
-            name = path;
-            gphndl.path.beg = gphndl.path.end = NULL;
-        }
-    } else {
-        gphndl.path.beg = path;
-        gphndl.path.end = (!path ? NULL : gphndl.path.beg+strlen(path));
-    }
+    EXEC_RG(init_base_hndl(&gphndl.b, &f_finish, path, &name, defsc));
 
     gphndl.name = name;
     gphndl.name_len = strlen(name);
@@ -499,12 +523,11 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     gphndl.ind = ind;
     gphndl.p_prop_ind_n = &prop_ind_n;
 
-    if (gphndl.path.beg && *gphndl.path.beg==C_SEP_SCP) gphndl.path.beg++;
-    gphndl.path.defsc = defsc;
-    gphndl.path.splt_ind_n = -1;
+    gphndl.val.ptr = val;
+    gphndl.val.sz = len-1;
+    gphndl.val.ptr[gphndl.val.sz] = 0;
 
     gphndl.p_info = &info;
-    gphndl.p_finish = &f_finish;
 
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
