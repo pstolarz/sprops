@@ -62,7 +62,6 @@ typedef struct _path_t
     const char *beg;        /* start pointer */
     const char *end;        /* end pointer (exclusive) */
     const char *defsc;      /* default scope */
-    int splt_ind_n;         /* incremental index used to track split scope */
 } path_t;
 
 typedef struct _lastsc_t
@@ -89,6 +88,9 @@ typedef struct _base_hndl_t
     /* pointer to last scope spec. (shared) */
     lastsc_t *p_lsc;
 
+    /* pointer to split scope tracking index (shared) */
+    int *p_sind;
+
     /* path to the destination scope (not propagated) */
     path_t path;
 } base_hndl_t;
@@ -99,14 +101,18 @@ typedef struct _base_hndl_t
    specification. In this case 'p_lprt' shall be !=NULL. A pointer to the last
    part will be written under 'p_lprt'.
  */
-static void init_base_hndl(base_hndl_t *p_base, int *const p_finish,
-    lastsc_t *p_lsc, const char *path, const char **p_lprt, const char *defsc)
+static void init_base_hndl(
+    base_hndl_t *p_base, int *const p_finish, lastsc_t *p_lsc, int *p_sind,
+    const char *path, const char **p_lprt, const char *defsc)
 {
     p_base->p_finish = p_finish;
     *(p_base->p_finish) = 0;
 
     p_base->p_lsc = p_lsc;
     memset(p_base->p_lsc, 0, sizeof(*p_base->p_lsc));
+
+    p_base->p_sind = p_sind;
+    *(p_base->p_sind) = -1;
 
     if (p_lprt)
     {
@@ -126,7 +132,6 @@ static void init_base_hndl(base_hndl_t *p_base, int *const p_finish,
 
     if (p_base->path.beg && *p_base->path.beg==C_SEP_SCP) p_base->path.beg++;
     p_base->path.defsc = defsc;
-    p_base->path.splt_ind_n = -1;
 }
 
 /* Iteration handle
@@ -240,8 +245,6 @@ static sp_errc_t follow_scope_path(
     const char *beg=p_path->beg, *end=p_path->end;
     const char *col=strchr(beg, C_SEP_TYP), *sl=strchr(beg, C_SEP_SCP);
 
-    ph_nstb->path.splt_ind_n = -1;
-
     if (sl) end=sl;
     if (col>=end) col=NULL;
 
@@ -271,19 +274,14 @@ static sp_errc_t follow_scope_path(
     CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, name, nm_len);
 
     /* scope with matching name found */
-    ph_encb->path.splt_ind_n++;
 
-    if (p_lbody && (ind==IND_ALL || ph_encb->path.splt_ind_n==ind))
+    if (ind!=IND_ALL)
+        /* tracking index is updated only if the matched
+           scope was provided with an index specification */
+        *(ph_encb->p_sind) += 1;
+
+    if (ind==IND_LAST)
     {
-        /* follow the path for matching index */
-        sp_parser_hndl_t phndl;
-        ph_nstb->path.beg = (!*end ? end : end+1);
-
-        EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
-            p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
-        EXEC_RG(sp_parse(&phndl));
-    } else
-    if (ind==IND_LAST) {
         /* for last scope spec. simply track the scope */
         ph_nstb->p_lsc->present = 1;
         ph_nstb->p_lsc->beg = (!*end ? end : end+1);
@@ -293,6 +291,22 @@ static sp_errc_t follow_scope_path(
             memset(&ph_nstb->p_lsc->lbody, 0, sizeof(ph_nstb->p_lsc->lbody));
         }
         ph_nstb->p_lsc->ldef = *p_ldef;
+    } else
+    if (p_lbody && (ind==IND_ALL || *(ph_encb->p_sind)==ind))
+    {
+        /* follow the path for matching index */
+        int sind = -1;
+        sp_parser_hndl_t phndl;
+
+        if (ind!=IND_ALL)
+            /* there is a need to start tracking in the followed scope */
+            ph_nstb->p_sind = &sind;
+
+        ph_nstb->path.beg = (!*end ? end : end+1);
+
+        EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
+            p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
+        EXEC_RG(sp_parse(&phndl));
     }
 
 finish:
@@ -393,6 +407,7 @@ finish:
             hndl.b.path.beg = lsc.beg; \
             lsc_bdy = lsc.lbody; \
             memset(&lsc, 0, sizeof(lsc)); \
+            sind = -1; \
             EXEC_RG(sp_parser_hndl_init( \
                 &phndl, in, &lsc_bdy, iter_cb_prop, iter_cb_scope, &hndl)); \
         } else break; \
@@ -411,6 +426,8 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     int f_finish;
     /* last scope spec. (shared) */
     lastsc_t lsc;
+    /* split scope tracking index (shared) */
+    int sind;
 
     if (!in || (!cb_prop && !cb_scope)) {
         ret=SPEC_INV_ARG;
@@ -418,7 +435,7 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     }
 
     memset(&ihndl, 0, sizeof(ihndl));
-    init_base_hndl(&ihndl.b, &f_finish, &lsc, path, NULL, defsc);
+    init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, NULL, defsc);
 
     ihndl.in = in;
 
@@ -541,6 +558,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     int f_finish;
     /* last scope spec. (shared) */
     lastsc_t lsc;
+    /* split scope tracking index (shared) */
+    int sind;
     /* matched props inc. index (shared) */
     int prop_ind_n;
 
@@ -556,7 +575,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     if (!name && !path) goto finish;
     init_base_hndl(
-        &gphndl.b, &f_finish, &lsc, path, (!name ? &name : NULL), defsc);
+        &gphndl.b, &f_finish, &lsc, &sind, path, (!name ? &name : NULL), defsc);
 
     gphndl.name = name;
     gphndl.name_len = strlen(name);

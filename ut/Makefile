@@ -3,7 +3,9 @@ CFLAGS=-Wall -I../inc
 
 .PHONY: all clean
 
-TESTS=spget
+TESTS= \
+    t01-get \
+    t02-iter
 
 all: $(TESTS)
 
