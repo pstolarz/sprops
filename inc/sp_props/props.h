@@ -138,8 +138,9 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    For split scopes there is possible to provide specific split-scope index
    (0-based) where the iteration shall occur, by appending "@n" to the scope name
    in the NAME token. "@*" names overall (combined) scope and is assumed if no
-   @-specification is provided in NAME. For performance reason the "@$"
-   notation (as the last split-scope index) is not supported.
+   @-specification is provided in NAME. "@$" denotes last split-scope index
+   (usage of this construct shall be avoided due to additional overhead needed
+   for tracking the scope in question).
 
    NOTE: Both TYPE and NAME may contain escape characters. Primary usage of them
    is escaping ':' (\x3a), '/' (\x2f) and '@' (\x40) in the 'path' string to
