@@ -227,18 +227,15 @@ finish:
    The function accepts a clone of enclosing scope handle pointed by 'ph_nst'
    which is next updated (actually its base part pointed by 'ph_nstb'), to
    represent nesting scope. The nesting scope is followed if its characteristic
-   meets scope criteria provided in the path). The function also provides
-   appropriate changes to the enclosing scope handle (actually its base part
-   pointed by 'ph_encb').
+   meets scope criteria provided in the path).
  */
-static sp_errc_t follow_scope_path(
-    const sp_parser_hndl_t *p_phndl, base_hndl_t *ph_encb, base_hndl_t *ph_nstb,
-    void *ph_nst, const sp_loc_t *p_ltype, const sp_loc_t *p_lname,
-    const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
+static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
+    base_hndl_t *ph_nstb, void *ph_nst, const sp_loc_t *p_ltype,
+    const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
-    int ind;
+    int ind, *p_sind=ph_nstb->p_sind;
     size_t typ_len=0, nm_len=0, ind_len;
     const char *type=NULL, *name=NULL;
     const path_t *p_path = &ph_nstb->path;
@@ -278,7 +275,7 @@ static sp_errc_t follow_scope_path(
     if (ind!=IND_ALL)
         /* tracking index is updated only if the matched
            scope was provided with an index specification */
-        *(ph_encb->p_sind) += 1;
+        *p_sind += 1;
 
     if (ind==IND_LAST)
     {
@@ -292,7 +289,7 @@ static sp_errc_t follow_scope_path(
         }
         ph_nstb->p_lsc->ldef = *p_ldef;
     } else
-    if (p_lbody && (ind==IND_ALL || *(ph_encb->p_sind)==ind))
+    if (p_lbody && (ind==IND_ALL || *p_sind==ind))
     {
         /* follow the path for matching index */
         int sind = -1;
@@ -319,8 +316,8 @@ finish:
  */
 #define __CALL_FOLLOW_SCOPE_PATH(hndl_t, p_hndl) \
     hndl_t hndl = *p_hndl; \
-    ret = follow_scope_path(p_phndl, \
-        &p_hndl->b, &hndl.b, &hndl, p_ltype, p_lname, p_lbody, p_ldef); \
+    ret = follow_scope_path( \
+        p_phndl, &hndl.b, &hndl, p_ltype, p_lname, p_lbody, p_ldef); \
     if (ret==SPEC_SUCCESS && *(p_hndl->b.p_finish)!=0) \
         ret = SPEC_CB_FINISH;
 
