@@ -109,7 +109,9 @@ typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
    'name') of an iterated scope. 'p_lbody' points to the scope body content
    location which may be used to retrieve data from it by sp_iterate().
    'p_tktype' and 'p_lbody' may be NULL for untyped scope OR scope w/o a body).
-   'in' is the parsed input file handle.
+   'p_lbdyenc' points to the scope body content with enclosing brackets location
+   (therefore always !=NULL); external chars of the location are '{','}' OR
+   consist of single ';'. 'in' is the parsed input file handle.
 
    Return codes:
        SPEC_CB_FINISH: success; finish parsing
@@ -118,7 +120,7 @@ typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
  */
 typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
     const sp_tkn_info_t *p_tktype, const char *name, const sp_tkn_info_t *p_tkname,
-    const sp_loc_t *p_lbody, const sp_loc_t *p_ldef);
+    const sp_loc_t *p_lbody, const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef);
 
 /* Iterate elements (properties/scopes) under 'path'. This functions acts
    similarly to low level grammar parser's sp_parse() function, informing the

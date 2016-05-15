@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015 Piotr Stolarz
+   Copyright (c) 2015,2016 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -74,9 +74,10 @@ static void set_loc(
     else if ((int)res<0) { YYACCEPT; } \
 }
 
-#define __CALL_CB_SCOPE(typ, nm, bdy, def) { \
+#define __CALL_CB_SCOPE(typ, nm, bdy, bdyenc, def) { \
     long pos = ftell(p_hndl->in); \
-    sp_errc_t res = p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (def)); \
+    sp_errc_t res = \
+        p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (bdyenc), (def)); \
     if (res==SPEC_SUCCESS && \
         (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
@@ -185,13 +186,22 @@ prop_scope:
         $$.end = $4.end;
         $$.scope_lev = $1.scope_lev;
 
-        if (p_hndl->cb.scope && !$$.scope_lev) {
-            sp_loc_t lname, lbody, ldef;
+        if (p_hndl->cb.scope && !$$.scope_lev)
+        {
+            sp_loc_t lname, lbody, lbdyenc, ldef;
+
             set_loc(&lname, &$1, &@1);
             set_loc(&lbody, &$3, &@3);
+            lbdyenc.beg = $2.beg;
+            lbdyenc.end = $4.end;
+            lbdyenc.first_line = @2.first_line;
+            lbdyenc.first_column = @2.first_column;
+            lbdyenc.last_line = @4.last_line;
+            lbdyenc.last_column = @4.last_column;
             set_loc(&ldef, &$$, &@$);
+
             __CALL_CB_SCOPE(
-                (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &ldef);
+                (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
   /* scope with properties */
@@ -201,14 +211,23 @@ prop_scope:
         $$.end = $5.end;
         $$.scope_lev = $1.scope_lev;
 
-        if (p_hndl->cb.scope && !$$.scope_lev) {
-            sp_loc_t ltype, lname, lbody, ldef;
+        if (p_hndl->cb.scope && !$$.scope_lev)
+        {
+            sp_loc_t ltype, lname, lbody, lbdyenc, ldef;
+
             set_loc(&ltype, &$1, &@1);
             set_loc(&lname, &$2, &@2);
             set_loc(&lbody, &$4, &@4);
+            lbdyenc.beg = $3.beg;
+            lbdyenc.end = $5.end;
+            lbdyenc.first_line = @3.first_line;
+            lbdyenc.first_column = @3.first_column;
+            lbdyenc.last_line = @5.last_line;
+            lbdyenc.last_column = @5.last_column;
             set_loc(&ldef, &$$, &@$);
+
             __CALL_CB_SCOPE(
-                &ltype, &lname, __PREP_LOC_PTR(lbody), &ldef);
+                &ltype, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
   /* scope w/o a body (alternative)
@@ -221,13 +240,17 @@ prop_scope:
         $$.end = $3.end;
         $$.scope_lev = $1.scope_lev;
 
-        if (p_hndl->cb.scope && !$$.scope_lev) {
-            sp_loc_t ltype, lname, ldef;
+        if (p_hndl->cb.scope && !$$.scope_lev)
+        {
+            sp_loc_t ltype, lname, lbdyenc, ldef;
+
             set_loc(&ltype, &$1, &@1);
             set_loc(&lname, &$2, &@2);
+            set_loc(&lbdyenc, &$3, &@3);
             set_loc(&ldef, &$$, &@$);
+
             __CALL_CB_SCOPE(
-                &ltype, &lname, (sp_loc_t*)NULL, &ldef);
+                &ltype, &lname, (sp_loc_t*)NULL, &lbdyenc, &ldef);
         }
     }
 ;

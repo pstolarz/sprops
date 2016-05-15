@@ -356,9 +356,9 @@ finish:
 }
 
 /* sp_iterate() callback: scope */
-static sp_errc_t iter_cb_scope(
-    const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltype,
-    const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
+static sp_errc_t iter_cb_scope(const sp_parser_hndl_t *p_phndl,
+    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
+    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     iter_hndl_t *p_ihndl=(iter_hndl_t*)p_phndl->cb.arg;
@@ -381,7 +381,7 @@ static sp_errc_t iter_cb_scope(
 
         ret = p_ihndl->cb.scope(p_ihndl->cb.arg, p_ihndl->in,
             p_ihndl->buf1.ptr, (p_ltype ? &tktype : NULL),
-            p_ihndl->buf2.ptr, &tkname, p_lbody, p_ldef);
+            p_ihndl->buf2.ptr, &tkname, p_lbody, p_lbdyenc, p_ldef);
 
         __CHK_ITER_CB_RET();
     }
@@ -546,9 +546,9 @@ finish:
 }
 
 /* sp_get_prop() callback: scope */
-static sp_errc_t getprp_cb_scope(
-    const sp_parser_hndl_t *p_phndl, const sp_loc_t *p_ltype,
-    const sp_loc_t *p_lname, const sp_loc_t *p_lbody, const sp_loc_t *p_ldef)
+static sp_errc_t getprp_cb_scope(const sp_parser_hndl_t *p_phndl,
+    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
+    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     getprp_hndl_t *p_gphndl=(getprp_hndl_t*)p_phndl->cb.arg;

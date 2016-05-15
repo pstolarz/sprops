@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015 Piotr Stolarz
+   Copyright (c) 2015,2016 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -41,11 +41,12 @@ typedef sp_errc_t (*sp_parser_cb_prop_t)(const struct _sp_parser_hndl_t *p_hndl,
 
 /* Scope callback provides location of scope's type ('p_ltype'; may be NULL
    for scope w/o a type), name ('p_lname'), body ('p_lbody'; may be NULL for
-   scope w/o a body) and overall definition of the scope ('p_ldef').
+   scope w/o a body), body with enclosing brackets ('lbdyenc') and overall
+   definition of the scope ('p_ldef').
  */
 typedef sp_errc_t (*sp_parser_cb_scope_t)(const struct _sp_parser_hndl_t *p_hndl,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
-    const sp_loc_t *p_ldef);
+    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef);
 
 /* types of supported EOLs */
 typedef enum _eol_t {

@@ -64,7 +64,7 @@ static sp_errc_t cb_prop(
 static sp_errc_t cb_scope(
     void *arg, FILE *in, const char *type, const sp_tkn_info_t *p_tktype,
     const char *name, const sp_tkn_info_t *p_tkname, const sp_loc_t *p_lbody,
-    const sp_loc_t *p_ldef)
+    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
 {
     printf("SCOPE %s, type \"%s\": "
         "NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
@@ -99,6 +99,14 @@ static sp_errc_t cb_scope(
             p_lbody->end);
     } else
         printf("BODY empty, ");
+
+    printf("ENC-BODY loc %d.%d|%d.%d [0x%02lx|0x%02lx], ",
+        p_lbdyenc->first_line,
+        p_lbdyenc->first_column,
+        p_lbdyenc->last_line,
+        p_lbdyenc->last_column,
+        p_lbdyenc->beg,
+        p_lbdyenc->end);
 
     printf("DEF loc %d.%d|%d.%d [0x%02lx|0x%02lx]\n",
         p_ldef->first_line,

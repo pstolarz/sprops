@@ -190,9 +190,10 @@ static void set_loc(
     else if ((int)res<0) { YYACCEPT; } \
 }
 
-#define __CALL_CB_SCOPE(typ, nm, bdy, def) { \
+#define __CALL_CB_SCOPE(typ, nm, bdy, bdyenc, def) { \
     long pos = ftell(p_hndl->in); \
-    sp_errc_t res = p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (def)); \
+    sp_errc_t res = \
+        p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (bdyenc), (def)); \
     if (res==SPEC_SUCCESS && \
         (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
@@ -203,13 +204,13 @@ static void set_loc(
 #define __PREP_LOC_PTR(loc) (__IS_EMPTY(loc) ? (sp_loc_t*)NULL : &(loc))
 
 
-#line 207 "parser.c" /* yacc.c:355  */
+#line 208 "parser.c" /* yacc.c:355  */
 
 
 
 /* Copy the second part of user declarations.  */
 
-#line 213 "parser.c" /* yacc.c:358  */
+#line 214 "parser.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -508,8 +509,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   102,   102,   108,   112,   113,   125,   153,   168,   182,
-     198,   218
+       0,   103,   103,   109,   113,   114,   126,   154,   169,   183,
+     208,   237
 };
 #endif
 
@@ -1383,28 +1384,28 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 102 "parser.y" /* yacc.c:1646  */
+#line 103 "parser.y" /* yacc.c:1646  */
     {
         /* set to empty scope */
         (yyval).end = 0;
         (yyval).beg = (yyval).end+1;
         (yyval).scope_lev = 0;
     }
-#line 1394 "parser.c" /* yacc.c:1646  */
+#line 1395 "parser.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 114 "parser.y" /* yacc.c:1646  */
+#line 115 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-1]).beg;
         (yyval).end = (yyvsp[0]).end;
         (yyval).scope_lev = (yyvsp[-1]).scope_lev;
     }
-#line 1404 "parser.c" /* yacc.c:1646  */
+#line 1405 "parser.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 126 "parser.y" /* yacc.c:1646  */
+#line 127 "parser.y" /* yacc.c:1646  */
     {
         sp_loc_t lval;
         set_loc(&lval, &(yyvsp[0]), &(yylsp[0]));
@@ -1428,11 +1429,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
-#line 1432 "parser.c" /* yacc.c:1646  */
+#line 1433 "parser.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 154 "parser.y" /* yacc.c:1646  */
+#line 155 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-3]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1446,11 +1447,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
-#line 1450 "parser.c" /* yacc.c:1646  */
+#line 1451 "parser.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 169 "parser.y" /* yacc.c:1646  */
+#line 170 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-1]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1463,69 +1464,91 @@ yyreduce:
             __CALL_CB_PROP(&lname, (sp_loc_t*)NULL, &ldef);
         }
     }
-#line 1467 "parser.c" /* yacc.c:1646  */
+#line 1468 "parser.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 183 "parser.y" /* yacc.c:1646  */
+#line 184 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-3]).beg;
         (yyval).end = (yyvsp[0]).end;
         (yyval).scope_lev = (yyvsp[-3]).scope_lev;
 
-        if (p_hndl->cb.scope && !(yyval).scope_lev) {
-            sp_loc_t lname, lbody, ldef;
+        if (p_hndl->cb.scope && !(yyval).scope_lev)
+        {
+            sp_loc_t lname, lbody, lbdyenc, ldef;
+
             set_loc(&lname, &(yyvsp[-3]), &(yylsp[-3]));
             set_loc(&lbody, &(yyvsp[-1]), &(yylsp[-1]));
+            lbdyenc.beg = (yyvsp[-2]).beg;
+            lbdyenc.end = (yyvsp[0]).end;
+            lbdyenc.first_line = (yylsp[-2]).first_line;
+            lbdyenc.first_column = (yylsp[-2]).first_column;
+            lbdyenc.last_line = (yylsp[0]).last_line;
+            lbdyenc.last_column = (yylsp[0]).last_column;
             set_loc(&ldef, &(yyval), &(yyloc));
+
             __CALL_CB_SCOPE(
-                (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &ldef);
+                (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
-#line 1486 "parser.c" /* yacc.c:1646  */
+#line 1496 "parser.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 199 "parser.y" /* yacc.c:1646  */
+#line 209 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-4]).beg;
         (yyval).end = (yyvsp[0]).end;
         (yyval).scope_lev = (yyvsp[-4]).scope_lev;
 
-        if (p_hndl->cb.scope && !(yyval).scope_lev) {
-            sp_loc_t ltype, lname, lbody, ldef;
+        if (p_hndl->cb.scope && !(yyval).scope_lev)
+        {
+            sp_loc_t ltype, lname, lbody, lbdyenc, ldef;
+
             set_loc(&ltype, &(yyvsp[-4]), &(yylsp[-4]));
             set_loc(&lname, &(yyvsp[-3]), &(yylsp[-3]));
             set_loc(&lbody, &(yyvsp[-1]), &(yylsp[-1]));
+            lbdyenc.beg = (yyvsp[-2]).beg;
+            lbdyenc.end = (yyvsp[0]).end;
+            lbdyenc.first_line = (yylsp[-2]).first_line;
+            lbdyenc.first_column = (yylsp[-2]).first_column;
+            lbdyenc.last_line = (yylsp[0]).last_line;
+            lbdyenc.last_column = (yylsp[0]).last_column;
             set_loc(&ldef, &(yyval), &(yyloc));
-            __CALL_CB_SCOPE(
-                &ltype, &lname, __PREP_LOC_PTR(lbody), &ldef);
-        }
-    }
-#line 1506 "parser.c" /* yacc.c:1646  */
-    break;
 
-  case 11:
-#line 219 "parser.y" /* yacc.c:1646  */
-    {
-        (yyval).beg = (yyvsp[-2]).beg;
-        (yyval).end = (yyvsp[0]).end;
-        (yyval).scope_lev = (yyvsp[-2]).scope_lev;
-
-        if (p_hndl->cb.scope && !(yyval).scope_lev) {
-            sp_loc_t ltype, lname, ldef;
-            set_loc(&ltype, &(yyvsp[-2]), &(yylsp[-2]));
-            set_loc(&lname, &(yyvsp[-1]), &(yylsp[-1]));
-            set_loc(&ldef, &(yyval), &(yyloc));
             __CALL_CB_SCOPE(
-                &ltype, &lname, (sp_loc_t*)NULL, &ldef);
+                &ltype, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
 #line 1525 "parser.c" /* yacc.c:1646  */
     break;
 
+  case 11:
+#line 238 "parser.y" /* yacc.c:1646  */
+    {
+        (yyval).beg = (yyvsp[-2]).beg;
+        (yyval).end = (yyvsp[0]).end;
+        (yyval).scope_lev = (yyvsp[-2]).scope_lev;
 
-#line 1529 "parser.c" /* yacc.c:1646  */
+        if (p_hndl->cb.scope && !(yyval).scope_lev)
+        {
+            sp_loc_t ltype, lname, lbdyenc, ldef;
+
+            set_loc(&ltype, &(yyvsp[-2]), &(yylsp[-2]));
+            set_loc(&lname, &(yyvsp[-1]), &(yylsp[-1]));
+            set_loc(&lbdyenc, &(yyvsp[0]), &(yylsp[0]));
+            set_loc(&ldef, &(yyval), &(yyloc));
+
+            __CALL_CB_SCOPE(
+                &ltype, &lname, (sp_loc_t*)NULL, &lbdyenc, &ldef);
+        }
+    }
+#line 1548 "parser.c" /* yacc.c:1646  */
+    break;
+
+
+#line 1552 "parser.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1760,7 +1783,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 235 "parser.y" /* yacc.c:1906  */
+#line 258 "parser.y" /* yacc.c:1906  */
 
 
 #undef __PREP_LOC_PTR
