@@ -126,7 +126,7 @@ Notes
    little effort for any conforming platforms.
  - Memory allocation is performed ONLY by the generated grammar parser code for
    reducing read grammar rules. The bison parser allows a flexible way for
-   configuring such allocations (e.g. via stack alloc() or heap malloc())
+   configuring such allocations (e.g. via stack alloca() or heap malloc())
    which may be useful for porting to some constrained embedded platforms.
    See the bison parser generator documentation for more details.
  - The API is fully re-entrant. No global variables are used during the parsing

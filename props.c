@@ -71,7 +71,7 @@ typedef struct _lastsc_t
                            the scope content (beginning of its path; end of
                            the path as in the original path) */
     sp_loc_t lbody;     /* scope body; for scopes w/o body line/column indexes
-                           are set to 0 */
+                           are set to 0 (uninitialized state) */
     sp_loc_t ldef;      /* scope definition */
 } lastsc_t;
 
@@ -177,7 +177,7 @@ typedef struct _iter_hndl_t
    SPEC_INV_PATH is returned.
  */
 static sp_errc_t get_ind_from_name(
-    const char *p_name, size_t name_len, int *p_ind, size_t *p_ind_len)
+    const char *name, size_t nm_len, int *p_ind, size_t *p_ind_len)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     size_t i;
@@ -185,30 +185,30 @@ static sp_errc_t get_ind_from_name(
     *p_ind=0;
     *p_ind_len=0;
 
-    for (i=name_len, p_name+=name_len-1;
-        i && *p_name!=C_SEP_SIND;
-        i--, p_name--);
+    for (i=nm_len, name+=nm_len-1;
+        i && *name!=C_SEP_SIND;
+        i--, name--);
 
     if (!i)
         /* no index spec. */
         goto finish;
 
-     *p_ind_len=name_len-i+1;
+     *p_ind_len=nm_len-i+1;
      if (*p_ind_len <= 1) {
         /* no chars after marker */
         ret=SPEC_INV_PATH;
         goto finish;
     }
 
-    p_name++;
+    name++;
 
-    if (*p_ind_len==2 && (*p_name==C_IND_ALL || *p_name==C_IND_LAST)) {
-        *p_ind = (*p_name==C_IND_LAST ? IND_LAST : IND_ALL);
+    if (*p_ind_len==2 && (*name==C_IND_ALL || *name==C_IND_LAST)) {
+        *p_ind = (*name==C_IND_LAST ? IND_LAST : IND_ALL);
     } else {
         /* parse decimal number after marker */
-        for (i=1; i<*p_ind_len; i++, p_name++) {
-            if (*p_name>='0' && *p_name<='9') {
-                *p_ind = *p_ind*10 + (*p_name-'0');
+        for (i=1; i<*p_ind_len; i++, name++) {
+            if (*name>='0' && *name<='9') {
+                *p_ind = *p_ind*10 + (*name-'0');
             } else {
                 /* invalid number */
                 *p_ind=0;
@@ -310,15 +310,13 @@ finish:
     return ret;
 }
 
-/* Clone nested scope handle (basing on the enclosing scope handle 'p_hndl')
-   of type 'hndl_t' and follow the scope path. After the call finish flag is
-   checked. To be used inside scope callbacks only.
+/* Call follow_scope_path() for cloned nested scope handle 'hndl' and check
+   the finish flag afterward. To be used inside scope callbacks only.
  */
-#define __CALL_FOLLOW_SCOPE_PATH(hndl_t, p_hndl) \
-    hndl_t hndl = *p_hndl; \
+#define CALL_FOLLOW_SCOPE_PATH(hndl) \
     ret = follow_scope_path( \
         p_phndl, &hndl.b, &hndl, p_ltype, p_lname, p_lbody, p_ldef); \
-    if (ret==SPEC_SUCCESS && *(p_hndl->b.p_finish)!=0) \
+    if (ret==SPEC_SUCCESS && *(hndl.b.p_finish)!=0) \
         ret = SPEC_CB_FINISH;
 
 /* check iteration callback return code */
@@ -366,7 +364,8 @@ static sp_errc_t iter_cb_scope(
     iter_hndl_t *p_ihndl=(iter_hndl_t*)p_phndl->cb.arg;
 
     if (p_ihndl->b.path.beg < p_ihndl->b.path.end) {
-        __CALL_FOLLOW_SCOPE_PATH(iter_hndl_t, p_ihndl);
+        iter_hndl_t ihndl = *p_ihndl;
+        CALL_FOLLOW_SCOPE_PATH(ihndl);
     } else
     if (p_ihndl->cb.scope)
     {
@@ -392,7 +391,7 @@ finish:
 
 #undef __CHK_ITER_CB_RET
 
-#define __PARSE_WITH_LSC_HANDLE(hndl) \
+#define __PARSE_WITH_LSC_HANDLING(hndl) \
     for (;;) { \
         sp_loc_t lsc_bdy; \
         EXEC_RG(sp_parse(&phndl)); \
@@ -419,7 +418,8 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     iter_hndl_t ihndl;
     sp_parser_hndl_t phndl;
 
-    /* processing finish flag (shared) */
+    /* processing finish flag (shared);
+       set to 1 if user callback requested to stop further iteration */
     int f_finish;
     /* last scope spec. (shared) */
     lastsc_t lsc;
@@ -453,11 +453,30 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
 
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
-    __PARSE_WITH_LSC_HANDLE(ihndl);
+    __PARSE_WITH_LSC_HANDLING(ihndl);
 
 finish:
     return ret;
 }
+
+typedef struct _prop_dsc_t
+{
+    const char *name;
+    size_t nm_len;
+
+    int ind;
+} prop_dsc_t;
+
+typedef struct _scope_dsc_t
+{
+    const char *type;
+    size_t typ_len;
+
+    const char *name;
+    size_t nm_len;
+
+    int ind;
+} scope_dsc_t;
 
 /* sp_get_prop() iteration handle struct.
 
@@ -468,13 +487,11 @@ typedef struct _getprp_hndl_t
 {
     base_hndl_t b;
 
-    /* property name & index (const) */
-    const char *name;
-    size_t name_len;
-    int ind;
+    /* property desc. (const) */
+    prop_dsc_t prop;
 
-    /* matched props incremental index (shared) */
-    int *p_prop_ind_n;
+    /* matched props tracking index (shared) */
+    int *p_pind;
 
     /* property value buffer (const) */
     struct {
@@ -496,18 +513,18 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     /* ignore props until the destination scope */
     if (p_gphndl->b.path.beg>=p_gphndl->b.path.end)
     {
-        CMPLOC_RG(
-            p_phndl, SP_TKN_ID, p_lname, p_gphndl->name, p_gphndl->name_len);
+        CMPLOC_RG(p_phndl, SP_TKN_ID,
+            p_lname, p_gphndl->prop.name, p_gphndl->prop.nm_len);
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
         /* matching property found */
-        *p_gphndl->p_prop_ind_n += 1;
+        *p_gphndl->p_pind += 1;
 
-        if (p_gphndl->ind==*p_gphndl->p_prop_ind_n ||
-            p_gphndl->ind==IND_LAST)
+        if (p_gphndl->prop.ind==*p_gphndl->p_pind ||
+            p_gphndl->prop.ind==IND_LAST)
         {
-            p_gphndl->p_info->tkname.len = p_gphndl->name_len;
+            p_gphndl->p_info->tkname.len = p_gphndl->prop.nm_len;
             p_gphndl->p_info->tkname.loc = *p_lname;
             if (p_lval) {
                 p_gphndl->p_info->val_pres = 1;
@@ -516,12 +533,12 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
                 p_gphndl->p_info->val_pres = 0;
             }
             p_gphndl->p_info->ldef = *p_ldef;
-        }
 
-        if (p_gphndl->ind==*p_gphndl->p_prop_ind_n) {
-            /* requested property found, stop further processing */
-            ret = SPEC_CB_FINISH;
-            *p_gphndl->b.p_finish = 1;
+            if (p_gphndl->prop.ind!=IND_LAST) {
+                /* requested property found, stop further processing */
+                ret = SPEC_CB_FINISH;
+                *p_gphndl->b.p_finish = 1;
+            }
         }
     }
 finish:
@@ -537,7 +554,8 @@ static sp_errc_t getprp_cb_scope(
     getprp_hndl_t *p_gphndl=(getprp_hndl_t*)p_phndl->cb.arg;
 
     if (p_gphndl->b.path.beg < p_gphndl->b.path.end) {
-        __CALL_FOLLOW_SCOPE_PATH(getprp_hndl_t, p_gphndl);
+        getprp_hndl_t gphndl = *p_gphndl;
+        CALL_FOLLOW_SCOPE_PATH(gphndl);
     }
     return ret;
 }
@@ -551,14 +569,16 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     getprp_hndl_t gphndl;
     sp_parser_hndl_t phndl;
 
-    /* processing finish flag (shared) */
+    /* processing finish flag (shared)
+       set to 1 if requested property has been found
+       (doesn't apply for the last prop referenced by IND_LAST) */
     int f_finish;
     /* last scope spec. (shared) */
     lastsc_t lsc;
     /* split scope tracking index (shared) */
     int sind;
-    /* matched props inc. index (shared) */
-    int prop_ind_n;
+    /* matched props tracking index (shared) */
+    int pind;
 
     /* line & columns are 1-based, therefore 0 has a special
        meaning to distinguish uninitialized state. */
@@ -571,18 +591,18 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     memset(&gphndl, 0, sizeof(gphndl));
 
     if (!name && !path) goto finish;
-    init_base_hndl(
-        &gphndl.b, &f_finish, &lsc, &sind, path, (!name ? &name : NULL), defsc);
+    init_base_hndl(&gphndl.b, &f_finish,
+        &lsc, &sind, path, (!name ? &name : NULL), defsc);
 
-    gphndl.name = name;
-    gphndl.name_len = strlen(name);
+    gphndl.prop.name = name;
+    gphndl.prop.nm_len = strlen(name);
 
     if (ind<0 && ind!=IND_LAST && ind!=IND_INPRM) goto finish;
     if (ind==IND_INPRM) {
         size_t ind_len;
 
-        EXEC_RG(get_ind_from_name(name, gphndl.name_len, &ind, &ind_len));
-        if (ind==IND_ALL || !(gphndl.name_len-=ind_len)) {
+        EXEC_RG(get_ind_from_name(name, gphndl.prop.nm_len, &ind, &ind_len));
+        if (ind==IND_ALL || !(gphndl.prop.nm_len-=ind_len)) {
             ret=SPEC_INV_PATH;
             goto finish;
         }
@@ -590,9 +610,9 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         if (!ind_len) ind=0;
     }
 
-    gphndl.ind = ind;
-    prop_ind_n = -1;
-    gphndl.p_prop_ind_n = &prop_ind_n;
+    gphndl.prop.ind = ind;
+    pind = -1;
+    gphndl.p_pind = &pind;
 
     gphndl.val.ptr = val;
     gphndl.val.sz = len-1;
@@ -602,7 +622,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     EXEC_RG(sp_parser_hndl_init(
         &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
-    __PARSE_WITH_LSC_HANDLE(gphndl);
+    __PARSE_WITH_LSC_HANDLING(gphndl);
 
     /* check if the location of the property definition
        has not been set, therefore has not been found */
@@ -727,5 +747,4 @@ finish:
     return ret;
 }
 
-#undef __PARSE_WITH_LSC_HANDLE
-#undef __CALL_FOLLOW_SCOPE_PATH
+#undef __PARSE_WITH_LSC_HANDLING

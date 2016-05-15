@@ -2,6 +2,9 @@ YACC=bison
 CC=gcc
 CFLAGS=-Wall -I./inc
 
+# use alloca() instead of malloc() for LALR parser stack allocations
+CFLAGS+=-DYYSTACK_USE_ALLOCA
+
 OBJS = \
     parser.o \
     props.o
