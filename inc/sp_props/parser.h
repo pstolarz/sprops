@@ -56,6 +56,8 @@ typedef enum _eol_t {
     EOL_CR          /* legacy mac */
 } eol_t;
 
+#define EOL_DETECT EOL_UNDEF
+
 typedef
 struct _unc_cache_t
 {
@@ -114,10 +116,12 @@ typedef struct _sp_parser_hndl_t
    Parsing scope is constrained to 'p_parsc' (if NULL: the entire file).
    Property/scope callbacks are provided by 'cb_prop' and 'cb_scope' respectively
    with caller specific argument passed untouched to these functions ('cb_arg').
+   The function allows providing type of EOL used by the parser by specifing
+   'eol_typ', use EOL_DETECT for automatic detection.
  */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
-    sp_parser_cb_scope_t cb_scope, void *cb_arg);
+    sp_parser_cb_scope_t cb_scope, void *cb_arg, eol_t eol_typ);
 
 /* Parser method */
 sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl);

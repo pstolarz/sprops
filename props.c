@@ -46,7 +46,8 @@ sp_errc_t sp_check_syntax(
 
     if (!in) { ret=SPEC_INV_ARG; goto finish; }
 
-    EXEC_RG(sp_parser_hndl_init(&phndl, in, p_parsc, NULL, NULL, NULL));
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, NULL, NULL, NULL, EOL_DETECT));
     EXEC_RG(sp_parse(&phndl));
 
 finish:
@@ -70,8 +71,8 @@ typedef struct _lastsc_t
     const char *beg;    /* points to part of original path spec.  related to
                            the scope content (beginning of its path; end of
                            the path as in the original path) */
-    sp_loc_t lbody;     /* scope body; for scopes w/o body line/column indexes
-                           are set to 0 (uninitialized state) */
+    sp_loc_t lbody;     /* scope body; for scopes w/o body line/column
+                           indexes are zeroed (unset state) */
     sp_loc_t ldef;      /* scope definition */
 } lastsc_t;
 
@@ -93,6 +94,9 @@ typedef struct _base_hndl_t
 
     /* path to the destination scope (not propagated) */
     path_t path;
+
+    /* type of EOL detected (const) */
+    eol_t eol;
 } base_hndl_t;
 
 /* Initialize base_hndl_t struct.
@@ -101,9 +105,9 @@ typedef struct _base_hndl_t
    specification. In this case 'p_lprt' shall be !=NULL. A pointer to the last
    part will be written under 'p_lprt'.
  */
-static void init_base_hndl(
-    base_hndl_t *p_base, int *const p_finish, lastsc_t *p_lsc, int *p_sind,
-    const char *path, const char **p_lprt, const char *defsc)
+static void init_base_hndl(base_hndl_t *p_base, int *const p_finish,
+    lastsc_t *p_lsc, int *p_sind, const char *path, const char **p_lprt,
+    const char *defsc, const sp_parser_hndl_t *p_phndl)
 {
     p_base->p_finish = p_finish;
     *(p_base->p_finish) = 0;
@@ -132,6 +136,14 @@ static void init_base_hndl(
 
     if (p_base->path.beg && *p_base->path.beg==C_SEP_SCP) p_base->path.beg++;
     p_base->path.defsc = defsc;
+
+    p_base->eol = (p_phndl->lex.eol_typ!=EOL_UNDEF ?  p_phndl->lex.eol_typ :
+#if defined(_WIN32) || defined(_WIN64)
+        EOL_CRLF
+#else
+        EOL_LF
+#endif
+        );
 }
 
 /* Iteration handle
@@ -289,21 +301,25 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
         }
         ph_nstb->p_lsc->ldef = *p_ldef;
     } else
-    if (p_lbody && (ind==IND_ALL || *p_sind==ind))
+    if (ind==IND_ALL || *p_sind==ind)
     {
         /* follow the path for matching index */
-        int sind = -1;
-        sp_parser_hndl_t phndl;
-
-        if (ind!=IND_ALL)
-            /* there is a need to start tracking in the followed scope */
-            ph_nstb->p_sind = &sind;
-
         ph_nstb->path.beg = (!*end ? end : end+1);
 
-        EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
-            p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
-        EXEC_RG(sp_parse(&phndl));
+        if (p_lbody)
+        {
+            int sind = -1;
+            sp_parser_hndl_t phndl;
+
+            if (ind!=IND_ALL)
+                /* there is a need to start tracking in the followed scope */
+                ph_nstb->p_sind = &sind;
+
+            EXEC_RG(sp_parser_hndl_init(
+                &phndl, p_phndl->in, p_lbody, p_phndl->cb.prop,
+                p_phndl->cb.scope, ph_nst, p_phndl->lex.eol_typ));
+            EXEC_RG(sp_parse(&phndl));
+        }
     }
 
 finish:
@@ -404,8 +420,8 @@ finish:
             lsc_bdy = lsc.lbody; \
             memset(&lsc, 0, sizeof(lsc)); \
             sind = -1; \
-            EXEC_RG(sp_parser_hndl_init( \
-                &phndl, in, &lsc_bdy, iter_cb_prop, iter_cb_scope, &hndl)); \
+            EXEC_RG(sp_parser_hndl_init(&phndl, phndl.in, &lsc_bdy, \
+                phndl.cb.prop, phndl.cb.scope, &hndl, phndl.lex.eol_typ)); \
         } else break; \
     }
 
@@ -431,8 +447,12 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
         goto finish;
     }
 
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl, EOL_DETECT));
+
+    /* prepare callback handle */
     memset(&ihndl, 0, sizeof(ihndl));
-    init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, NULL, defsc);
+    init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, NULL, defsc, &phndl);
 
     ihndl.in = in;
 
@@ -451,8 +471,6 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
         ihndl.buf2.ptr[ihndl.buf2.sz] = 0;
     }
 
-    EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
     __PARSE_WITH_LSC_HANDLING(ihndl);
 
 finish:
@@ -511,7 +529,7 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     getprp_hndl_t *p_gphndl = (getprp_hndl_t*)p_phndl->cb.arg;
 
     /* ignore props until the destination scope */
-    if (p_gphndl->b.path.beg>=p_gphndl->b.path.end)
+    if (p_gphndl->b.path.beg >= p_gphndl->b.path.end)
     {
         CMPLOC_RG(p_phndl, SP_TKN_ID,
             p_lname, p_gphndl->prop.name, p_gphndl->prop.nm_len);
@@ -534,8 +552,8 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
             }
             p_gphndl->p_info->ldef = *p_ldef;
 
+            /* done if there is no need to track last property */
             if (p_gphndl->prop.ind!=IND_LAST) {
-                /* requested property found, stop further processing */
                 ret = SPEC_CB_FINISH;
                 *p_gphndl->b.p_finish = 1;
             }
@@ -565,7 +583,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *defsc, char *val, size_t len,
     sp_prop_info_ex_t *p_info)
 {
-    sp_errc_t ret=SPEC_INV_ARG;
+    sp_errc_t ret=SPEC_SUCCESS;
     getprp_hndl_t gphndl;
     sp_parser_hndl_t phndl;
 
@@ -580,25 +598,31 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     /* matched props tracking index (shared) */
     int pind;
 
-    /* line & columns are 1-based, therefore 0 has a special
-       meaning to distinguish uninitialized state. */
+    /* line & columns are 1-based, therefore 0 has
+       a special meaning to distinguish unset state */
     sp_prop_info_ex_t info;
     memset(&info, 0, sizeof(info));
 
-    if (!in || !len) goto finish;
+    if (!in || !len ||
+        (!name && !path) ||
+        (ind<0 && ind!=IND_LAST && ind!=IND_INPROP))
+    {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
+
+    EXEC_RG(sp_parser_hndl_init(&phndl, in,
+        p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl, EOL_DETECT));
 
     /* prepare callback handle */
     memset(&gphndl, 0, sizeof(gphndl));
-
-    if (!name && !path) goto finish;
     init_base_hndl(&gphndl.b, &f_finish,
-        &lsc, &sind, path, (!name ? &name : NULL), defsc);
+        &lsc, &sind, path, (!name ? &name : NULL), defsc, &phndl);
 
     gphndl.prop.name = name;
     gphndl.prop.nm_len = strlen(name);
 
-    if (ind<0 && ind!=IND_LAST && ind!=IND_INPRM) goto finish;
-    if (ind==IND_INPRM) {
+    if (ind==IND_INPROP) {
         size_t ind_len;
 
         EXEC_RG(get_ind_from_name(name, gphndl.prop.nm_len, &ind, &ind_len));
@@ -620,8 +644,6 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     gphndl.p_info = &info;
 
-    EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
     __PARSE_WITH_LSC_HANDLING(gphndl);
 
     /* check if the location of the property definition
@@ -744,6 +766,188 @@ sp_errc_t sp_get_prop_enum(
 finish:
     if (p_info) *p_info=info;
     if (p_val) *p_val=v;
+    return ret;
+}
+
+typedef struct _addh_frst_sc_t
+{
+    sp_loc_t lbdyenc;
+    sp_loc_t ldef;
+} addh_frst_sc_t;
+
+/* Property/scope addition iteration handle struct.
+
+   NOTE: This struct is copied during upward-downward process of following
+   a destination scope path.
+ */
+typedef struct _add_hndl_t
+{
+    base_hndl_t b;
+
+    /* element position number (const) */
+    int n_elem;
+    /* element position number tracking index (shared) */
+    int *p_eind;
+
+    /* first, non-global scope matching the path;
+       zero initialized - unset (shared) */
+    addh_frst_sc_t *p_frst_sc;
+
+    /* definition's location of an element associated with requested
+       position; if unset - the position was not found (shared) */
+    sp_loc_t *p_ldef_elem;
+} add_hndl_t;
+
+#define __TRACK_ELEM_POSITION() \
+    /* count element in the matched scope */ \
+    *p_ahndl->p_eind += 1; \
+    if (p_ahndl->n_elem==*p_ahndl->p_eind || \
+        p_ahndl->n_elem==IND_LAST) \
+    { \
+        /* save element's ldef associated with requested position */ \
+        *p_ahndl->p_ldef_elem = *p_ldef; \
+        /* done if there is no need to track last position */ \
+        if (p_ahndl->n_elem!=IND_LAST) { \
+            ret = SPEC_CB_FINISH; \
+            *p_ahndl->b.p_finish = 1; \
+        } \
+    }
+
+/* Property/scope addition callback: property */
+static sp_errc_t add_cb_prop(const sp_parser_hndl_t *p_phndl,
+    const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    add_hndl_t *p_ahndl=(add_hndl_t*)p_phndl->cb.arg;
+
+    if (p_ahndl->b.path.beg >= p_ahndl->b.path.end) {
+        __TRACK_ELEM_POSITION();
+    }
+    return ret;
+}
+
+/* Property/scope addition callback: scope */
+static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
+    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
+    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    add_hndl_t *p_ahndl=(add_hndl_t*)p_phndl->cb.arg;
+
+    if (p_ahndl->b.path.beg < p_ahndl->b.path.end)
+    {
+        add_hndl_t ahndl = *p_ahndl;
+        CALL_FOLLOW_SCOPE_PATH(ahndl);
+
+        if (ahndl.b.p_lsc->present &&
+            ahndl.b.p_lsc->beg >= ahndl.b.path.end &&
+            ahndl.b.p_lsc->ldef.beg==p_ldef->beg &&
+            ahndl.b.p_lsc->ldef.end==p_ldef->end)
+        {
+            /* track last scope and write under 'p_frst_sc'
+               if the scope finishes the path */
+            p_ahndl->p_frst_sc->lbdyenc = *p_lbdyenc;
+            p_ahndl->p_frst_sc->ldef = *p_ldef;
+        } else
+        if (ahndl.b.path.beg >= ahndl.b.path.end &&
+            !p_ahndl->p_frst_sc->ldef.first_column)
+        {
+            /* mark first matching, non-global scope */
+            p_ahndl->p_frst_sc->lbdyenc = *p_lbdyenc;
+            p_ahndl->p_frst_sc->ldef = *p_ldef;
+        }
+    } else {
+        __TRACK_ELEM_POSITION();
+    }
+    return ret;
+}
+
+#undef __TRACK_ELEM_POSITION
+
+/* Add prop/scope element.
+ */
+/* static */ sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *prop_nm, const char *prop_val, const char *sc_typ,
+    const char *sc_nm, int n_elem, const char *path, const char *defsc,
+    unsigned flags)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    add_hndl_t ahndl;
+    sp_parser_hndl_t phndl;
+
+    /* processing finish flag (shared)
+       set to 1 if requested element position has been found
+       (doesn't apply for the last position referenced by IND_LAST) */
+    int f_finish;
+    /* last scope spec. (shared) */
+    lastsc_t lsc;
+    /* split scope tracking index (shared) */
+    int sind;
+    /* element position number tracking index (shared) */
+    int eind = 0;
+    /* first scope matching the path (shared) */
+    addh_frst_sc_t frst_sc = {};
+    /* ldef of an element associated with requested position (shared) */
+    sp_loc_t ldef_elem = {};
+
+    if (!in || !out ||
+        (!prop_nm && !sc_nm) ||
+        (n_elem<0 && n_elem!=IND_LAST))
+    {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, add_cb_prop, add_cb_scope, &ahndl, EOL_DETECT));
+
+    /* prepare callback handle */
+    memset(&ahndl, 0, sizeof(ahndl));
+    init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, NULL, defsc, &phndl);
+
+    ahndl.n_elem = n_elem;
+    ahndl.p_eind = &eind;
+    ahndl.p_frst_sc = &frst_sc;
+    ahndl.p_ldef_elem = &ldef_elem;
+
+    __PARSE_WITH_LSC_HANDLING(ahndl);
+
+    if ((ahndl.b.path.beg < ahndl.b.path.end) && !frst_sc.ldef.first_column)
+    {
+        /* path specified but the destination not found */
+        ret=SPEC_NOTFOUND;
+        goto finish;
+    }
+
+    if ((n_elem && n_elem!=IND_LAST) && !ldef_elem.first_column)
+    {
+        /* requested position not found */
+        ret=SPEC_NOTFOUND;
+        goto finish;
+    }
+
+    if (n_elem && (n_elem!=IND_LAST || ldef_elem.first_column))
+    {
+        /* add after n-th elem */
+// @@@
+printf("adding after element; %d.%d|%d.%d\n",
+    ldef_elem.first_line, ldef_elem.first_column, ldef_elem.last_line, ldef_elem.last_column);
+    } else {
+        if (frst_sc.ldef.first_column)
+        {
+            /* add at scope beginning */
+// @@@
+printf("adding at scope beg; %d.%d|%d.%d\n",
+    frst_sc.ldef.first_line, frst_sc.ldef.first_column, frst_sc.ldef.last_line, frst_sc.ldef.last_column);
+        } else
+        {
+            /* add at file beginning */
+// @@@
+printf("adding at file beg\n");
+        }
+    }
+
+finish:
     return ret;
 }
 

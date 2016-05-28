@@ -172,7 +172,7 @@ typedef struct _sp_prop_info_ex_t
 
 #define IND_LAST    -1
 #define IND_ALL     -2
-#define IND_INPRM   -3
+#define IND_INPROP  -3
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'defsc' specify owning scope of the property. If no property
@@ -189,10 +189,10 @@ typedef struct _sp_prop_info_ex_t
    specification (last part of path after '/' char). In this case property
    name must not contain '/' character which need to be escaped by \x2f sequence.
    NOTE 3: Property index may by provided in the property name by passing
-   IND_INPRM in 'ind' and appending "@n" to the prop's name to specify n index
+   IND_INPROP in 'ind' and appending "@n" to the prop's name to specify n index
    value or "@$" as synonymous of IND_LAST. In this case property name must not
    contain '@' character which need to be escaped by \x40 sequence. If no
-   @-specification is provided with IND_INPRM, 0 index is assumed.
+   @-specification is provided with IND_INPROP, 0 index is assumed.
    NOTE 4: 'in' input file must be opened in the binary mode with read access at
    least.
  */

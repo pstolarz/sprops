@@ -5,7 +5,8 @@ CFLAGS=-Wall -I../inc
 
 TESTS= \
     t01-get \
-    t02-iter
+    t02-iter \
+    t03-add
 
 all: $(TESTS)
 

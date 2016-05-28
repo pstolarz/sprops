@@ -549,7 +549,7 @@ static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 /* exported; see header for details */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
-    sp_parser_cb_scope_t cb_scope, void *cb_arg)
+    sp_parser_cb_scope_t cb_scope, void *cb_arg, eol_t eol_typ)
 {
     int c;
     sp_errc_t ret;
@@ -560,18 +560,21 @@ sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
 
     ret=SPEC_ACCS_ERR;
 
-    /* detect EOL */
-    p_hndl->lex.eol_typ = EOL_UNDEF;
-    if (fseek(in, 0, SEEK_SET)) goto finish;
-    while ((c=fgetc(in))!=EOF) {
-        if (c=='\n') {
-            p_hndl->lex.eol_typ=EOL_LF;
-            break;
-        } else
-        if (c=='\r') {
-            p_hndl->lex.eol_typ=EOL_CR;
-            if (fgetc(in)=='\n') p_hndl->lex.eol_typ=EOL_CRLF;
-            break;
+    /* detect EOL if necessary */
+    p_hndl->lex.eol_typ = eol_typ;
+    if (eol_typ==EOL_DETECT)
+    {
+        if (fseek(in, 0, SEEK_SET)) goto finish;
+        while ((c=fgetc(in))!=EOF) {
+            if (c=='\n') {
+                p_hndl->lex.eol_typ=EOL_LF;
+                break;
+            } else
+            if (c=='\r') {
+                p_hndl->lex.eol_typ=EOL_CR;
+                if (fgetc(in)=='\n') p_hndl->lex.eol_typ=EOL_CRLF;
+                break;
+            }
         }
     }
 
@@ -815,7 +818,7 @@ static int esc_getc(hndl_eschr_t *p_hndl)
                 } else
                     p_hndl->escaped=0;
                 break;
-            default:
+            default:    /* will never happen */
                 p_hndl->escaped=0;
                 break;
             }
