@@ -2314,42 +2314,27 @@ static int esc_getc(hndl_eschr_t *p_hndl)
         /* hex encoded char */
         case 'x':
           {
-            int c1, c2;
-            __GETC(); if (!__HEXCHR2BT(c, c1)) { p_hndl->escaped=0; break; }
-            __GETC(); if (!__HEXCHR2BT(c, c2)) { p_hndl->escaped=0; break; }
-            c = (c1<<4)|c2;
+            int h1, h2;
+            __GETC(); if (!__HEXCHR2BT(c, h1)) { p_hndl->escaped=0; break; }
+            __GETC(); if (!__HEXCHR2BT(c, h2)) { p_hndl->escaped=0; break; }
+            c = (h1<<4)|h2;
             break;
           }
 
         /* SP_TKN_VAL: line continuation */
         case '\n':
         case '\r':
-            if (p_hndl->tkn!=SP_TKN_VAL)
+            if (p_hndl->tkn!=SP_TKN_VAL) {
                 p_hndl->escaped=0;
-            else
-            switch (p_hndl->eol_typ)
-            {
-            case EOL_LF:
-                if (c=='\n') {
+            } else {
+                int c1=c;
+                __GETC();
+
+                /* in case of EOL mismatch,
+                   treat mismatching char as escaping EOL */
+                if (p_hndl->eol_typ==EOL_CRLF && c1=='\r' && c=='\n') {
                     __GETC();
-                } else
-                    p_hndl->escaped=0;
-                break;
-            case EOL_CRLF:
-                if (c=='\r' && __GETC()=='\n') {
-                    __GETC();
-                } else
-                    p_hndl->escaped=0;
-                break;
-            case EOL_CR:
-                if (c=='\r') {
-                    __GETC();
-                } else
-                    p_hndl->escaped=0;
-                break;
-            default:    /* will never happen */
-                p_hndl->escaped=0;
-                break;
+                }
             }
             break;
 

@@ -131,8 +131,8 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    The path is defined as: [/][TYPE][:]NAME/[TYPE][:]NAME/...
    where TYPE and NAME specify scope type and name on a given path level with ':'
    character as a separator. To address untyped scope /:NAME/ shall be used.
-   In case ':' is not provided 'defsc' is used as the default scope type, in
-   which case /NAME/ is translated to /defsc:NAME/. As a conclusion: if 'defsc'
+   In case ':' is not provided 'deftp' is used as the default scope type, in
+   which case /NAME/ is translated to /deftp:NAME/. As a conclusion: if 'deftp'
    is "" the /NAME/ is translated to /:NAME/, that is, it provides an alternative
    way to address untyped scopes. To address global scope (0-level) 'path'
    shall be set to NULL, "" or "/".
@@ -158,7 +158,7 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    buffers 'buf1' (of 'b1len') and 'buf2' (of 'b2len').
  */
 sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
-    const char *defsc, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
+    const char *deftp, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
     void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len);
 
 typedef struct _sp_prop_info_ex_t
@@ -175,7 +175,7 @@ typedef struct _sp_prop_info_ex_t
 #define IND_INPROP  -3
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
-   'len'. 'path' and 'defsc' specify owning scope of the property. If no property
+   'len'. 'path' and 'deftp' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
    used to avoid ambiguity in case many properties with the same name
    exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
@@ -197,7 +197,7 @@ typedef struct _sp_prop_info_ex_t
    least.
  */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *defsc, char *val, size_t len,
+    int ind, const char *path, const char *deftp, char *val, size_t len,
     sp_prop_info_ex_t *p_info);
 
 /* Find integer property with 'name' and write its under 'p_val'. In case of
@@ -207,7 +207,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
    value as integer.
  */
 sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *defsc, long *p_val,
+    int ind, const char *path, const char *deftp, long *p_val,
     sp_prop_info_ex_t *p_info);
 
 /* Find float property with 'name' and write its under 'p_val'. In case of
@@ -217,7 +217,7 @@ sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
    value as float.
  */
 sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *defsc, double *p_val,
+    int ind, const char *path, const char *deftp, double *p_val,
     sp_prop_info_ex_t *p_info);
 
 typedef struct _sp_enumval_t
@@ -244,7 +244,7 @@ typedef struct _sp_enumval_t
  */
 sp_errc_t sp_get_prop_enum(
     FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
-    const char *path, const char *defsc, const sp_enumval_t *p_evals,
+    const char *path, const char *deftp, const sp_enumval_t *p_evals,
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
 
 #ifdef __cplusplus
