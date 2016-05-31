@@ -79,10 +79,10 @@ typedef struct _sp_tkn_info_t
     sp_loc_t loc;
 } sp_tkn_info_t;
 
-/* Check syntax of a properties set read from an input file 'in' (must be opened
-   in the binary mode with read access at least) with a given parsing scope
-   'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col' will be
-   provided with location of the error.
+/* Check syntax of a properties set read from an input 'in' (the file must be
+   opened in the binary mode with read access at least) with a given parsing
+   scope 'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col' will
+   be provided with location of the error.
  */
 sp_errc_t sp_check_syntax(
     FILE *in, const sp_loc_t *p_parsc, int *p_line, int *p_col);
@@ -94,7 +94,7 @@ sp_errc_t sp_check_syntax(
    (NULL terminated strings under 'name', 'val') with their token specific info
    located under 'p_tkname' and 'p_tkval' (may be NULL for property w/o a value).
    'p_ldef' locates overall property definition. 'arg' is passed untouched as
-   provided in sp_iterate(). 'in' is the parsed input file handle.
+   provided in sp_iterate(). 'in' is the parsed input handle.
 
    Return codes:
        SPEC_CB_FINISH: success; finish parsing
@@ -111,7 +111,7 @@ typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
    'p_tktype' and 'p_lbody' may be NULL for untyped scope OR scope w/o a body).
    'p_lbdyenc' points to the scope body content with enclosing brackets location
    (therefore always !=NULL); external chars of the location are '{','}' OR
-   consist of single ';'. 'in' is the parsed input file handle.
+   consist of single ';'. 'in' is the parsed input handle.
 
    Return codes:
        SPEC_CB_FINISH: success; finish parsing
@@ -148,10 +148,10 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    is escaping ':' (\x3a), '/' (\x2f) and '@' (\x40) in the 'path' string to
    avoid ambiguity with the path specific characters.
 
-   'in' and 'p_parsc' provide input file (must be opened in the binary mode with
-   read access at least) to parse with a given parsing scope. The parsing scope
-   may be used only inside a scope callback handler to retrieve inner scope body
-   content.
+   'in' and 'p_parsc' provide input (the file must be opened in the binary mode
+   with read access at least) to parse with a given parsing scope. The parsing
+   scope may be used only inside a scope callback handler to retrieve inner
+   scope body content.
 
    'cb_prop' and 'cb_scope' specify property and scope callbacks. The callbacks
    are provided with strings (property name/vale, scope type/name) written under
@@ -193,7 +193,7 @@ typedef struct _sp_prop_info_ex_t
    value or "@$" as synonymous of IND_LAST. In this case property name must not
    contain '@' character which need to be escaped by \x40 sequence. If no
    @-specification is provided with IND_INPROP, 0 index is assumed.
-   NOTE 4: 'in' input file must be opened in the binary mode with read access at
+   NOTE 4: The input file must be opened in the binary mode with read access at
    least.
  */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,

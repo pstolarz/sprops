@@ -48,16 +48,6 @@ typedef sp_errc_t (*sp_parser_cb_scope_t)(const struct _sp_parser_hndl_t *p_hndl
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
     const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef);
 
-/* types of supported EOLs */
-typedef enum _eol_t {
-    EOL_UNDEF=0,    /* undefined, no new line occurs */
-    EOL_LF,         /* unix */
-    EOL_CRLF,       /* win */
-    EOL_CR          /* legacy mac */
-} eol_t;
-
-#define EOL_DETECT EOL_UNDEF
-
 typedef
 struct _unc_cache_t
 {
@@ -67,19 +57,16 @@ struct _unc_cache_t
 
 typedef struct _sp_parser_hndl_t
 {
-    /* parsed input stream */
+    /* parsed input */
     FILE *in;
 
     struct {
-        /* type of EOL detected on the input */
-        eol_t eol_typ;
-
         /* next char to read */
         int line;
         int col;
-        long off;       /* stream offset */
+        long off;       /* input offset */
 
-        /* last stream offset to parse; -1: stream end */
+        /* last input offset to parse; -1: end */
         long end;
 
         /* currently scope level (0-based) */
@@ -88,7 +75,7 @@ typedef struct _sp_parser_hndl_t
         /* lexical context */
         int ctx;
 
-        /* unget stream chars cache */
+        /* unget chars cache */
         unc_cache_t unc;
     } lex;
 
@@ -111,17 +98,15 @@ typedef struct _sp_parser_hndl_t
     } err;
 } sp_parser_hndl_t;
 
-/* Initialize parser handle under 'p_hndl' for an input file to parse with handle
-   'in'  (the file must be opened in the binary mode with read access at least).
-   Parsing scope is constrained to 'p_parsc' (if NULL: the entire file).
+/* Initialize parser handle under 'p_hndl' for an input to parse with handle
+   'in'  (the input file must be opened in the binary mode with read access at
+   least). Parsing scope is constrained to 'p_parsc' (if NULL: the entire input).
    Property/scope callbacks are provided by 'cb_prop' and 'cb_scope' respectively
    with caller specific argument passed untouched to these functions ('cb_arg').
-   The function allows providing type of EOL used by the parser by specifing
-   'eol_typ', use EOL_DETECT for automatic detection.
  */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
-    sp_parser_cb_scope_t cb_scope, void *cb_arg, eol_t eol_typ);
+    sp_parser_cb_scope_t cb_scope, void *cb_arg);
 
 /* Parser method */
 sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl);
@@ -144,8 +129,8 @@ sp_errc_t sp_parser_tkn_cmp(
     const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
     const sp_loc_t *p_loc, const char *str, size_t max_num, int *p_equ);
 
-/* Tokenize string 'str' into token of type 'tkn' and write it to the file 'out'
-   (must be opened in the binary mode with write access).
+/* Tokenize string 'str' into token of type 'tkn' and write it to the output
+   'out' (must be opened in the binary mode with write access).
  */
 sp_errc_t sp_parser_tokenize_str(
     FILE *out, sp_parser_token_t tkn, const char *str);

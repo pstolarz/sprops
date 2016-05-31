@@ -47,8 +47,7 @@ sp_errc_t sp_check_syntax(
 
     if (!in) { ret=SPEC_INV_ARG; goto finish; }
 
-    EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, NULL, NULL, NULL, EOL_DETECT));
+    EXEC_RG(sp_parser_hndl_init(&phndl, in, p_parsc, NULL, NULL, NULL));
     EXEC_RG(sp_parse(&phndl));
 
 finish:
@@ -148,7 +147,7 @@ typedef struct _iter_hndl_t
 {
     base_hndl_t b;
 
-    /* parsed input file handle (const) */
+    /* parsed input handle (const) */
     FILE *in;
 
     struct {
@@ -305,9 +304,8 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
                 /* there is a need to start tracking in the followed scope */
                 ph_nstb->p_sind = &sind;
 
-            EXEC_RG(sp_parser_hndl_init(
-                &phndl, p_phndl->in, p_lbody, p_phndl->cb.prop,
-                p_phndl->cb.scope, ph_nst, p_phndl->lex.eol_typ));
+            EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
+                p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
             EXEC_RG(sp_parse(&phndl));
         }
     }
@@ -411,7 +409,7 @@ finish:
             memset(&lsc, 0, sizeof(lsc)); \
             sind = -1; \
             EXEC_RG(sp_parser_hndl_init(&phndl, phndl.in, &lsc_bdy, \
-                phndl.cb.prop, phndl.cb.scope, &hndl, phndl.lex.eol_typ)); \
+                phndl.cb.prop, phndl.cb.scope, &hndl)); \
         } else break; \
     }
 
@@ -437,9 +435,6 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
         goto finish;
     }
 
-    EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl, EOL_DETECT));
-
     /* prepare callback handle */
     memset(&ihndl, 0, sizeof(ihndl));
     init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, NULL, deftp);
@@ -460,6 +455,9 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
         ihndl.buf2.sz = b2len-1;
         ihndl.buf2.ptr[ihndl.buf2.sz] = 0;
     }
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, iter_cb_prop, iter_cb_scope, &ihndl));
 
     __PARSE_WITH_LSC_HANDLING(ihndl);
 
@@ -601,9 +599,6 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         goto finish;
     }
 
-    EXEC_RG(sp_parser_hndl_init(&phndl, in,
-        p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl, EOL_DETECT));
-
     /* prepare callback handle */
     memset(&gphndl, 0, sizeof(gphndl));
     init_base_hndl(
@@ -633,6 +628,9 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     gphndl.val.ptr[gphndl.val.sz] = 0;
 
     gphndl.p_info = &info;
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, getprp_cb_prop, getprp_cb_scope, &gphndl));
 
     __PARSE_WITH_LSC_HANDLING(gphndl);
 
@@ -765,71 +763,114 @@ typedef struct _addh_frst_sc_t
     sp_loc_t ldef;
 } addh_frst_sc_t;
 
-/* Base struct for update handlers.
+/* types of supported EOLs */
+typedef enum _eol_t {
+    EOL_LF=0,       /* unix */
+    EOL_CRLF,       /* win */
+    EOL_CR          /* legacy mac */
+} eol_t;
 
-   NOTE: Along with its deriving structs, the struct is copied during
-   upward-downward process of following a destination scope path.
+/* Base struct for update handlers.
  */
 typedef struct _base_updt_hndl_t
 {
-    /* input/output file handles (const) */
+    /* input/output handles */
     FILE *in;
     FILE *out;
 
-    /* file offset staring not processed range of the input (shared) */
-    long *p_in_off;
+    /* unget chars cache */
+    unc_cache_t unc;
 
-    /* type of EOL detected (const) */
+    /* offset staring not processed range of the input */
+    long in_off;
+
+    /* type of EOL detected */
     eol_t eol_typ;
 } base_updt_hndl_t;
 
+/* Read input with potential unget */
+#define __GETC(bu) \
+    ((bu)->unc.inbuf ? (bu)->unc.buf[--((bu)->unc.inbuf)] : fgetc((bu)->in))
+
+/* Unget read char from input */
+#define __UNGETC(bu, c) \
+    ((bu)->unc.buf[(bu)->unc.inbuf++]=(c))
+
 /* Initialize base_updt_hndl_t struct.
  */
-static void init_base_updt_hndl(
-    base_updt_hndl_t *p_bu, FILE *in, FILE *out, long *p_in_off,
-    const sp_parser_hndl_t *p_phndl)
+static sp_errc_t
+    init_base_updt_hndl(base_updt_hndl_t *p_bu, FILE *in, FILE *out)
 {
+    int c;
+    sp_errc_t ret=SPEC_SUCCESS;
+
     p_bu->in = in;
     p_bu->out = out;
-    p_bu->p_in_off = p_in_off;
-    *p_in_off = 0;
 
-    p_bu->eol_typ = (p_phndl->lex.eol_typ!=EOL_UNDEF ?  p_phndl->lex.eol_typ :
+    p_bu->in_off = 0;
+    p_bu->unc.inbuf = 0;
+
+    /* detect EOL */
+    if (fseek(in, 0, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
+
+    p_bu->eol_typ = (eol_t)-1;
+    while ((c=fgetc(in))!=EOF)
+    {
+        if (c=='\n') {
+            p_bu->eol_typ=EOL_LF;
+            break;
+        } else
+        if (c=='\r') {
+            p_bu->eol_typ=EOL_CR;
+            if (fgetc(in)=='\n') p_bu->eol_typ=EOL_CRLF;
+            break;
+        }
+    }
+
+    /* if no EOL is present in the input set it basing on the compiler
+       specific defs */
+    if (p_bu->eol_typ==(eol_t)-1)
+    {
+        p_bu->eol_typ =
 #if defined(_WIN32) || defined(_WIN64)
-        EOL_CRLF
+            EOL_CRLF
 #else
-        EOL_LF
+            EOL_LF
 #endif
-        );
+            ;
+    }
+
+finish:
+    return ret;
 }
 
-/* Copies input file bytes (from the offset staring not processed range) to
-   the output file up to 'end' offset (exclusive). If end==EOF input is copied
-   up to the end of the file. In case of success (and there is something to
-   copy) the file offset is set at 'end'.
+/* Copies input bytes (from the offset staring not processed range) to
+   the output up to 'end' offset (exclusive). If end==EOF input is copied
+   up to the end of the stream. In case of success (and there is something to
+   copy) the input offset is set at 'end'.
  */
 static sp_errc_t cpy_to_out(base_updt_hndl_t *p_bu, long end)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    long beg = *p_bu->p_in_off;
+    long beg = p_bu->in_off;
 
     if (beg<end || end==EOF) {
         CHK_FSEEK(fseek(p_bu->in, beg, SEEK_SET));
         for (; beg<end || end==EOF; beg++) {
-            int c = fgetc(p_bu->in);
+            int c = __GETC(p_bu);
             if (c==EOF && end==EOF) break;
             if (c==EOF || fputc(c, p_bu->out)==EOF) {
                 ret=SPEC_ACCS_ERR;
                 goto finish;
             }
         }
-        *p_bu->p_in_off = beg;
+        p_bu->in_off = beg;
     }
 finish:
     return ret;
 }
 
-/* Cut input file spaces (from the offset starting not processed range) up to
+/* Cut spaces of the input (from the offset starting not processed range) up to
    EOL (inclusive) or a first non-space character. The function returns !=0 if
    cut spaces constitute a line (EOL finished), 0 otherwise.
  */
@@ -838,21 +879,25 @@ static int cutsp_to_eol(base_updt_hndl_t *p_bu)
     /* endc - 0:non-space, 1:EOL, 2:EOF */
     int c, endc;
 
-    if (fseek(p_bu->in, *p_bu->p_in_off, SEEK_SET)) {
+    if (fseek(p_bu->in, p_bu->in_off, SEEK_SET)) {
         endc=2;
         goto finish;
     }
 
     for (endc=0;
-        !endc && isspace(c=fgetc(p_bu->in)) && c!='\v' && c!='\f';
-        (*p_bu->p_in_off)++)
+        !endc && isspace(c=__GETC(p_bu)) && c!='\v' && c!='\f';
+        p_bu->in_off++)
     {
         if (c!='\r' && c!='\n') continue;
         else endc=1;
 
-        /* in case of EOL mismatch, cut mismatching char and treat it as EOL */
-        if (p_bu->eol_typ==EOL_CRLF && c=='\r')
-            if ((c=fgetc(p_bu->in))!=EOF && c=='\n') (*p_bu->p_in_off)++;
+        if (c=='\r') {
+            if ((c=__GETC(p_bu))=='\n') {
+                p_bu->in_off++;
+            } else {
+                __UNGETC(p_bu, c);
+            }
+        }
     }
     if (c==EOF) endc=2;
 
@@ -868,7 +913,8 @@ finish:
 typedef struct _add_hndl_t
 {
     base_hndl_t b;
-    base_updt_hndl_t bu;
+    /* base class for update part (shared) */
+    base_updt_hndl_t *p_bu;
 
     /* element position number (const) */
     int n_elem;
@@ -975,8 +1021,8 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
     addh_frst_sc_t frst_sc = {};
     /* ldef of an element associated with requested position (shared) */
     sp_loc_t ldef_elem = {};
-    /* file offset staring not processed range of the input (shared) */
-    long in_off;
+    /* base class for update part (shared) */
+    base_updt_hndl_t bu;
 
     if (!in || !out ||
         (!prop_nm && !sc_nm) ||
@@ -986,18 +1032,20 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
         goto finish;
     }
 
-    EXEC_RG(sp_parser_hndl_init(
-        &phndl, in, p_parsc, add_cb_prop, add_cb_scope, &ahndl, EOL_DETECT));
-
     /* prepare callback handle */
     memset(&ahndl, 0, sizeof(ahndl));
     init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, NULL, deftp);
-    init_base_updt_hndl(&ahndl.bu, in, out, &in_off, &phndl);
+
+    EXEC_RG(init_base_updt_hndl(&bu, in, out));
+    ahndl.p_bu = &bu;
 
     ahndl.n_elem = n_elem;
     ahndl.p_eind = &eind;
     ahndl.p_frst_sc = &frst_sc;
     ahndl.p_ldef_elem = &ldef_elem;
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, add_cb_prop, add_cb_scope, &ahndl));
 
     __PARSE_WITH_LSC_HANDLING(ahndl);
 
@@ -1030,9 +1078,9 @@ printf("adding at scope beg; %d.%d|%d.%d\n",
     frst_sc.ldef.first_line, frst_sc.ldef.first_column, frst_sc.ldef.last_line, frst_sc.ldef.last_column);
         } else
         {
-            /* add at file beginning */
+            /* add at stream beginning */
 // @@@
-printf("adding at file beg\n");
+printf("adding at beg\n");
         }
     }
 
