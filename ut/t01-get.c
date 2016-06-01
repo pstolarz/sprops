@@ -77,12 +77,16 @@ int main(void)
     char buf1[8];
     sp_prop_info_ex_t info;
     sp_errc_t ret=SPEC_SUCCESS;
+    FILE *in;
 
     sp_enumval_t evals[] =
         {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
 
-    FILE *in = fopen("c01-2.conf", "rb");
-    /* FILE *in = fopen("c01-2_1line.conf", "rb"); */
+    in = fopen("c01-2.conf", "rb");
+#if 0
+    in = fopen("c01-2_win.conf", "rb");
+    in = fopen("c01-2_1line.conf", "rb");
+#endif
     if (!in) goto finish;
 
     printf("--- Properties read\n");

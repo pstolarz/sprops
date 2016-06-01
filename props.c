@@ -757,12 +757,6 @@ finish:
     return ret;
 }
 
-typedef struct _addh_frst_sc_t
-{
-    sp_loc_t lbdyenc;
-    sp_loc_t ldef;
-} addh_frst_sc_t;
-
 /* types of supported EOLs */
 typedef enum _eol_t {
     EOL_LF=0,       /* unix */
@@ -787,14 +781,6 @@ typedef struct _base_updt_hndl_t
     /* type of EOL detected */
     eol_t eol_typ;
 } base_updt_hndl_t;
-
-/* Read input with potential unget */
-#define __GETC(bu) \
-    ((bu)->unc.inbuf ? (bu)->unc.buf[--((bu)->unc.inbuf)] : fgetc((bu)->in))
-
-/* Unget read char from input */
-#define __UNGETC(bu, c) \
-    ((bu)->unc.buf[(bu)->unc.inbuf++]=(c))
 
 /* Initialize base_updt_hndl_t struct.
  */
@@ -844,6 +830,14 @@ finish:
     return ret;
 }
 
+/* Read input with potential unget */
+#define GETC(bu) \
+    ((bu)->unc.inbuf ? (bu)->unc.buf[--((bu)->unc.inbuf)] : fgetc((bu)->in))
+
+/* Unget read char from input */
+#define UNGETC(bu, c) \
+    ((bu)->unc.buf[(bu)->unc.inbuf++]=(c))
+
 /* Copies input bytes (from the offset staring not processed range) to
    the output up to 'end' offset (exclusive). If end==EOF input is copied
    up to the end of the stream. In case of success (and there is something to
@@ -857,7 +851,7 @@ static sp_errc_t cpy_to_out(base_updt_hndl_t *p_bu, long end)
     if (beg<end || end==EOF) {
         CHK_FSEEK(fseek(p_bu->in, beg, SEEK_SET));
         for (; beg<end || end==EOF; beg++) {
-            int c = __GETC(p_bu);
+            int c = GETC(p_bu);
             if (c==EOF && end==EOF) break;
             if (c==EOF || fputc(c, p_bu->out)==EOF) {
                 ret=SPEC_ACCS_ERR;
@@ -885,17 +879,17 @@ static int cutsp_to_eol(base_updt_hndl_t *p_bu)
     }
 
     for (endc=0;
-        !endc && isspace(c=__GETC(p_bu)) && c!='\v' && c!='\f';
+        !endc && isspace(c=GETC(p_bu)) && c!='\v' && c!='\f';
         p_bu->in_off++)
     {
         if (c!='\r' && c!='\n') continue;
         else endc=1;
 
         if (c=='\r') {
-            if ((c=__GETC(p_bu))=='\n') {
+            if ((c=GETC(p_bu))=='\n') {
                 p_bu->in_off++;
             } else {
-                __UNGETC(p_bu, c);
+                UNGETC(p_bu, c);
             }
         }
     }
@@ -904,6 +898,12 @@ static int cutsp_to_eol(base_updt_hndl_t *p_bu)
 finish:
     return (endc==1);
 }
+
+typedef struct _addh_frst_sc_t
+{
+    sp_loc_t lbdyenc;
+    sp_loc_t ldef;
+} addh_frst_sc_t;
 
 /* Property/scope addition iteration handle struct.
 
@@ -915,6 +915,9 @@ typedef struct _add_hndl_t
     base_hndl_t b;
     /* base class for update part (shared) */
     base_updt_hndl_t *p_bu;
+
+    /* passed flags (const) */
+    unsigned long flags;
 
     /* element position number (const) */
     int n_elem;
@@ -1001,7 +1004,7 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
 /* static */ sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *prop_nm, const char *prop_val, const char *sc_typ,
     const char *sc_nm, int n_elem, const char *path, const char *deftp,
-    unsigned flags)
+    unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     add_hndl_t ahndl;
@@ -1039,6 +1042,7 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
     EXEC_RG(init_base_updt_hndl(&bu, in, out));
     ahndl.p_bu = &bu;
 
+    ahndl.flags = flags;
     ahndl.n_elem = n_elem;
     ahndl.p_eind = &eind;
     ahndl.p_frst_sc = &frst_sc;
@@ -1066,23 +1070,18 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
     if (n_elem && (n_elem!=IND_LAST || ldef_elem.first_column))
     {
         /* add after n-th elem */
-// @@@
-printf("adding after element; %d.%d|%d.%d\n",
-    ldef_elem.first_line, ldef_elem.first_column, ldef_elem.last_line, ldef_elem.last_column);
     } else {
         if (frst_sc.ldef.first_column)
         {
             /* add at scope beginning */
-// @@@
-printf("adding at scope beg; %d.%d|%d.%d\n",
-    frst_sc.ldef.first_line, frst_sc.ldef.first_column, frst_sc.ldef.last_line, frst_sc.ldef.last_column);
         } else
         {
             /* add at stream beginning */
-// @@@
-printf("adding at beg\n");
         }
     }
+
+    /* copy untouched last part of the input */
+    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
 
 finish:
     return ret;

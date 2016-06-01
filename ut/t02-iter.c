@@ -123,9 +123,13 @@ int main(void)
 {
     char buf1[32], buf2[32];
     sp_errc_t ret=SPEC_SUCCESS;
+    FILE *in;
 
-    FILE *in = fopen("c01-2.conf", "rb");
-    /* FILE *in = fopen("c01-2_1line.conf", "rb"); */
+    in = fopen("c01-2.conf", "rb");
+#if 0
+    in = fopen("c01-2_win.conf", "rb");
+    in = fopen("c01-2_1line.conf", "rb");
+#endif
     if (!in) goto finish;
 
     printf("\n--- Iterating scope /\n");
