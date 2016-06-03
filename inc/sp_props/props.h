@@ -58,7 +58,7 @@ typedef enum _sp_errc_t
 typedef struct _sp_loc_t {
     /* stream offsets */
     long beg;
-    long end;
+    long end;   /* inclusive */
     /* text based location */
     int first_line;
     int first_column;
@@ -88,7 +88,7 @@ sp_errc_t sp_check_syntax(
     FILE *in, const sp_loc_t *p_parsc, int *p_line, int *p_col);
 
 /* Macro calculating actual length occupied by a given location */
-#define sp_loc_len(loc) ((!loc) ? 0L : ((loc)->end-(loc)->beg+1))
+#define sp_loc_len(loc) (!(loc) ? 0L : ((loc)->end-(loc)->beg+1))
 
 /* Property iteration callback provides name and value of an iterated property
    (NULL terminated strings under 'name', 'val') with their token specific info
@@ -170,16 +170,16 @@ typedef struct _sp_prop_info_ex_t
     sp_loc_t ldef;              /* property definition location */
 } sp_prop_info_ex_t;
 
-#define IND_LAST    -1
-#define IND_ALL     -2
-#define IND_INPROP  -3
+#define SP_IND_LAST     -1
+#define SP_IND_ALL      -2
+#define SP_IND_INPROP   -3
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'deftp' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
    used to avoid ambiguity in case many properties with the same name
    exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
-   IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
+   SP_IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
    property extra information.
 
    NOTE 1: 'name' may contain escape characters but contrary to 'path'
@@ -189,10 +189,10 @@ typedef struct _sp_prop_info_ex_t
    specification (last part of path after '/' char). In this case property
    name must not contain '/' character which need to be escaped by \x2f sequence.
    NOTE 3: Property index may by provided in the property name by passing
-   IND_INPROP in 'ind' and appending "@n" to the prop's name to specify n index
-   value or "@$" as synonymous of IND_LAST. In this case property name must not
-   contain '@' character which need to be escaped by \x40 sequence. If no
-   @-specification is provided with IND_INPROP, 0 index is assumed.
+   SP_IND_INPROP in 'ind' and appending "@n" to the prop's name to specify n
+   index value or "@$" as synonymous of SP_IND_LAST. In this case property name
+   must not contain '@' character which need to be escaped by \x40 sequence. If
+   no @-specification is provided with SP_IND_INPROP, 0 index is assumed.
    NOTE 4: The input file must be opened in the binary mode with read access at
    least.
  */
@@ -246,6 +246,18 @@ sp_errc_t sp_get_prop_enum(
     FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
     const char *path, const char *deftp, const sp_enumval_t *p_evals,
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
+
+/*
+ * Flags specification
+ */
+
+/* Use n (1-8) spaces as indent; if 0 - single tab is used
+ */
+#define SP_F_SPIND(n)   ((n) & 7UL)
+
+/* Use single tab as indent; SP_F_SPIND(0) acronym
+ */
+#define SP_F_TBIND      SP_F_SPIND(0)
 
 #ifdef __cplusplus
 }

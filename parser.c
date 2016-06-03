@@ -85,7 +85,7 @@
 /* lexical value type */
 typedef struct _lexval_t {
     long beg;
-    long end;
+    long end;   /* inclusive */
     int scope_lev;
 } lexval_t;
 

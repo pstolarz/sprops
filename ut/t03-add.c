@@ -32,9 +32,9 @@ int main(void)
         NULL,
         "prop", NULL,
         NULL, NULL,
-        IND_LAST,
-        "/2/2@$", "",
-        0));
+        0,
+        "/2/2", "scope",
+        SP_F_SPIND(4)));
 
 finish:
     if (ret) printf("Error: %d\n", ret);
