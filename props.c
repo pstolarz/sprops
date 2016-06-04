@@ -775,6 +775,9 @@ typedef struct _base_updt_hndl_t
     /* offset staring not processed range of the input */
     long in_off;
 
+    /* parsing scope */
+    const sp_loc_t *p_parsc;
+
     /* passed flags (const) */
     unsigned long flags;
 
@@ -784,15 +787,16 @@ typedef struct _base_updt_hndl_t
 
 /* Initialize base_updt_hndl_t struct.
  */
-static sp_errc_t init_base_updt_hndl(
-    base_updt_hndl_t *p_bu, FILE *in, FILE *out, unsigned long flags)
+static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
+    FILE *in, FILE *out, const sp_loc_t *p_parsc, unsigned long flags)
 {
     int c;
     sp_errc_t ret=SPEC_SUCCESS;
 
     p_bu->in = in;
     p_bu->out = out;
-    p_bu->in_off = 0;
+    p_bu->in_off = (p_parsc ? p_parsc->beg : 0);
+    p_bu->p_parsc = p_parsc;
     p_bu->flags = flags;
 
     /* detect EOL */
@@ -907,8 +911,7 @@ static sp_errc_t put_eol(base_updt_hndl_t *p_bu)
             CHK_FERR(fputc('\r', p_bu->out));
             break;
         case EOL_CRLF:
-            CHK_FERR(fputc('\r', p_bu->out));
-            CHK_FERR(fputc('\n', p_bu->out));
+            CHK_FERR(fputs("\r\n", p_bu->out));
             break;
     }
 finish:
@@ -916,12 +919,15 @@ finish:
 }
 
 #define IND_F_TRIMSP    1U
-#define IND_F_SCBDY     2U
+#define IND_F_CUTGAP    2U
+#define IND_F_SCBDY     4U
+#define IND_F_CHKEOL    8U
 
 /* Put indent chars to the output.
 
-   'p_ldef' points to a def-loc used to retrieve proper indent. IND_F_SCBDY -
-   the indentation should consider additional indent inside scope (as its body).
+   'p_ldef' points to a def-loc used to retrieve proper indent.
+   IND_F_SCBDY - the indentation should consider additional indent inside scope
+   (as its body).
  */
 static sp_errc_t
     put_ind(base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
@@ -929,7 +935,7 @@ static sp_errc_t
     sp_errc_t ret=SPEC_SUCCESS;
     int c, n=p_ldef->first_column-1;
 
-    if (n>0 || (!n && (flgs&IND_F_SCBDY))) {
+    if (n>0 || (!n && (flgs & IND_F_SCBDY))) {
         CHK_FSEEK(fseek(p_bu->in, p_ldef->beg-n, SEEK_SET));
     }
 
@@ -937,8 +943,8 @@ static sp_errc_t
         CHK_FERR(fputc(c, p_bu->out));
     }
 
-    if (flgs&IND_F_SCBDY) {
-        n = (int)(p_bu->flags & 7);
+    if (flgs & IND_F_SCBDY) {
+        n = (int)(p_bu->flags & SP_MSK_SPIND);
         c = (!n ? (n++, '\t') : ' ');
         for (; n; n--) { CHK_FERR(fputc(c, p_bu->out)); }
     }
@@ -948,26 +954,40 @@ finish:
 }
 
 /* Put EOL and indent chars (according to passed def-loc) to the output.
+   The function assumes the EOL will be placed at the input offset starting not
+   processed range (the in-off).
 
-   IND_F_TRIMSP - the function assumes the EOL will be placed at the input
-   offset starting not processed range, which (the range) is analysed against
-   skipping unnecessary trailing spaces.
+   IND_F_CUTGAP - the function skip spaces/tabs following the in-off.
+   IND_F_TRIMSP - similar to IND_F_CUTGAP but the spaces/tabs are skipped only
+   if followed by EOL. This effectively trims trailing spaces at the line end.
+   IND_F_CHKEOL - don't do anything if the in-off points to the end of line
+   (possibly followed by spaces).
  */
 static sp_errc_t put_eol_ind(
     base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     long skip_n;
-    int eol_n;
+    int eol_n=0;
 
-    if (flgs&IND_F_TRIMSP) {
-        /* check if placed at the end of line, if yes - trim spaces up to EOL */
+    if (flgs & (IND_F_CUTGAP|IND_F_TRIMSP|IND_F_CHKEOL))
+    {
         EXEC_RG(skip_sp_to_eol(p_bu, &skip_n, &eol_n));
-        p_bu->in_off -= (eol_n ? eol_n : skip_n);
+
+        if (flgs & IND_F_CUTGAP) {
+            p_bu->in_off -= eol_n;
+        } else
+        if (flgs & IND_F_TRIMSP) {
+            p_bu->in_off -= (eol_n ? eol_n : skip_n);
+        } else {
+            p_bu->in_off -= skip_n;
+        }
     }
 
-    EXEC_RG(put_eol(p_bu));
-    if (p_ldef) { EXEC_RG(put_ind(p_bu, p_ldef, flgs)); }
+    if (!(flgs & IND_F_CHKEOL) || !eol_n) {
+        EXEC_RG(put_eol(p_bu));
+        if (p_ldef) { EXEC_RG(put_ind(p_bu, p_ldef, flgs)); }
+    }
 
 finish:
     return ret;
@@ -1009,12 +1029,12 @@ typedef struct _add_hndl_t
     /* count element in the matched scope */ \
     *p_ahndl->p_eind += 1; \
     if (p_ahndl->n_elem==*p_ahndl->p_eind || \
-        p_ahndl->n_elem==SP_IND_LAST) \
+        p_ahndl->n_elem==SP_ELM_LAST) \
     { \
         /* save element's ldef associated with requested position */ \
         *p_ahndl->p_ldef_elem = *p_ldef; \
         /* done if there is no need to track last position */ \
-        if (p_ahndl->n_elem!=SP_IND_LAST) { \
+        if (p_ahndl->n_elem!=SP_ELM_LAST) { \
             ret = SPEC_CB_FINISH; \
             *p_ahndl->b.p_finish = 1; \
         } \
@@ -1073,15 +1093,62 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
 
 #undef __TRACK_ELEM_POSITION
 
-/* add_elem() support function
+/* add_elem() support function.
  */
 static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
-    const char *prop_val, const char *sc_typ, const char *sc_nm)
+    const char *prop_val, const char *sc_typ, const char *sc_nm,
+    const sp_loc_t *p_ind_ldef, unsigned ind_flgs, int *p_traileol)
 {
     sp_errc_t ret=SPEC_SUCCESS;
+    *p_traileol = 0;
 
-    // @@@
-    fprintf(p_bu->out, "XXX");
+    if (prop_nm)
+    {
+        /* element is a property */
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, prop_nm));
+        if (prop_val)
+        {
+#ifdef CUT_VAL_LEADING_SPACES
+            CHK_FERR(fputs(" = ", p_bu->out));
+#else
+            CHK_FERR(fputc('=', p_bu->out));
+#endif
+            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val));
+#ifndef NO_SEMICOL_ENDS_VAL
+            CHK_FERR(fputc(';', p_bu->out));
+#else
+            *p_traileol = 1;     /* added value need to be finished by EOL */
+#endif
+        } else {
+            CHK_FERR(fputc(';', p_bu->out));
+        }
+
+    } else
+    {
+        /* element is a scope */
+        if (sc_typ) {
+            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_typ));
+            CHK_FERR(fputc(' ', p_bu->out));
+        }
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_nm));
+
+        if (p_bu->flags & SP_F_SPLBRA) {
+            EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));
+            CHK_FERR(fputc('{', p_bu->out));
+        } else {
+            if (sc_typ && (p_bu->flags & SP_F_EMPCPT)) {
+                CHK_FERR(fputc(';', p_bu->out));
+                goto finish;
+            } else {
+                CHK_FERR(fputs(" {", p_bu->out));
+            }
+        }
+
+        if (!(p_bu->flags & SP_F_EMPCPT)) {
+            EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));
+        }
+        CHK_FERR(fputc('}', p_bu->out));
+    }
 
 finish:
     return ret;
@@ -1089,7 +1156,7 @@ finish:
 
 /* Add prop/scope element.
  */
-/* static */ sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *prop_nm, const char *prop_val, const char *sc_typ,
     const char *sc_nm, int n_elem, const char *path, const char *deftp,
     unsigned long flags)
@@ -1098,12 +1165,12 @@ finish:
     add_hndl_t ahndl;
     sp_parser_hndl_t phndl;
 
-    int chk_eol=0;
     long lstcpy_n;
+    int chk_end_eol=0, traileol;
 
     /* processing finish flag (shared)
        set to 1 if requested element position has been found
-       (doesn't apply for the last position referenced by SP_IND_LAST) */
+       (doesn't apply for the last position referenced by SP_ELM_LAST) */
     int f_finish;
     /* last scope spec. (shared) */
     lastsc_t lsc;
@@ -1120,7 +1187,7 @@ finish:
 
     if (!in || !out ||
         (!prop_nm && !sc_nm) ||
-        (n_elem<0 && n_elem!=SP_IND_LAST))
+        (n_elem<0 && n_elem!=SP_ELM_LAST))
     {
         ret=SPEC_INV_ARG;
         goto finish;
@@ -1130,7 +1197,7 @@ finish:
     memset(&ahndl, 0, sizeof(ahndl));
     init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, NULL, deftp);
 
-    EXEC_RG(init_base_updt_hndl(&bu, in, out, flags));
+    EXEC_RG(init_base_updt_hndl(&bu, in, out, p_parsc, flags));
     ahndl.p_bu = &bu;
 
     ahndl.n_elem = n_elem;
@@ -1150,22 +1217,27 @@ finish:
         goto finish;
     }
 
-    if ((n_elem && n_elem!=SP_IND_LAST) && !ldef_elem.first_column)
+    if ((n_elem && n_elem!=SP_ELM_LAST) && !ldef_elem.first_column)
     {
         /* requested position not found */
         ret=SPEC_NOTFOUND;
         goto finish;
     }
 
-    if (n_elem && (n_elem!=SP_IND_LAST || ldef_elem.first_column))
+    if (n_elem && (n_elem!=SP_ELM_LAST || ldef_elem.first_column))
     {
         /* add after n-th elem
          */
         EXEC_RG(cpy_to_out(&bu, ldef_elem.end+1));
         EXEC_RG(put_eol_ind(&bu, &ldef_elem, IND_F_TRIMSP));
 
-        EXEC_RG(put_elem(&bu, prop_nm, prop_val, sc_typ, sc_nm));
-        chk_eol = 1;
+        EXEC_RG(put_elem(
+            &bu, prop_nm, prop_val, sc_typ, sc_nm, &ldef_elem, 0, &traileol));
+
+        if (traileol) {
+            EXEC_RG(put_eol_ind(&bu, &ldef_elem, IND_F_CHKEOL|IND_F_CUTGAP));
+        } else
+            chk_end_eol=1;
     } else {
         if (frst_sc.ldef.first_column)
         {
@@ -1187,7 +1259,8 @@ finish:
                 EXEC_RG(put_eol_ind(
                     &bu, &frst_sc.ldef, IND_F_TRIMSP|IND_F_SCBDY));
 
-                EXEC_RG(put_elem(&bu, prop_nm, prop_val, sc_typ, sc_nm));
+                EXEC_RG(put_elem(&bu, prop_nm, prop_val,
+                    sc_typ, sc_nm, &frst_sc.ldef, IND_F_SCBDY, &traileol));
 
                 EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, 0));
                 CHK_FERR(fputc('}', out));
@@ -1196,35 +1269,63 @@ finish:
             {
                 /* body as {} or { ... } */
                 EXEC_RG(cpy_to_out(&bu, frst_sc.lbdyenc.beg+1));
-                EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, IND_F_SCBDY));
+                EXEC_RG(put_eol_ind(
+                    &bu, &frst_sc.ldef, IND_F_TRIMSP|IND_F_SCBDY));
 
-                EXEC_RG(put_elem(&bu, prop_nm, prop_val, sc_typ, sc_nm));
+                EXEC_RG(put_elem(&bu, prop_nm, prop_val,
+                    sc_typ, sc_nm, &frst_sc.ldef, IND_F_SCBDY, &traileol));
 
                 if (bdyenc_sz==2) {
                     EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, 0));
+                } else
+                if (traileol) {
+                    EXEC_RG(put_eol_ind(
+                        &bu, &frst_sc.ldef, IND_F_CHKEOL|IND_F_CUTGAP));
                 }
             }
         } else
         {
             /* add at stream beginning
              */
-            EXEC_RG(put_elem(&bu, prop_nm, prop_val, sc_typ, sc_nm));
-            chk_eol = 1;
+            const sp_loc_t *p_ind_ldef = (bu.p_parsc ? bu.p_parsc : NULL);
+
+            EXEC_RG(put_elem(&bu, prop_nm, prop_val,
+                sc_typ, sc_nm, p_ind_ldef, 0, &traileol));
+
+            EXEC_RG(put_eol_ind(&bu, p_ind_ldef, 0));
         }
     }
 
     /* copy untouched last part of the input */
     lstcpy_n = bu.in_off;
     EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
-    lstcpy_n = bu.in_off-bu.in_off;
+    lstcpy_n = bu.in_off-lstcpy_n;
 
-    if (chk_eol && !lstcpy_n && !p_parsc) {
+    if (chk_end_eol && !lstcpy_n && !p_parsc) {
         /* ensure EOL if updated elem ends the input */
         EXEC_RG(put_eol(&bu));
     }
 
 finish:
     return ret;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *val, int n_elem, const char *path,
+    const char *deftp, unsigned long flags)
+{
+    return add_elem(
+        in, out, p_parsc, name, val, NULL, NULL, n_elem, path, deftp, flags);
+}
+
+/* exported; see header for details */
+sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *type, const char *name, int n_elem, const char *path,
+    const char *deftp, unsigned long flags)
+{
+    return add_elem(
+        in, out, p_parsc, NULL, NULL, type, name, n_elem, path, deftp, flags);
 }
 
 #undef __PARSE_WITH_LSC_HANDLING

@@ -174,6 +174,8 @@ typedef struct _sp_prop_info_ex_t
 #define SP_IND_ALL      -2
 #define SP_IND_INPROP   -3
 
+#define SP_ELM_LAST     SP_IND_LAST
+
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'deftp' specify owning scope of the property. If no property
    is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
@@ -253,11 +255,96 @@ sp_errc_t sp_get_prop_enum(
 
 /* Use n (1-8) spaces as indent; if 0 - single tab is used
  */
-#define SP_F_SPIND(n)   ((n) & 7UL)
+#define SP_F_SPIND(n)   ((unsigned)(n)>8 ? 8U : (unsigned)(n))
 
 /* Use single tab as indent; SP_F_SPIND(0) acronym
  */
 #define SP_F_TBIND      SP_F_SPIND(0)
+
+#define SP_MSK_SPIND    0x0fU
+
+/* Keep opening bracket of a scope body in separate line rather than in-lined
+   with the scope header. That is:
+
+   scope
+   {
+   }
+
+    RATHER THAN
+
+   scope {
+   }
+ */
+#define SP_F_SPLBRA     0x0010U
+
+/* Use compact version for an empty scope definition. That is:
+
+   scope {}
+
+    OR
+
+   scope
+   {}
+
+    OR
+
+   type scope;
+
+    RATHER THAN
+
+   scope {
+   }
+
+    OR
+
+   scope
+   {
+   }
+ */
+#define SP_F_EMPCPT     0x0020U
+
+/* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
+   (number of elements - scopes/props, before inserted property) in a containing
+   scope addressed by 'p_parsc', 'path' and 'deftp'. Additional 'flags' may be
+   used for tune performed formatting.
+
+   NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
+   output is confined only to the location specified by the argument. Usage of
+   this argument is reserved for special and advanced purposes (like
+   modification of many scopes performed during single-shot iteration of their
+   containing scope). For most cases 'p_parsc' shall be NULL meaning the global
+   scope.
+   NOTE 2: If n_elem==SP_ELM_LAST, the property is added as the last one in
+   the scope (that is after the last element). If modified scope is empty
+   SP_ELM_LAST is equivalent to 0.
+   NOTE 3: If n_elem==0, the property is added as the first one in the scope.
+   For split scopes the first compound scope is modified (even if empty).
+   NOTE 4: There is possible to use usual @-notation addressing in the 'path'
+   specification to reach a specific scope inside a split scope.
+   NOTE 5: Contrary to other API functions (e.g. sp_get_prop()) there is not
+   possible to specify modified prop in the 'path'. Justification - ambiguity
+   avoidance in @-notation addressing for added property ('n_elem' has other
+   meaning than 'ind').
+   NOTE 6: Contrary to 'in' which is a random access stream for every API of
+   the library (therefore must not be 'stdin'), 'out' is written incrementally
+   by any updating function, w/o changing stream's position indicator (fseek())
+   during the writing process. This enables 'stdout' to be used as 'out'.
+ */
+sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *val, int n_elem, const char *path,
+    const char *deftp, unsigned long flags);
+
+/* Add (insert) an empty scope of 'name' and 'type' in location 'n_elem'
+   (number of elements - scopes/props before inserted scope) in a containing
+   scope addressed by 'p_parsc', 'path' and 'deftp'. The added scope may be
+   later populated by sp_add_prop() and sp_add_scope(). Additional 'flags' may
+   be used for tune performed formatting.
+
+   See sp_add_prop() notes for more details.
+ */
+sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *type, const char *name, int n_elem, const char *path,
+    const char *deftp, unsigned long flags);
 
 #ifdef __cplusplus
 }
