@@ -172,7 +172,7 @@ typedef struct _sp_prop_info_ex_t
 
 #define SP_IND_LAST     -1
 #define SP_IND_ALL      -2
-#define SP_IND_INPROP   -3
+#define SP_IND_INNAME   -3
 
 #define SP_ELM_LAST     SP_IND_LAST
 
@@ -191,10 +191,10 @@ typedef struct _sp_prop_info_ex_t
    specification (last part of path after '/' char). In this case property
    name must not contain '/' character which need to be escaped by \x2f sequence.
    NOTE 3: Property index may by provided in the property name by passing
-   SP_IND_INPROP in 'ind' and appending "@n" to the prop's name to specify n
+   SP_IND_INNAME in 'ind' and appending "@n" to the prop's name to specify n
    index value or "@$" as synonymous of SP_IND_LAST. In this case property name
    must not contain '@' character which need to be escaped by \x40 sequence. If
-   no @-specification is provided with SP_IND_INPROP, 0 index is assumed.
+   no @-specification is provided with SP_IND_INNAME, 0 index is assumed.
    NOTE 4: The input file must be opened in the binary mode with read access at
    least.
  */
@@ -322,9 +322,9 @@ sp_errc_t sp_get_prop_enum(
    NOTE 4: There is possible to use usual @-notation addressing in the 'path'
    specification to reach a specific scope inside a split scope.
    NOTE 5: Contrary to other API functions (e.g. sp_get_prop()) there is not
-   possible to specify modified prop in the 'path'. Justification - ambiguity
-   avoidance in @-notation addressing for added property ('n_elem' has other
-   meaning than 'ind').
+   possible to use @-notation in property name nor specify added prop in the
+   'path'. Rationale - ambiguity avoidance in @-notation addressing for added
+   property ('n_elem' has other meaning than 'ind').
    NOTE 6: Contrary to 'in' which is a random access stream for every API of
    the library (therefore must not be 'stdin'), 'out' is written incrementally
    by any updating function, w/o changing stream's position indicator (fseek())

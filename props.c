@@ -594,7 +594,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     if (!in || !len ||
         (!name && !path) ||
-        (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_INPROP))
+        (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_INNAME))
     {
         ret=SPEC_INV_ARG;
         goto finish;
@@ -608,7 +608,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     gphndl.prop.name = name;
     gphndl.prop.nm_len = strlen(name);
 
-    if (ind==SP_IND_INPROP) {
+    if (ind==SP_IND_INNAME) {
         size_t ind_len;
 
         EXEC_RG(get_ind_from_name(name, gphndl.prop.nm_len, &ind, &ind_len));

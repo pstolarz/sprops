@@ -184,7 +184,7 @@ int main(void)
     assert(ret==SPEC_NOTFOUND);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", SP_IND_INPROP, "3", "scope", buf1, sizeof(buf1), &info));
+        in, NULL, "a", SP_IND_INNAME, "3", "scope", buf1, sizeof(buf1), &info));
     print_str_prop("/scope:3/a (1st)", buf1, &info);
 
     EXEC_RG(sp_get_prop(
@@ -192,7 +192,7 @@ int main(void)
     print_str_prop("/scope:3/a (2nd)", buf1, &info);
 
     EXEC_RG(sp_get_prop(in, NULL, NULL,
-        SP_IND_INPROP, "/scope:3/a@2", NULL, buf1, sizeof(buf1), &info));
+        SP_IND_INNAME, "/scope:3/a@2", NULL, buf1, sizeof(buf1), &info));
     print_str_prop("/scope:3/a (3rd)", buf1, &info);
 
     EXEC_RG(sp_get_prop(
@@ -200,11 +200,11 @@ int main(void)
     print_str_prop("/scope:3/a (4th)", buf1, &info);
 
     EXEC_RG(sp_get_prop(in, NULL,
-        "a@$", SP_IND_INPROP, "scope:3", "", buf1, sizeof(buf1), &info));
+        "a@$", SP_IND_INNAME, "scope:3", "", buf1, sizeof(buf1), &info));
     print_str_prop("/scope:3/a (last)", buf1, &info);
 
     EXEC_RG(sp_get_prop(in, NULL,
-        "a@$", SP_IND_INPROP, "scope:3@$", "", buf1, sizeof(buf1), &info));
+        "a@$", SP_IND_INNAME, "scope:3@$", "", buf1, sizeof(buf1), &info));
     print_str_prop("/scope:3@$/a (last)", buf1, &info);
 
     EXEC_RG(sp_get_prop(
