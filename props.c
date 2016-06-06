@@ -918,10 +918,11 @@ finish:
     return ret;
 }
 
-#define IND_F_TRIMSP    1U
-#define IND_F_CUTGAP    2U
-#define IND_F_SCBDY     4U
-#define IND_F_CHKEOL    8U
+#define IND_F_TRIMSP    0x01U
+#define IND_F_CUTGAP    0x02U
+#define IND_F_SCBDY     0x04U
+#define IND_F_CHKEOL    0x08U
+#define IND_F_EXTEOL    0x10U
 
 /* Put indent chars to the output.
 
@@ -961,7 +962,9 @@ finish:
    IND_F_TRIMSP - similar to IND_F_CUTGAP but the spaces/tabs are skipped only
    if followed by EOL. This effectively trims trailing spaces at the line end.
    IND_F_CHKEOL - don't do anything if the in-off points to the end of line
-   (possibly followed by spaces).
+   (possibly followed by spaces). An extra EOL is written nonetheless if
+   IND_F_EXTEOL is also specified and the configuration requires this.
+   IND_F_EXTEOL - put an extra EOL if required.
  */
 static sp_errc_t put_eol_ind(
     base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
@@ -982,6 +985,10 @@ static sp_errc_t put_eol_ind(
         } else {
             p_bu->in_off -= skip_n;
         }
+    }
+
+    if ((flgs & IND_F_EXTEOL) && (p_bu->flags & SP_F_EXTEOL)) {
+        EXEC_RG(put_eol(p_bu));
     }
 
     if (!(flgs & IND_F_CHKEOL) || !eol_n) {
@@ -1234,10 +1241,12 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         EXEC_RG(put_elem(
             &bu, prop_nm, prop_val, sc_typ, sc_nm, &ldef_elem, 0, &traileol));
 
-        if (traileol) {
-            EXEC_RG(put_eol_ind(&bu, &ldef_elem, IND_F_CHKEOL|IND_F_CUTGAP));
-        } else
+        if (traileol || (flags & SP_F_EXTEOL)) {
+            EXEC_RG(put_eol_ind(
+                &bu, &ldef_elem, IND_F_CUTGAP|IND_F_CHKEOL|IND_F_EXTEOL));
+        } else {
             chk_end_eol=1;
+        }
     } else {
         if (frst_sc.ldef.first_column)
         {
@@ -1262,7 +1271,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
                 EXEC_RG(put_elem(&bu, prop_nm, prop_val,
                     sc_typ, sc_nm, &frst_sc.ldef, IND_F_SCBDY, &traileol));
 
-                EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, 0));
+                EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, IND_F_EXTEOL));
                 CHK_FERR(fputc('}', out));
             } else
             if (bdyenc_sz>=2)
@@ -1276,11 +1285,11 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
                     sc_typ, sc_nm, &frst_sc.ldef, IND_F_SCBDY, &traileol));
 
                 if (bdyenc_sz==2) {
-                    EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, 0));
+                    EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, IND_F_EXTEOL));
                 } else
-                if (traileol) {
-                    EXEC_RG(put_eol_ind(
-                        &bu, &frst_sc.ldef, IND_F_CHKEOL|IND_F_CUTGAP));
+                if (traileol || (flags & SP_F_EXTEOL)) {
+                    EXEC_RG(put_eol_ind(&bu,
+                        &frst_sc.ldef, IND_F_CUTGAP|IND_F_CHKEOL|IND_F_EXTEOL));
                 }
             }
         } else
@@ -1292,7 +1301,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
             EXEC_RG(put_elem(&bu, prop_nm, prop_val,
                 sc_typ, sc_nm, p_ind_ldef, 0, &traileol));
 
-            EXEC_RG(put_eol_ind(&bu, p_ind_ldef, 0));
+            EXEC_RG(put_eol_ind(&bu, p_ind_ldef, IND_F_EXTEOL));
         }
     }
 

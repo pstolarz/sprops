@@ -303,6 +303,11 @@ sp_errc_t sp_get_prop_enum(
  */
 #define SP_F_EMPCPT     0x0020U
 
+/* Element addition - put an extra EOL after the inserted element,
+   Element removal - delete an extra EOL (if exists) after the deleted element.
+ */
+#define SP_F_EXTEOL     0x0040U
+
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
    (number of elements - scopes/props, before inserted property) in a containing
    scope addressed by 'p_parsc', 'path' and 'deftp'. Additional 'flags' may be

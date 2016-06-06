@@ -90,14 +90,14 @@ int main(void)
     FILE *in = fopen("c03.conf", "rb");
     if (!in) goto finish;
 
-    printf("--- Prop added to: /, elm:0\n");
+    printf("--- Prop added to: /, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_add_prop(
         in, stdout,
         NULL,
         "PROP", "VAL",
         0,
         "/", NULL,
-        indf));
+        indf|SP_F_EXTEOL));
 
     printf("\n--- Prop w/o value added to: /, elm:1\n");
     EXEC_RG(sp_add_prop(
@@ -117,14 +117,14 @@ int main(void)
         "/2", "scope",
         indf));
 
-    printf("\n--- Scope added to: /scope:2@0, elm:LAST, flags:EMPCPT\n");
+    printf("\n--- Scope added to: /scope:2@0, elm:LAST, flags:EMPCPT|EXTEOL\n");
     EXEC_RG(sp_add_scope(
         in, stdout,
         NULL,
         "TYPE", "SCOPE",
         SP_ELM_LAST,
         "/2@0", "scope",
-        indf|SP_F_EMPCPT));
+        indf|SP_F_EMPCPT|SP_F_EXTEOL));
 
     printf("\n--- Scope w/o type added to: /scope:2@1, elm:0, flags:EMPCPT\n");
     EXEC_RG(sp_add_scope(
@@ -136,14 +136,14 @@ int main(void)
         indf|SP_F_EMPCPT));
 
     printf("\n--- Scope w/o type added to: "
-        "/scope:2/scope:2, elm:LAST, flags:EMPCPT|SPLBRA\n");
+        "/scope:2/scope:2, elm:LAST, flags:EMPCPT|SPLBRA|EXTEOL\n");
     EXEC_RG(sp_add_scope(
         in, stdout,
         NULL,
         NULL, "SCOPE",
         SP_ELM_LAST,
         "/2/2", "scope",
-        indf|SP_F_EMPCPT|SP_F_SPLBRA));
+        indf|SP_F_EMPCPT|SP_F_SPLBRA|SP_F_EXTEOL));
 
     printf("\n--- Scope added to: /scope:2, elm:LAST, flags:SPLBRA\n");
     EXEC_RG(sp_add_scope(
@@ -154,14 +154,14 @@ int main(void)
         "/2", "scope",
         indf|SP_F_SPLBRA));
 
-    printf("\n--- Prop added to: /scope:2@$, elm:0\n");
+    printf("\n--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_add_prop(
         in, stdout,
         NULL,
         "PROP", "VAL",
         0,
         "/2@$", "scope",
-        indf));
+        indf|SP_F_EXTEOL));
 
     printf("\n--- Prop w/o value added to: /, elm:LAST\n");
     EXEC_RG(sp_add_prop(
@@ -181,16 +181,16 @@ int main(void)
     EXEC_RG(cpy_to_out(in, stdout, argcb.in_off, EOF));
 
     printf("\n--- Adding scope to /scope:2 during / scope iteration, "
-        "elm:0, flags:0\n");
-    __ITER_ADD(0, 0);
+        "elm:0, flags:EXTEOL\n");
+    __ITER_ADD(0, SP_F_EXTEOL);
 
     printf("\n--- Adding scope to /scope:2 during / scope iteration, "
         "elm:1, flags:EMPCPT\n");
     __ITER_ADD(1, SP_F_EMPCPT);
 
     printf("\n--- Adding scope to /scope:2 during / scope iteration, "
-        "elm:LAST, flags:SPLBRA\n");
-    __ITER_ADD(SP_ELM_LAST, SP_F_SPLBRA);
+        "elm:LAST, flags:SPLBRA|EXTEOL\n");
+    __ITER_ADD(SP_ELM_LAST, SP_F_SPLBRA|SP_F_EXTEOL);
 
 #undef __ITER_ADD
 
