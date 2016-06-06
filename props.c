@@ -148,9 +148,6 @@ typedef struct _iter_hndl_t
 {
     base_hndl_t b;
 
-    /* parsed input handle (const) */
-    FILE *in;
-
     struct {
         /* argument passed untouched (const) */
         void *arg;
@@ -320,8 +317,8 @@ finish:
  */
 #define CALL_FOLLOW_SCOPE_PATH(hndl) \
     ret = follow_scope_path( \
-        p_phndl, &hndl.b, &hndl, p_ltype, p_lname, p_lbody, p_ldef); \
-    if (ret==SPEC_SUCCESS && *hndl.b.p_finish!=0) \
+        p_phndl, &(hndl).b, &(hndl), p_ltype, p_lname, p_lbody, p_ldef); \
+    if (ret==SPEC_SUCCESS && *(hndl).b.p_finish!=0) \
         ret = SPEC_CB_FINISH;
 
 /* check iteration callback return code */
@@ -351,7 +348,7 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
         tkname.loc = *p_lname;
         if (p_lval) tkval.loc = *p_lval;
 
-        ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_ihndl->in, p_ihndl->buf1.ptr,
+        ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_phndl->in, p_ihndl->buf1.ptr,
             &tkname, p_ihndl->buf2.ptr, (p_lval ? &tkval : NULL), p_ldef);
 
         __CHK_ITER_CB_RET();
@@ -384,7 +381,7 @@ static sp_errc_t iter_cb_scope(const sp_parser_hndl_t *p_phndl,
         if (p_ltype) tktype.loc = *p_ltype;
         tkname.loc = *p_lname;
 
-        ret = p_ihndl->cb.scope(p_ihndl->cb.arg, p_ihndl->in,
+        ret = p_ihndl->cb.scope(p_ihndl->cb.arg, p_phndl->in,
             p_ihndl->buf1.ptr, (p_ltype ? &tktype : NULL),
             p_ihndl->buf2.ptr, &tkname, p_lbody, p_lbdyenc, p_ldef);
 
@@ -400,17 +397,17 @@ finish:
     for (;;) { \
         sp_loc_t lsc_bdy; \
         EXEC_RG(sp_parse(&phndl)); \
-        if (lsc.present && !f_finish) { \
+        if ((hndl).b.p_lsc->present && !*(hndl).b.p_finish) { \
             /* last scope spec. detected; need to re-parse the last scope */ \
-            if (!lsc.lbody.first_column) { \
+            if (!(hndl).b.p_lsc->lbody.first_column) { \
                 break; /* empty scope; skip further processing */ \
             } \
-            hndl.b.path.beg = lsc.beg; \
-            lsc_bdy = lsc.lbody; \
-            memset(&lsc, 0, sizeof(lsc)); \
-            sind = -1; \
+            (hndl).b.path.beg = (hndl).b.p_lsc->beg; \
+            lsc_bdy = (hndl).b.p_lsc->lbody; \
+            memset((hndl).b.p_lsc, 0, sizeof(*(hndl).b.p_lsc)); \
+            *(hndl).b.p_sind = -1; \
             EXEC_RG(sp_parser_hndl_init(&phndl, phndl.in, &lsc_bdy, \
-                phndl.cb.prop, phndl.cb.scope, &hndl)); \
+                phndl.cb.prop, phndl.cb.scope, &(hndl))); \
         } else break; \
     }
 
@@ -439,8 +436,6 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     /* prepare callback handle */
     memset(&ihndl, 0, sizeof(ihndl));
     init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, NULL, deftp);
-
-    ihndl.in = in;
 
     ihndl.cb.arg = arg;
     ihndl.cb.prop = cb_prop;
