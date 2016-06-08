@@ -145,8 +145,8 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    for tracking the scope in question).
 
    NOTE: Both TYPE and NAME may contain escape characters. Primary usage of them
-   is escaping ':' (\x3a), '/' (\x2f) and '@' (\x40) in the 'path' string to
-   avoid ambiguity with the path specific characters.
+   is escaping ':', '/'  and '@' in the 'path' string to avoid ambiguity with
+   the path specific characters.
 
    'in' and 'p_parsc' provide input (the file must be opened in the binary mode
    with read access at least) to parse with a given parsing scope. The parsing
@@ -172,7 +172,6 @@ typedef struct _sp_prop_info_ex_t
 
 #define SP_IND_LAST     -1
 #define SP_IND_ALL      -2
-#define SP_IND_INNAME   -3
 
 #define SP_ELM_LAST     SP_IND_LAST
 
@@ -184,18 +183,7 @@ typedef struct _sp_prop_info_ex_t
    SP_IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
    property extra information.
 
-   NOTE 1: 'name' may contain escape characters but contrary to 'path'
-   specification '/' char need not to be escaped (there is no ambiguity in this
-   case).
-   NOTE 2: if 'name' is NULL then the property name is provided as part of 'path'
-   specification (last part of path after '/' char). In this case property
-   name must not contain '/' character which need to be escaped by \x2f sequence.
-   NOTE 3: Property index may by provided in the property name by passing
-   SP_IND_INNAME in 'ind' and appending "@n" to the prop's name to specify n
-   index value or "@$" as synonymous of SP_IND_LAST. In this case property name
-   must not contain '@' character which need to be escaped by \x40 sequence. If
-   no @-specification is provided with SP_IND_INNAME, 0 index is assumed.
-   NOTE 4: The input file must be opened in the binary mode with read access at
+   NOTE: The input file must be opened in the binary mode with read access at
    least.
  */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
@@ -324,13 +312,9 @@ sp_errc_t sp_get_prop_enum(
    SP_ELM_LAST is equivalent to 0.
    NOTE 3: If n_elem==0, the property is added as the first one in the scope.
    For split scopes the first compound scope is modified (even if empty).
-   NOTE 4: There is possible to use usual @-notation addressing in the 'path'
+   NOTE 4: There is possible to use usual @-addressing in the 'path'
    specification to reach a specific scope inside a split scope.
-   NOTE 5: Contrary to other API functions (e.g. sp_get_prop()) there is not
-   possible to use @-notation in property name nor specify added prop in the
-   'path'. Rationale - ambiguity avoidance in @-notation addressing for added
-   property ('n_elem' has other meaning than 'ind').
-   NOTE 6: Contrary to 'in' which is a random access stream for every API of
+   NOTE 5: Contrary to 'in' which is a random access stream for every API of
    the library (therefore must not be 'stdin'), 'out' is written incrementally
    by any updating function, w/o changing stream's position indicator (fseek())
    during the writing process. This enables 'stdout' to be used as 'out'.

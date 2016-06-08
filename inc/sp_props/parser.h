@@ -121,13 +121,15 @@ sp_errc_t sp_parser_tkn_cpy(
     const sp_loc_t *p_loc, char *buf, size_t buf_len, long *p_tklen);
 
 /* Compare a token of type 'tkn' from location 'p_loc' with string 'str'.
-   'max_num' specifies maximum number of 'str' chars to compare. In case of
-   success (SPEC_SUCCESS) the function sets 'p_equ' to the comparison result -
-   1: equal, 0: not equal.
+   'max_num' specifies maximum number of 'str' chars to compare. If stresc!=0
+   then 'str' may contain backslash escaped chars.
+
+   In case of success (SPEC_SUCCESS) the function sets 'p_equ' to the comparison
+   result - 1: equal, 0: not equal.
  */
-sp_errc_t sp_parser_tkn_cmp(
-    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
-    const sp_loc_t *p_loc, const char *str, size_t max_num, int *p_equ);
+sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
+    sp_parser_token_t tkn, const sp_loc_t *p_loc, const char *str,
+    size_t max_num, int stresc, int *p_equ);
 
 /* Tokenize string 'str' into token of type 'tkn' and write it to the output
    'out' (must be opened in the binary mode with write access).

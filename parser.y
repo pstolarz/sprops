@@ -23,7 +23,7 @@
 #define is_space(c) (isspace(c) || (c)==EOL)
 
 #define RESERVED_CHRS   "=;{}#"
-#define is_nq_id(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
+#define is_nq_idc(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
 
 #define unc_clean(unc) ((unc)->inbuf=0)
 #define unc_getc(unc, def) ((unc)->inbuf ? (unc)->buf[--((unc)->inbuf)] : (def))
@@ -339,7 +339,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
     p_lloc->last_line = last_ln; \
     p_lval->end = last_off;
 
-#define __INIT_ESC() \
+#define __USE_ESC() \
     int esc = escaped; \
     escaped = (!esc && c=='\\' ? 1 : 0);
 
@@ -353,7 +353,9 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             if (c=='#') {
                 state=LXST_COMMENT;
             } else
-            if (is_nq_id(c)) {
+            if (is_nq_idc(c))
+            {
+                __USE_ESC();
                 __MCHAR_TOKEN_BEG(SP_TKN_ID);
                 if (c=='"' || c=='\'') {
                     quot_chr = c;
@@ -372,7 +374,9 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             break;
 
         case LXST_ID:
-            if (!is_nq_id(c)) {
+          {
+            __USE_ESC();
+            if (!is_nq_idc(c) && !esc) {
                 __MCHAR_TOKEN_END();
                 endloop=1;
                 unc_ungetc(&p_hndl->lex.unc, c);
@@ -381,12 +385,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 __MCHAR_UPDATE_TAIL();
             }
             break;
+          }
 
         case LXST_ID_QUOTED:
           {
-            __INIT_ESC();
+            __USE_ESC();
             if (c==EOL) {
-                /* error: quoted id need to be finished by quotation mark */
+                /* error: quoted id need to be finished by the quotation mark
+                   NOTE: line continuation is not supported for SP_TKN_ID */
                 __MCHAR_TOKEN_END();
                 endloop=1;
                 token = YYERRCODE;
@@ -402,11 +408,11 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 
         case LXST_VAL_INIT:
           {
-            __INIT_ESC();
+            __USE_ESC();
 #ifdef NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
-            if ((c==EOL && !esc) || c==';')
+            if ((c==EOL || c==';') && !esc)
 #endif
             {
                 /* mark token as empty */
@@ -432,11 +438,11 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 
         case LXST_VAL:
           {
-            __INIT_ESC();
+            __USE_ESC();
 #ifdef NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
-            if ((c==EOL && !esc) || c==';')
+            if ((c==EOL || c==';') && !esc)
 #endif
             {
                 __MCHAR_TOKEN_END();
@@ -456,7 +462,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             }
             break;
           }
-        }
+        }   /* switch (state) */
 
         /* track location of the next char to read */
         if (c==EOL) {
@@ -466,9 +472,10 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             p_hndl->lex.col++;
         }
         p_hndl->lex.off++;
-    }
+    }   /* read loop */
 
-    if (c==EOF) {
+    if (c==EOF)
+    {
         if (state==LXST_VAL_INIT) {
             /* EOF occurs before SP_TKN_VAL token get started; return SP_TKN_VAL
                empty token */
@@ -516,7 +523,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 
     return token;
 
-#undef __INIT_ESC
+#undef __USE_ESC
 #undef __MCHAR_TOKEN_END
 #undef __MCHAR_UPDATE_TAIL
 #undef __MCHAR_TOKEN_BEG
@@ -611,7 +618,7 @@ typedef struct _hndl_eschr_t
     } input;
 
     sp_parser_token_t tkn;  /* type of token which content is to be escaped */
-    int quot_chr;       /* quotation char (SP_TKN_ID token) */
+    int quot_chr;           /* quotation char (SP_TKN_ID token) */
 
     /* set by esc_getc() after each call */
     size_t n_rdc;       /* number of read chars so far */
@@ -620,22 +627,22 @@ typedef struct _hndl_eschr_t
 
 /* Initialize esc_getc() handler; stream input */
 static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
-    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn, int quot_allowed)
+    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn)
 {
     p_hndl->input.is_str = 0;
     p_hndl->input.f = p_phndl->in;
     unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
-    p_hndl->quot_chr = 0;
+    p_hndl->quot_chr = -1;
 
     p_hndl->n_rdc = 0;
     p_hndl->escaped = 0;
 
-    if (quot_allowed && tkn==SP_TKN_ID) {
+    if (tkn==SP_TKN_ID) {
         int c=fgetc(p_phndl->in);
         if (c=='"' || c=='\'') {
-            p_hndl->quot_chr=c;
+            p_hndl->quot_chr = c;
             p_hndl->n_rdc++;
         } else {
             unc_ungetc(&p_hndl->input.unc, c);
@@ -645,7 +652,7 @@ static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
 
 /* Initialize esc_getc() handler; string input */
 static void init_hndl_eschr_string(hndl_eschr_t *p_hndl, const char *str,
-    size_t max_num, sp_parser_token_t tkn, int quot_allowed)
+    size_t max_num, sp_parser_token_t tkn)
 {
     p_hndl->input.is_str = 1;
     p_hndl->input.str.buf = str;
@@ -654,20 +661,10 @@ static void init_hndl_eschr_string(hndl_eschr_t *p_hndl, const char *str,
     unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
-    p_hndl->quot_chr = 0;
+    p_hndl->quot_chr = -1;
 
     p_hndl->n_rdc = 0;
     p_hndl->escaped = 0;
-
-    if (quot_allowed && tkn==SP_TKN_ID && p_hndl->input.str.max_num) {
-        int c = p_hndl->input.str.buf[p_hndl->input.str.idx++];
-        if (c=='"' || c=='\'') {
-            p_hndl->quot_chr = c;
-            p_hndl->n_rdc++;
-        } else {
-            unc_ungetc(&p_hndl->input.unc, (!c ? EOF : c));
-        }
-    }
 }
 
 /* Get single char from hndl_eschr_t handle */
@@ -677,9 +674,10 @@ static int noesc_getc(hndl_eschr_t *p_hndl)
     if (p_hndl->input.is_str)
     {
         int str_c;
-        if (p_hndl->input.str.idx < p_hndl->input.str.max_num) {
-            if (!(str_c=(int)p_hndl->input.str.buf[p_hndl->input.str.idx]))
-                str_c=EOF;
+        if (p_hndl->input.str.idx < p_hndl->input.str.max_num)
+        {
+            str_c = (int)p_hndl->input.str.buf[p_hndl->input.str.idx] & 0xff;
+            if (!str_c) str_c=EOF;
         } else
             str_c=EOF;
 
@@ -696,9 +694,9 @@ static int esc_getc(hndl_eschr_t *p_hndl)
 {
     int c;
     size_t n_esc=0;
-    int esc[8];
 
-#define __GETC() ((c=noesc_getc(p_hndl)), (esc[n_esc++]=c))
+#define __GETC(c)    ((c)=noesc_getc(p_hndl))
+#define __UNGETC(c)  unc_ungetc(&p_hndl->input.unc, (c))
 
 #define __HEXCHR2BT(chr, out) \
     ((((out)=(chr)-'0')>=0 && (out)<=9) ? 1 : \
@@ -706,10 +704,12 @@ static int esc_getc(hndl_eschr_t *p_hndl)
     ((((out)=(chr)-'a')>=0 && (out)<=5) ? ((out)+=10, 1) : 0)))
 
     p_hndl->escaped=0;
-    if (__GETC()=='\\')
+    if (__GETC(c)=='\\')
     {
-        p_hndl->escaped=1;
-        switch (__GETC())
+        n_esc++;
+        p_hndl->escaped = 1;
+
+        switch (__GETC(c))
         {
         case 'a':
             c='\a';
@@ -735,69 +735,67 @@ static int esc_getc(hndl_eschr_t *p_hndl)
         case '\\':
             break;
 
-        /* single/double quotation mark (escaped inside quotations only) */
-        case '"':
-        case '\'':
-            if (!p_hndl->quot_chr) p_hndl->escaped=0;
-            break;
-
         /* hex encoded char */
         case 'x':
           {
-            int h1, h2;
-            __GETC(); if (!__HEXCHR2BT(c, h1)) { p_hndl->escaped=0; break; }
-            __GETC(); if (!__HEXCHR2BT(c, h2)) { p_hndl->escaped=0; break; }
-            c = (h1<<4)|h2;
+            int h1, h2, c1, c2;
+
+            __GETC(c1);
+            if (__HEXCHR2BT(c1, h1)) {
+                __GETC(c2);
+                if (__HEXCHR2BT(c2, h2)) {
+                    n_esc+=2;
+                    c=(h1<<4)|h2;
+                } else {
+                    __UNGETC(c2);
+                    __UNGETC(c1);
+                }
+            } else {
+                __UNGETC(c1);
+            }
             break;
           }
 
-        /* SP_TKN_VAL: line continuation */
+        /* line continuation (SP_TKN_VAL only) */
         case '\n':
         case '\r':
-            if (p_hndl->tkn!=SP_TKN_VAL) {
-                p_hndl->escaped=0;
-            } else {
+            if (p_hndl->tkn==SP_TKN_VAL) {
                 int c1=c;
 
-                __GETC();
-                if (c1=='\r' && c=='\n') { __GETC(); }
+                n_esc++; __GETC(c);
+                if (c1=='\r' && c=='\n') { n_esc++; __GETC(c); }
+            } else {
+                /* take the following char literally */
             }
             break;
 
         default:
-            p_hndl->escaped=0;
+            /* take the following char literally */
+            if (c==EOF) { __UNGETC(c); c='\\'; p_hndl->escaped=0; }
             break;
         }
     }
 
-    if (!p_hndl->escaped) {
-        while (n_esc) {
-            n_esc--;
-            if (n_esc) {
-                unc_ungetc(&p_hndl->input.unc, esc[n_esc]);
-            } else
-                c = esc[n_esc];
-        }
-        if (c!=EOF) p_hndl->n_rdc++;
-    } else
-        p_hndl->n_rdc += n_esc-(c==EOF ? 1 : 0);
+    if (c!=EOF) p_hndl->n_rdc++;
+    if (p_hndl->escaped) p_hndl->n_rdc+=n_esc;
 
     return c;
 
 #undef __HEXCHR2BT
+#undef __UNGETC
 #undef __GETC
 }
 
-/* Get, escape single char from hndl_eschr_t handle, if quotation char occurs
-   it's re-read
+/* Get and escape single char from hndl_eschr_t handle. If quotation char occurs
+   it's re-read.
  */
 static int esc_reqout_getc(hndl_eschr_t *p_hndl)
 {
     int c;
 reread:
     c = esc_getc(p_hndl);
-    if (p_hndl->quot_chr && c==p_hndl->quot_chr && !p_hndl->escaped) {
-        p_hndl->quot_chr=0;
+    if (p_hndl->quot_chr>=0 && c==p_hndl->quot_chr && !p_hndl->escaped) {
+        p_hndl->quot_chr = -1;
         goto reread;
     }
     return c;
@@ -811,7 +809,7 @@ sp_errc_t sp_parser_tkn_cpy(
     sp_errc_t ret=SPEC_ACCS_ERR;
     int c=0;
     size_t i=0;
-    hndl_eschr_t eh;
+    hndl_eschr_t eh_tkn;
     long llen=sp_loc_len(p_loc);
 
     if (p_tklen) *p_tklen=0;
@@ -822,15 +820,15 @@ sp_errc_t sp_parser_tkn_cpy(
 
     if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
 
-    init_hndl_eschr_stream(&eh, p_phndl, tkn, 1);
+    init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
 
-    while (eh.n_rdc<(size_t)llen && (buf_len || p_tklen))
+    while (eh_tkn.n_rdc<(size_t)llen && (buf_len || p_tklen))
     {
-        if ((c=esc_getc(&eh))==EOF || eh.n_rdc>(size_t)llen)
+        if ((c=esc_getc(&eh_tkn))==EOF || eh_tkn.n_rdc>(size_t)llen)
             break;
 
-        if (eh.quot_chr && c==eh.quot_chr && !eh.escaped) {
-            eh.quot_chr=0;
+        if (eh_tkn.quot_chr>=0 && c==eh_tkn.quot_chr && !eh_tkn.escaped) {
+            eh_tkn.quot_chr = -1;
         } else {
             if (p_tklen) (*p_tklen)++;
             if (buf_len) {
@@ -839,7 +837,7 @@ sp_errc_t sp_parser_tkn_cpy(
             }
         }
     }
-    if (c!=EOF || eh.n_rdc>=(size_t)llen) ret=SPEC_SUCCESS;
+    if (c!=EOF || eh_tkn.n_rdc>=(size_t)llen) ret=SPEC_SUCCESS;
 
 finish:
     if (buf_len) buf[i]=0;
@@ -847,9 +845,9 @@ finish:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_parser_tkn_cmp(
-    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
-    const sp_loc_t *p_loc, const char *str, size_t max_num, int *p_equ)
+sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
+    sp_parser_token_t tkn, const sp_loc_t *p_loc, const char *str,
+    size_t max_num, int stresc, int *p_equ)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int c_tkn, c_str;
@@ -859,6 +857,8 @@ sp_errc_t sp_parser_tkn_cmp(
 #define __CHK_STREAM() \
     if (eh_tkn.n_rdc<=(size_t)llen) { if (c_tkn==EOF) goto finish; } \
     else c_tkn=EOF;
+#define __EH_STR_GETC() \
+    (stresc ? esc_getc(&eh_str) : noesc_getc(&eh_str))
 
     if (!max_num && !llen) {
         ret=SPEC_SUCCESS;
@@ -868,16 +868,15 @@ sp_errc_t sp_parser_tkn_cmp(
 
     if (llen) {
         if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
-        init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn, 1);
+        init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
         c_tkn = esc_reqout_getc(&eh_tkn);
         __CHK_STREAM();
     } else
         c_tkn=EOF;
 
     if (max_num) {
-        init_hndl_eschr_string(&eh_str, str, max_num, tkn, 0);
-        if (eh_str.quot_chr) max_num--;
-        c_str = esc_reqout_getc(&eh_str);
+        init_hndl_eschr_string(&eh_str, str, max_num, tkn);
+        c_str = __EH_STR_GETC();
     } else
         c_str=EOF;
 
@@ -886,7 +885,7 @@ sp_errc_t sp_parser_tkn_cmp(
 
         c_tkn = esc_reqout_getc(&eh_tkn);
         __CHK_STREAM();
-        c_str = esc_reqout_getc(&eh_str);
+        c_str = __EH_STR_GETC();
     } while (c_tkn!=EOF && c_str!=EOF);
 
     ret=SPEC_SUCCESS;
@@ -895,6 +894,7 @@ sp_errc_t sp_parser_tkn_cmp(
 finish:
     return ret;
 
+#undef __EH_STR_GETC
 #undef __CHK_STREAM
 }
 
@@ -903,10 +903,11 @@ sp_errc_t sp_parser_tokenize_str(
     FILE *out, sp_parser_token_t tkn, const char *str)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
-    int quot_chr=0, c;
+    int quot_chr=-1, c;
     const char *in;
 
-#define __CHK_FERR(c) if ((c)<0) goto finish;
+#define __CHK_FERR(c) if ((c)==EOF) goto finish;
+#define __CHK_FPRF(c) if ((c)<0) goto finish;
 
     if (!out || !str) { ret=SPEC_INV_ARG; goto finish; }
     if (!(strlen(str))) { ret=SPEC_SUCCESS; goto finish; }
@@ -914,9 +915,9 @@ sp_errc_t sp_parser_tokenize_str(
     in = str;
     if (tkn==SP_TKN_ID)
     {
-        /* check if quotation is needed */
-        while ((c=*in++)!=0) {
-            if (!is_nq_id(c)) {
+        /* prefer quotation instead of escaping; check if needed */
+        while ((c=(*in++ & 0xff))!=0) {
+            if (!is_nq_idc(c)) {
                 quot_chr='"';
                 if (strchr(str, '"') && !strchr(str, '\'')) quot_chr='\'';
                 break;
@@ -924,17 +925,18 @@ sp_errc_t sp_parser_tokenize_str(
         }
 
         in = str;
-        if (quot_chr) {
+        if (quot_chr>=0) {
             __CHK_FERR(fputc(quot_chr, out));
         } else {
             /* if the first char is a quotation mark - escape it */
             if (*str=='"' || *str=='\'') {
-                __CHK_FERR(fprintf(out, "\\x%02x", (int)*in++));
+                __CHK_FERR(fputc('\\', out));
+                __CHK_FERR(fputc(*in++, out));
             }
         }
     }
 
-    while ((c=*in++)!=0)
+    while ((c=(*in++ & 0xff))!=0)
     {
         if (!isprint(c) || c=='\\' || c==quot_chr
 #ifndef NO_SEMICOL_ENDS_VAL
@@ -945,11 +947,11 @@ sp_errc_t sp_parser_tokenize_str(
                char in SP_TKN_VAL token to avoid cut leading spaces */
             || (tkn==SP_TKN_VAL && isspace(c) && (in-1)==str)
 #endif
-#ifdef TRIM_VAL_TRAILING_SPACES
-            /* space char need to be escaped if it's the last
-               char in SP_TKN_VAL token to avoid trimming */
+            /* space char need to be escaped if it's the last char in
+               SP_TKN_VAL token to avoid unreadability (line continuation)
+               and possible trimming (TRIM_VAL_TRAILING_SPACES)
+             */
             || (tkn==SP_TKN_VAL && isspace(c) && !*in)
-#endif
            )
         {
             /* char need to escaped */
@@ -982,10 +984,10 @@ sp_errc_t sp_parser_tokenize_str(
                 __CHK_FERR(fputc('\\', out));
                 break;
             default:
-                if (c==quot_chr) {
-                    __CHK_FERR(fputc(c, out));
+                if (!isprint(c) || (isspace(c) && !*in)) {
+                    __CHK_FPRF(fprintf(out, "x%02x", c));
                 } else {
-                    __CHK_FERR(fprintf(out, "x%02x", c));
+                    __CHK_FERR(fputc(c, out));
                 }
                 break;
             }
@@ -994,7 +996,7 @@ sp_errc_t sp_parser_tokenize_str(
         }
     }
 
-    if (quot_chr) {
+    if (quot_chr>=0) {
         __CHK_FERR(fputc(quot_chr, out));
     }
     ret=SPEC_SUCCESS;
@@ -1002,5 +1004,6 @@ sp_errc_t sp_parser_tokenize_str(
 finish:
     return ret;
 
+#undef __CHK_FPRF
 #undef __CHK_FERR
 }

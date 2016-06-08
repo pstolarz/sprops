@@ -32,9 +32,10 @@
 #define CHK_FERR(c) if ((c)==EOF) { ret=SPEC_ACCS_ERR; goto finish; }
 
 /* to be used inside callbacks only */
-#define CMPLOC_RG(ph, tkn, loc, str, len) { \
+#define CMPLOC_RG(ph, tkn, loc, str, len, esc) { \
     int equ=0; \
-    ret = (sp_errc_t)sp_parser_tkn_cmp((ph), (tkn), (loc), (str), (len), &equ); \
+    ret = (sp_errc_t)sp_parser_tkn_cmp( \
+        (ph), (tkn), (loc), (str), (len), (esc), &equ); \
     if (ret!=SPEC_SUCCESS) goto finish; \
     if (!equ) goto finish; \
 }
@@ -55,6 +56,32 @@ finish:
     if (ret==SPEC_SYNTAX) {
         if (p_line) *p_line = phndl.err.loc.line;
         if (p_col) *p_col = phndl.err.loc.col;
+    }
+    return ret;
+}
+
+/* Search for first/last non-escaped occurrence of char 'c' in string 'str' on
+   length 'len'.  If len==-1 searching is performed up to NULL-terminating char.
+
+   NOTE: The escaping of char C is defined as \C.
+ */
+static const char *strchr_nesc(const char *str, size_t len, int c, int last)
+{
+    int esc=0;
+    const char *ret=NULL;
+
+    for (; len && *str;
+        str++, len-=(len!=(size_t)-1 ? 1 : 0))
+    {
+        if (*str=='\\' && !esc) {
+            esc=1;
+            continue;
+        }
+        if (*str==c && !esc) {
+            ret = str;
+            if (!last) break;
+        }
+        esc=0;
     }
     return ret;
 }
@@ -98,14 +125,9 @@ typedef struct _base_hndl_t
 } base_hndl_t;
 
 /* Initialize base_hndl_t struct.
-
-   NOTE: The function may cut last part of the path and exclude it from the path
-   specification. In this case 'p_lprt' shall be !=NULL. A pointer to the last
-   part will be written under 'p_lprt'.
  */
-static void init_base_hndl(
-    base_hndl_t *p_b, int *p_finish, lastsc_t *p_lsc, int *p_sind,
-    const char *path, const char **p_lprt, const char *deftp)
+static void init_base_hndl(base_hndl_t *p_b, int *p_finish,
+    lastsc_t *p_lsc, int *p_sind, const char *path, const char *deftp)
 {
     p_b->p_finish = p_finish;
     *p_finish = 0;
@@ -116,22 +138,8 @@ static void init_base_hndl(
     p_b->p_sind = p_sind;
     *p_sind = -1;
 
-    if (p_lprt)
-    {
-        /* cut last part of the path spec. */
-        *p_lprt = strrchr(path, C_SEP_SCP);
-        if (*p_lprt) {
-            p_b->path.beg = path;
-            p_b->path.end = (*p_lprt)++;
-        } else {
-            *p_lprt = path;
-            p_b->path.beg = p_b->path.end = NULL;
-        }
-    } else {
-        p_b->path.beg = path;
-        p_b->path.end = (!path ? NULL : p_b->path.beg+strlen(path));
-    }
-
+    p_b->path.beg = path;
+    p_b->path.end = (!path ? NULL : p_b->path.beg+strlen(path));
     if (p_b->path.beg && *p_b->path.beg==C_SEP_SCP) p_b->path.beg++;
     p_b->path.deftp = deftp;
 }
@@ -171,43 +179,39 @@ typedef struct _iter_hndl_t
 } iter_hndl_t;
 
 /* Extract index value from prop/scope name and write the result under 'p_ind'.
-   Number of chars read and constituting the index specification is written under
-   'p_ind_len' (0 if such spec. is absent). If the spec. is present but erroneous
-   SPEC_INV_PATH is returned.
+   Number of chars read and constituting the index specification is written
+   under 'p_ind_len' (0 if such spec. is absent). If the spec. is present but
+   erroneous SPEC_INV_PATH is returned.
  */
 static sp_errc_t get_ind_from_name(
     const char *name, size_t nm_len, int *p_ind, size_t *p_ind_len)
 {
     sp_errc_t ret=SPEC_SUCCESS;
+    const char *ind_nm;
     size_t i;
 
     *p_ind=0;
     *p_ind_len=0;
 
-    for (i=nm_len, name+=nm_len-1;
-        i && *name!=C_SEP_SIND;
-        i--, name--);
+    ind_nm = strchr_nesc(name, nm_len, C_SEP_SIND, 1);
+    if (!ind_nm) goto finish; /* no index spec. */
 
-    if (!i)
-        /* no index spec. */
-        goto finish;
-
-     *p_ind_len=nm_len-i+1;
+     *p_ind_len = nm_len-(ind_nm-name);
      if (*p_ind_len <= 1) {
         /* no chars after marker */
         ret=SPEC_INV_PATH;
         goto finish;
     }
 
-    name++;
+    ind_nm++;
 
-    if (*p_ind_len==2 && (*name==C_IND_ALL || *name==C_IND_LAST)) {
-        *p_ind = (*name==C_IND_LAST ? SP_IND_LAST : SP_IND_ALL);
+    if (*p_ind_len==2 && (*ind_nm==C_IND_ALL || *ind_nm==C_IND_LAST)) {
+        *p_ind = (*ind_nm==C_IND_LAST ? SP_IND_LAST : SP_IND_ALL);
     } else {
         /* parse decimal number after marker */
-        for (i=1; i<*p_ind_len; i++, name++) {
-            if (*name>='0' && *name<='9') {
-                *p_ind = *p_ind*10 + (*name-'0');
+        for (i=1; i<*p_ind_len; i++, ind_nm++) {
+            if (*ind_nm>='0' && *ind_nm<='9') {
+                *p_ind = *p_ind*10 + (*ind_nm-'0');
             } else {
                 /* invalid number */
                 *p_ind=0;
@@ -239,16 +243,17 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     const char *type=NULL, *name=NULL;
     const path_t *p_path = &ph_nstb->path;
     const char *beg=p_path->beg, *end=p_path->end;
-    const char *col=strchr(beg, C_SEP_TYP), *sl=strchr(beg, C_SEP_SCP);
+    const char *typ=strchr_nesc(beg, end-beg, C_SEP_TYP, 0);
+    const char *scp=strchr_nesc(beg, end-beg, C_SEP_SCP, 0);
 
-    if (sl) end=sl;
-    if (col>=end) col=NULL;
+    if (scp) end=scp;
+    if (typ>=end) typ=NULL;
 
-    if (col) {
+    if (typ) {
         /* type and name specified */
         type = beg;
-        typ_len = col-beg;
-        name = col+1;
+        typ_len = typ-beg;
+        name = typ+1;
         nm_len = end-name;
     } else
     if (p_path->deftp)
@@ -266,8 +271,8 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     if (!(nm_len-=ind_len)) { ret=SPEC_INV_PATH; goto finish; }
     if (!ind_len) ind=SP_IND_ALL;  /* if not specified, SP_IND_ALL is assumed */
 
-    CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, type, typ_len);
-    CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, name, nm_len);
+    CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, type, typ_len, (p_path->deftp!=type));
+    CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, name, nm_len, 1);
 
     /* scope with matching name found */
 
@@ -435,7 +440,7 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
 
     /* prepare callback handle */
     memset(&ihndl, 0, sizeof(ihndl));
-    init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, NULL, deftp);
+    init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     ihndl.cb.arg = arg;
     ihndl.cb.prop = cb_prop;
@@ -472,11 +477,7 @@ typedef struct _prop_dsc_t
 typedef struct _scope_dsc_t
 {
     const char *type;
-    size_t typ_len;
-
     const char *name;
-    size_t nm_len;
-
     int ind;
 } scope_dsc_t;
 
@@ -515,8 +516,8 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     /* ignore props until the destination scope */
     if (p_gphndl->b.path.beg >= p_gphndl->b.path.end)
     {
-        CMPLOC_RG(p_phndl, SP_TKN_ID,
-            p_lname, p_gphndl->prop.name, p_gphndl->prop.nm_len);
+        CMPLOC_RG(p_phndl,
+            SP_TKN_ID, p_lname, p_gphndl->prop.name, p_gphndl->prop.nm_len, 0);
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
@@ -587,9 +588,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     sp_prop_info_ex_t info;
     memset(&info, 0, sizeof(info));
 
-    if (!in || !len ||
-        (!name && !path) ||
-        (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_INNAME))
+    if (!in || !len || !name || (ind<0 && ind!=SP_IND_LAST))
     {
         ret=SPEC_INV_ARG;
         goto finish;
@@ -597,23 +596,10 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 
     /* prepare callback handle */
     memset(&gphndl, 0, sizeof(gphndl));
-    init_base_hndl(
-        &gphndl.b, &f_finish, &lsc, &sind, path, (!name ? &name : NULL), deftp);
+    init_base_hndl(&gphndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     gphndl.prop.name = name;
     gphndl.prop.nm_len = strlen(name);
-
-    if (ind==SP_IND_INNAME) {
-        size_t ind_len;
-
-        EXEC_RG(get_ind_from_name(name, gphndl.prop.nm_len, &ind, &ind_len));
-        if (ind==SP_IND_ALL || !(gphndl.prop.nm_len-=ind_len)) {
-            ret=SPEC_INV_PATH;
-            goto finish;
-        }
-        /* if not specified, 0 is assumed */
-        if (!ind_len) ind=0;
-    }
 
     gphndl.prop.ind = ind;
     pind = -1;
@@ -1197,7 +1183,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
     /* prepare callback handle */
     memset(&ahndl, 0, sizeof(ahndl));
-    init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, NULL, deftp);
+    init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     EXEC_RG(init_base_updt_hndl(&bu, in, out, p_parsc, flags));
     ahndl.p_bu = &bu;

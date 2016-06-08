@@ -87,7 +87,7 @@ int main(void)
     char buf1[32], buf2[32];
     argcb_t argcb;
 
-    FILE *in = fopen("c03.conf", "rb");
+    FILE *in = fopen("c04.conf", "rb");
     if (!in) goto finish;
 
     printf("--- Prop added to: /, elm:0, flags:EXTEOL\n");

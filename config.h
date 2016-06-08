@@ -5,8 +5,7 @@
    End-of-line is the only allowed marker. A property value may contain a
    semicolon in its content, which not need to be escaped.
    If not defined: End-of-line and a semicolon mark the property ending. If a
-   property value needs to contain a semicolon, it must be escaped by the \x3b
-   sequence.
+   property value needs to contain a semicolon, it must be escaped.
  */
 #undef NO_SEMICOL_ENDS_VAL
 
