@@ -1816,10 +1816,11 @@ static int lex_getc(sp_parser_hndl_t *p_hndl)
     return c;
 }
 
-/* Lexical parser */
+/* Lexical scanner (lexer)
+ */
 static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 {
-    /* lexical parser SM states */
+    /* lexer SM states */
     typedef enum _lex_state_t
     {
         /* token not recognized yet; initial state */
@@ -2444,7 +2445,9 @@ sp_errc_t sp_parser_tokenize_str(
     in = str;
     if (tkn==SP_TKN_ID)
     {
-        /* prefer quotation instead of escaping; check if needed */
+        /* if a tokenized string contains chars not allowed in SP_TKN_ID then
+           use quotation, therefore avoiding over-escaping of the token
+           reserved chars */
         while ((c=(*in++ & 0xff))!=0) {
             if (!is_nq_idc(c)) {
                 quot_chr='"';

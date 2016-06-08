@@ -163,14 +163,14 @@ int main(void)
         "/2@$", "scope",
         indf|SP_F_EXTEOL));
 
-    printf("\n--- Prop w/o value added to: /, elm:LAST\n");
+    printf("\n--- Prop w/o value added to: /, elm:LAST|EXTEOL\n");
     EXEC_RG(sp_add_prop(
         in, stdout,
         NULL,
         "PROP", NULL,
         SP_ELM_LAST,
         "/", NULL,
-        indf));
+        indf|SP_F_EXTEOL));
 
 #define __ITER_ADD(e, f) \
     argcb.in_off = 0; \

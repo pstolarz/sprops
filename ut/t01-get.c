@@ -122,7 +122,6 @@ int main(void)
         in, NULL, "a", 0, NULL, NULL, buf1, sizeof(buf1), &info));
     print_str_prop("/", "a", 0, buf1, &info);
 
-    /* property name provided as part of path */
     EXEC_RG(sp_get_prop(
         in, NULL, "b", 0, "/", NULL, buf1, sizeof(buf1), &info));
     print_str_prop("/", "b", 0, buf1, &info);
@@ -137,9 +136,8 @@ int main(void)
 
     EXEC_RG(sp_get_prop(
         in, NULL, "a", 0, "/:\\'\\:\\x20\\/", NULL, buf1, sizeof(buf1), &info));
-    print_str_prop("/", "a", 0, buf1, &info);
+    print_str_prop("untyped scope ': /", "a", 0, buf1, &info);
 
-    /* property name provided as part of path */
     EXEC_RG(sp_get_prop(
         in, NULL, "a", 0, "/\\x31", "scope", buf1, sizeof(buf1), &info));
     print_str_prop("/scope:1", "a", 0, buf1, &info);
@@ -173,7 +171,6 @@ int main(void)
         in, NULL, "b", 0, "/2", "scope", buf1, sizeof(buf1), &info));
     print_str_prop("/scope:2", "b", 0, buf1, &info);
 
-    /* truncated to the buffer size */
     EXEC_RG(sp_get_prop(
         in, NULL, "a", 0, "/:scope", NULL, buf1, sizeof(buf1), &info));
     print_str_prop("/:scope", "a", 0, buf1, &info);
@@ -182,6 +179,7 @@ int main(void)
         in, NULL, "a", 0, "1/2/3", "", buf1, sizeof(buf1), &info));
     print_str_prop("/:1/:2/:3", "a", 0, buf1, &info);
 
+    /* truncated to the buffer size */
     EXEC_RG(sp_get_prop(
         in, NULL, "b", 0, "/1/:2/3", "", buf1, sizeof(buf1), &info));
     print_str_prop("/:1/:2/:3", "b", 0, buf1, &info);

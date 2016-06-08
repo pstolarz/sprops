@@ -46,24 +46,24 @@ int main(void)
 
     printf("\n--- SP_TKN_ID tokenizing\n");
 
-    /* simblest case, no escaping required */
+    /* simplest case; no escaping required */
     __TEST(SP_TKN_ID, "abc", "abc");
 
-    /* various printable, non-space chars, no one reserved;
-       no escaping required */
+    /* various printable, non-space, non-reserved chars;
+       no escaping/quotation required */
     __TEST(SP_TKN_ID, "+-*/%()[]|&:@/,.!?\"'$^", "+-*/%()[]|&:@/,.!?\"'$^");
 
     /* similar to previous, but first quotation char need to be escaped */
     __TEST(SP_TKN_ID, "\"abc\"", "\\\"abc\"");
     __TEST(SP_TKN_ID, "'abc'", "\\'abc'");
 
-    /* non printable chars + backslash, escaping inside quotation */
-    __TEST(SP_TKN_ID, "\n\t\a\\", "\"\\n\\t\\a\\\\\"");
+    /* space chars + backslash; escaping inside quotation */
+    __TEST(SP_TKN_ID, "\n\t\\", "\"\\n\\t\\\\\"");
 
-    /* space, quotation inside ' since " is present */
+    /* space; quotation inside ' since " is present */
     __TEST(SP_TKN_ID, "a b\"c\"", "'a b\"c\"'");
 
-    /* reserved chars, quotation inside " */
+    /* reserved chars; quotation inside " */
     __TEST(SP_TKN_ID, "{=}#", "\"{=}#\"");
 
 
@@ -72,10 +72,10 @@ int main(void)
     /* no escaping required */
     __TEST(SP_TKN_VAL, "\"abc'd !?/*", "\"abc'd !?/*");
 
-    /* non printable chars + backslash escaping */
+    /* non printable chars + backslash; escaping */
     __TEST(SP_TKN_VAL, "\n\t\a\\", "\\n\\t\\a\\\\");
 
-    /* ; escaping */
+    /* semicolon escaping */
 #ifndef NO_SEMICOL_ENDS_VAL
     __TEST(SP_TKN_VAL, "abc;", "abc\\;");
 #else
