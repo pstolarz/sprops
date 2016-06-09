@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -I../inc
 
-.PHONY: all clean
+.PHONY: all clean makelib
 
 TESTS= \
     t01-get \
@@ -14,11 +14,10 @@ all: $(TESTS)
 clean:
 	rm -f $(TESTS)
 
-../config.h=../config.h
-t03-tknstr: $(../config.h)
-
-%: %.c ../libsprops.a
-	$(CC) $(CFLAGS) $^ -o $@
-
-../libsprops.a:
+makelib ../libsprops.a:
 	$(MAKE) -C..
+
+%: %.c makelib ../libsprops.a
+	@if [ "$?" != "makelib" ]; then \
+		(PS4=; set -x; $(CC) $(CFLAGS) $< -o $@ ../libsprops.a;) \
+	fi
