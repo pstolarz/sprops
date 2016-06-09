@@ -383,7 +383,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 unc_ungetc(&p_hndl->lex.unc, c);
                 continue;
             } else {
-                __MCHAR_UPDATE_TAIL();
+                if (c==EOL) {
+                    /* error: line continuation is not possible for SP_TKN_ID */
+                    __MCHAR_TOKEN_END();
+                    endloop=1;
+                    token = YYERRCODE;
+                } else {
+                    __MCHAR_UPDATE_TAIL();
+                }
             }
             break;
           }
@@ -393,7 +400,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             __USE_ESC();
             if (c==EOL) {
                 /* error: quoted id need to be finished by the quotation mark
-                   NOTE: line continuation is not supported for SP_TKN_ID */
+                   NOTE: line continuation is not possible for SP_TKN_ID */
                 __MCHAR_TOKEN_END();
                 endloop=1;
                 token = YYERRCODE;
