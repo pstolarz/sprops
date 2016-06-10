@@ -71,7 +71,11 @@
 #define EOL (EOF-1)
 #define is_space(c) (isspace(c) || (c)==EOL)
 
-#define RESERVED_CHRS   "=;{}#"
+#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
+# define RESERVED_CHRS   "={}#"
+#else
+# define RESERVED_CHRS   "={}#;"
+#endif
 #define is_nq_idc(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
 
 #define unc_clean(unc) ((unc)->inbuf=0)
@@ -95,13 +99,13 @@ typedef struct _lexval_t {
 typedef sp_parser_token_t yytokentype;
 
 
-#line 99 "parser.c" /* yacc.c:316  */
+#line 103 "parser.c" /* yacc.c:316  */
 
 
 
 /* Copy the first part of user declarations.  */
 
-#line 105 "parser.c" /* yacc.c:339  */
+#line 109 "parser.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -163,7 +167,7 @@ struct YYLTYPE
 
 int yyparse (sp_parser_hndl_t *p_hndl);
 /* "%code provides" blocks.  */
-#line 51 "parser.y" /* yacc.c:355  */
+#line 55 "parser.y" /* yacc.c:355  */
 
 static int yylex(YYSTYPE*, YYLTYPE*, sp_parser_hndl_t*);
 static void yyerror(YYLTYPE*, sp_parser_hndl_t*, char const*);
@@ -204,13 +208,13 @@ static void set_loc(
 #define __PREP_LOC_PTR(loc) (__IS_EMPTY(loc) ? (sp_loc_t*)NULL : &(loc))
 
 
-#line 208 "parser.c" /* yacc.c:355  */
+#line 212 "parser.c" /* yacc.c:355  */
 
 
 
 /* Copy the second part of user declarations.  */
 
-#line 214 "parser.c" /* yacc.c:358  */
+#line 218 "parser.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -509,8 +513,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   103,   103,   109,   113,   114,   126,   154,   169,   183,
-     208,   237
+       0,   107,   107,   113,   117,   118,   130,   158,   173,   187,
+     212,   241
 };
 #endif
 
@@ -1384,28 +1388,28 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 103 "parser.y" /* yacc.c:1646  */
+#line 107 "parser.y" /* yacc.c:1646  */
     {
         /* set to empty scope */
         (yyval).end = 0;
         (yyval).beg = (yyval).end+1;
         (yyval).scope_lev = 0;
     }
-#line 1395 "parser.c" /* yacc.c:1646  */
+#line 1399 "parser.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 115 "parser.y" /* yacc.c:1646  */
+#line 119 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-1]).beg;
         (yyval).end = (yyvsp[0]).end;
         (yyval).scope_lev = (yyvsp[-1]).scope_lev;
     }
-#line 1405 "parser.c" /* yacc.c:1646  */
+#line 1409 "parser.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 127 "parser.y" /* yacc.c:1646  */
+#line 131 "parser.y" /* yacc.c:1646  */
     {
         sp_loc_t lval;
         set_loc(&lval, &(yyvsp[0]), &(yylsp[0]));
@@ -1429,11 +1433,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
-#line 1433 "parser.c" /* yacc.c:1646  */
+#line 1437 "parser.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 155 "parser.y" /* yacc.c:1646  */
+#line 159 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-3]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1447,11 +1451,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
-#line 1451 "parser.c" /* yacc.c:1646  */
+#line 1455 "parser.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 170 "parser.y" /* yacc.c:1646  */
+#line 174 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-1]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1464,11 +1468,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, (sp_loc_t*)NULL, &ldef);
         }
     }
-#line 1468 "parser.c" /* yacc.c:1646  */
+#line 1472 "parser.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 184 "parser.y" /* yacc.c:1646  */
+#line 188 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-3]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1492,11 +1496,11 @@ yyreduce:
                 (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
-#line 1496 "parser.c" /* yacc.c:1646  */
+#line 1500 "parser.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 209 "parser.y" /* yacc.c:1646  */
+#line 213 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-4]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1521,11 +1525,11 @@ yyreduce:
                 &ltype, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
-#line 1525 "parser.c" /* yacc.c:1646  */
+#line 1529 "parser.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 238 "parser.y" /* yacc.c:1646  */
+#line 242 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-2]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1544,11 +1548,11 @@ yyreduce:
                 &ltype, &lname, (sp_loc_t*)NULL, &lbdyenc, &ldef);
         }
     }
-#line 1548 "parser.c" /* yacc.c:1646  */
+#line 1552 "parser.c" /* yacc.c:1646  */
     break;
 
 
-#line 1552 "parser.c" /* yacc.c:1646  */
+#line 1556 "parser.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1783,7 +1787,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 258 "parser.y" /* yacc.c:1906  */
+#line 262 "parser.y" /* yacc.c:1906  */
 
 
 #undef __PREP_LOC_PTR
@@ -1834,7 +1838,8 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         LXST_ID_QUOTED,     /* quoted */
 
         /* SP_TKN_VAL token; any chars up to the end of a line or semicolon
-           (if NO_SEMICOL_ENDS_VAL is not defined); line continuation allowed */
+           (if CONFIG_NO_SEMICOL_ENDS_VAL is not defined); line continuation
+           allowed */
         LXST_VAL_INIT,      /* value tracking initial state */
         LXST_VAL            /* value tracking */
     } lex_state_t;
@@ -1946,7 +1951,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL_INIT:
           {
             __USE_ESC();
-#ifdef NO_SEMICOL_ENDS_VAL
+#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
             if ((c==EOL || c==';') && !esc)
@@ -1956,14 +1961,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 __CHAR_TOKEN(SP_TKN_VAL);
                 p_lval->beg++;
                 endloop=1;
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
                     continue;
                 }
 #endif
             } else
-#ifdef CUT_VAL_LEADING_SPACES
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
             if (!isspace(c))
 #endif
             {
@@ -1976,7 +1981,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL:
           {
             __USE_ESC();
-#ifdef NO_SEMICOL_ENDS_VAL
+#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
             if ((c==EOL || c==';') && !esc)
@@ -1984,14 +1989,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             {
                 __MCHAR_TOKEN_END();
                 endloop=1;
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
                     continue;
                 }
 #endif
             } else
-#ifdef TRIM_VAL_TRAILING_SPACES
+#ifdef CONFIG_TRIM_VAL_TRAILING_SPACES
             if (!isspace(c))
 #endif
             {
@@ -2032,9 +2037,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 
     /* scope level update */
     p_lval->scope_lev = p_hndl->lex.scope_lev;
-    if (token=='{')
+    if (token=='{') {
         p_hndl->lex.scope_lev++;
-    else
+#ifdef CONFIG_MAX_SCOPE_LEVEL_DEPTH
+        if (p_hndl->lex.scope_lev > CONFIG_MAX_SCOPE_LEVEL_DEPTH) {
+            token = YYERRCODE;
+        }
+#endif
+    } else
     if (token=='}') {
         p_hndl->lex.scope_lev--;
         p_lval->scope_lev--;
@@ -2478,17 +2488,17 @@ sp_errc_t sp_parser_tokenize_str(
     while ((c=(*in++ & 0xff))!=0)
     {
         if (!isprint(c) || c=='\\' || c==quot_chr
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             || (tkn==SP_TKN_VAL && c==';')
 #endif
-#ifdef CUT_VAL_LEADING_SPACES
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
             /* space char need to be escaped if it's the first
                char in SP_TKN_VAL token to avoid cut leading spaces */
             || (tkn==SP_TKN_VAL && isspace(c) && (in-1)==str)
 #endif
             /* space char need to be escaped if it's the last char in
                SP_TKN_VAL token to avoid unreadability (line continuation)
-               and possible trimming (TRIM_VAL_TRAILING_SPACES)
+               and possible trimming (CONFIG_TRIM_VAL_TRAILING_SPACES)
              */
             || (tkn==SP_TKN_VAL && isspace(c) && !*in)
            )

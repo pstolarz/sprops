@@ -76,14 +76,14 @@ int main(void)
     __TEST(SP_TKN_VAL, "\n\t\a\\", "\\n\\t\\a\\\\");
 
     /* semicolon escaping */
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
     __TEST(SP_TKN_VAL, "abc;", "abc\\;");
 #else
     __TEST(SP_TKN_VAL, "abc;", "abc;");
 #endif
 
     /* val with leading spaces */
-#ifdef CUT_VAL_LEADING_SPACES
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
     __TEST(SP_TKN_VAL, "  abc", "\\  abc");
 #else
     __TEST(SP_TKN_VAL, "  abc", "  abc");

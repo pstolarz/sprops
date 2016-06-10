@@ -1096,13 +1096,13 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, prop_nm));
         if (prop_val)
         {
-#ifdef CUT_VAL_LEADING_SPACES
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
             CHK_FERR(fputs(" = ", p_bu->out));
 #else
             CHK_FERR(fputc('=', p_bu->out));
 #endif
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val));
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             CHK_FERR(fputc(';', p_bu->out));
 #else
             *p_traileol = 1;     /* added value need to be finished by EOL */

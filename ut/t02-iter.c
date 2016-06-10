@@ -246,7 +246,15 @@ int main(void)
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
 finish:
-    if (ret) printf("Error: %d\n", ret);
+    if (ret) {
+        if (ret==SPEC_SYNTAX) {
+            int line, col;
+            sp_check_syntax(in, NULL, &line, &col);
+            printf("Syntax error: line:%d, col:%d\n", line, col);
+        } else {
+            printf("Error: %d\n", ret);
+        }
+    }
     if (in) fclose(in);
 
     return 0;

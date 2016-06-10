@@ -237,7 +237,15 @@ int main(void)
     print_str_prop("/", "c", 0, buf1, &info);
 
 finish:
-    if (ret) printf("Error: %d\n", ret);
+    if (ret) {
+        if (ret==SPEC_SYNTAX) {
+            int line, col;
+            sp_check_syntax(in, NULL, &line, &col);
+            printf("Syntax error: line:%d, col:%d\n", line, col);
+        } else {
+            printf("Error: %d\n", ret);
+        }
+    }
     if (in) fclose(in);
 
     return 0;

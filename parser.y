@@ -22,7 +22,11 @@
 #define EOL (EOF-1)
 #define is_space(c) (isspace(c) || (c)==EOL)
 
-#define RESERVED_CHRS   "=;{}#"
+#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
+# define RESERVED_CHRS   "={}#"
+#else
+# define RESERVED_CHRS   "={}#;"
+#endif
 #define is_nq_idc(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
 
 #define unc_clean(unc) ((unc)->inbuf=0)
@@ -148,7 +152,7 @@ prop_scope:
         }
     }
   /* property with a value (semicolon finished)
-     NOTE: valid only if NO_SEMICOL_ENDS_VAL is not defined
+     NOTE: valid only if CONFIG_NO_SEMICOL_ENDS_VAL is not defined
      NOTE: SP_TKN_VAL may be empty to define property w/o a value
    */
 | SP_TKN_ID '=' SP_TKN_VAL ';'
@@ -305,7 +309,8 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         LXST_ID_QUOTED,     /* quoted */
 
         /* SP_TKN_VAL token; any chars up to the end of a line or semicolon
-           (if NO_SEMICOL_ENDS_VAL is not defined); line continuation allowed */
+           (if CONFIG_NO_SEMICOL_ENDS_VAL is not defined); line continuation
+           allowed */
         LXST_VAL_INIT,      /* value tracking initial state */
         LXST_VAL            /* value tracking */
     } lex_state_t;
@@ -417,7 +422,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL_INIT:
           {
             __USE_ESC();
-#ifdef NO_SEMICOL_ENDS_VAL
+#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
             if ((c==EOL || c==';') && !esc)
@@ -427,14 +432,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 __CHAR_TOKEN(SP_TKN_VAL);
                 p_lval->beg++;
                 endloop=1;
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
                     continue;
                 }
 #endif
             } else
-#ifdef CUT_VAL_LEADING_SPACES
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
             if (!isspace(c))
 #endif
             {
@@ -447,7 +452,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL:
           {
             __USE_ESC();
-#ifdef NO_SEMICOL_ENDS_VAL
+#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
             if ((c==EOL || c==';') && !esc)
@@ -455,14 +460,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             {
                 __MCHAR_TOKEN_END();
                 endloop=1;
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
                     continue;
                 }
 #endif
             } else
-#ifdef TRIM_VAL_TRAILING_SPACES
+#ifdef CONFIG_TRIM_VAL_TRAILING_SPACES
             if (!isspace(c))
 #endif
             {
@@ -503,9 +508,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 
     /* scope level update */
     p_lval->scope_lev = p_hndl->lex.scope_lev;
-    if (token=='{')
+    if (token=='{') {
         p_hndl->lex.scope_lev++;
-    else
+#ifdef CONFIG_MAX_SCOPE_LEVEL_DEPTH
+        if (p_hndl->lex.scope_lev > CONFIG_MAX_SCOPE_LEVEL_DEPTH) {
+            token = YYERRCODE;
+        }
+#endif
+    } else
     if (token=='}') {
         p_hndl->lex.scope_lev--;
         p_lval->scope_lev--;
@@ -949,17 +959,17 @@ sp_errc_t sp_parser_tokenize_str(
     while ((c=(*in++ & 0xff))!=0)
     {
         if (!isprint(c) || c=='\\' || c==quot_chr
-#ifndef NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             || (tkn==SP_TKN_VAL && c==';')
 #endif
-#ifdef CUT_VAL_LEADING_SPACES
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
             /* space char need to be escaped if it's the first
                char in SP_TKN_VAL token to avoid cut leading spaces */
             || (tkn==SP_TKN_VAL && isspace(c) && (in-1)==str)
 #endif
             /* space char need to be escaped if it's the last char in
                SP_TKN_VAL token to avoid unreadability (line continuation)
-               and possible trimming (TRIM_VAL_TRAILING_SPACES)
+               and possible trimming (CONFIG_TRIM_VAL_TRAILING_SPACES)
              */
             || (tkn==SP_TKN_VAL && isspace(c) && !*in)
            )

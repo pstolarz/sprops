@@ -33,7 +33,7 @@ The same is true with a good example:
 
     # Quotation marks required in the property name to avoid parsing problem.
     # A property value finishes at the end of a line or at a semicolon (unless
-    # NO_SEMICOL_ENDS_VAL had been defined during library compilation).
+    # CONFIG_NO_SEMICOL_ENDS_VAL had been defined during library compilation).
     "property 2" = some other value;
 
     # Scope with a type and name
