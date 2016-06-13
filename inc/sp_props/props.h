@@ -292,9 +292,15 @@ sp_errc_t sp_get_prop_enum(
 #define SP_F_EMPCPT     0x0020U
 
 /* Element addition - put an extra EOL after the inserted element,
-   Element removal - delete an extra EOL (if exists) after the deleted element.
+   Element removal - delete an extra EOL (if exists) after the removed element.
  */
 #define SP_F_EXTEOL     0x0040U
+
+/* If adding  element on the global scope's end, don't put an extra EOL after
+   it. Effectively, the element will be finished by EOF.
+ */
+#define SP_F_NLSTEOL    0x0080U
+
 
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
    (number of elements - scopes/props, before inserted property) in a containing
@@ -303,10 +309,10 @@ sp_errc_t sp_get_prop_enum(
 
    NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
    output is confined only to the location specified by the argument. Usage of
-   this argument is reserved for special and advanced purposes (like
-   modification of many scopes performed during single-shot iteration of their
-   containing scope). For most cases 'p_parsc' shall be NULL meaning the global
-   scope.
+   this argument is reserved for special purposes (like modification of many
+   scopes performed during single-shot iteration of their containing scope OR
+   a performance efficient small block updates inside a *huge* input file). For
+   most cases 'p_parsc' shall be NULL meaning the global scope.
    NOTE 2: If n_elem==SP_ELM_LAST, the property is added as the last one in
    the scope (that is after the last element). If modified scope is empty
    SP_ELM_LAST is equivalent to 0.

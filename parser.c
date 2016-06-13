@@ -71,11 +71,11 @@
 #define EOL (EOF-1)
 #define is_space(c) (isspace(c) || (c)==EOL)
 
-#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
-# define RESERVED_CHRS   "={}#"
-#else
-# define RESERVED_CHRS   "={}#;"
-#endif
+/* NOTE: semicolon char is reserved even though CONFIG_NO_SEMICOL_ENDS_VAL
+   is defined, due to property w/o a value and scope w/o a body alternative
+   grammar rules. */
+#define RESERVED_CHRS   "={};#"
+
 #define is_nq_idc(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
 
 #define unc_clean(unc) ((unc)->inbuf=0)

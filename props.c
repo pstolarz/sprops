@@ -31,7 +31,7 @@
 #define CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
 #define CHK_FERR(c) if ((c)==EOF) { ret=SPEC_ACCS_ERR; goto finish; }
 
-/* to be used inside callbacks only */
+/* to be used inside parser callbacks only */
 #define CMPLOC_RG(ph, tkn, loc, str, len, esc) { \
     int equ=0; \
     ret = (sp_errc_t)sp_parser_tkn_cmp( \
@@ -104,23 +104,23 @@ typedef struct _lastsc_t
     sp_loc_t ldef;      /* scope definition */
 } lastsc_t;
 
-/* Base struct for all (read-only/update) handlers.
+/* Base struct for all (read-only/update) handles.
 
    NOTE: Along with its deriving structs, the struct is copied during
    upward-downward process of following a destination scope path.
  */
 typedef struct _base_hndl_t
 {
-    /* pointer to the finish flag (shared) */
+    /* processing finish flag (shared) */
     int *p_finish;
 
-    /* pointer to last scope spec. (shared) */
+    /* last scope spec. (shared) */
     lastsc_t *p_lsc;
 
-    /* pointer to split scope tracking index (shared) */
+    /* split scope tracking index (shared) */
     int *p_sind;
 
-    /* path to the destination scope (not propagated) */
+    /* destination scope path (not propagated) */
     path_t path;
 } base_hndl_t;
 
@@ -144,7 +144,7 @@ static void init_base_hndl(base_hndl_t *p_b, int *p_finish,
     p_b->path.deftp = deftp;
 }
 
-/* Iteration handle
+/* sp_iterate() handle
 
    NOTE: This struct is copied during upward-downward process of following
    a destination scope path, so any changes made on it are not propagated to
@@ -160,7 +160,7 @@ typedef struct _iter_hndl_t
         /* argument passed untouched (const) */
         void *arg;
 
-        /* user API callbacks (const) */
+        /* user callbacks (const) */
         sp_cb_prop_t prop;
         sp_cb_scope_t scope;
     } cb;
@@ -277,7 +277,7 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     /* scope with matching name found */
 
     if (ind!=SP_IND_ALL)
-        /* tracking index is updated only if the matched
+        /* the tracking index is updated only if the matched
            scope was provided with an index specification */
         *p_sind += 1;
 
@@ -318,7 +318,7 @@ finish:
 }
 
 /* Call follow_scope_path() for cloned nested scope handle 'hndl' and check
-   the finish flag afterward. To be used inside scope callbacks only.
+   the finish flag afterward. To be used inside scope parser callbacks only.
  */
 #define CALL_FOLLOW_SCOPE_PATH(hndl) \
     ret = follow_scope_path( \
@@ -326,14 +326,14 @@ finish:
     if (ret==SPEC_SUCCESS && *(hndl).b.p_finish!=0) \
         ret = SPEC_CB_FINISH;
 
-/* check iteration callback return code */
-#define __CHK_ITER_CB_RET() \
+/* check user callback return code */
+#define __CHK_USER_CB_RET() \
     if (ret==SPEC_CB_FINISH) \
         *p_ihndl->b.p_finish = 1; \
     else if ((int)ret<0) \
         ret=SPEC_CB_RET_ERR;
 
-/* sp_iterate() callback: property */
+/* sp_iterate() parser callback: property */
 static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
@@ -356,13 +356,13 @@ static sp_errc_t iter_cb_prop(const sp_parser_hndl_t *p_phndl,
         ret = p_ihndl->cb.prop(p_ihndl->cb.arg, p_phndl->in, p_ihndl->buf1.ptr,
             &tkname, p_ihndl->buf2.ptr, (p_lval ? &tkval : NULL), p_ldef);
 
-        __CHK_ITER_CB_RET();
+        __CHK_USER_CB_RET();
     }
 finish:
     return ret;
 }
 
-/* sp_iterate() callback: scope */
+/* sp_iterate() parser callback: scope */
 static sp_errc_t iter_cb_scope(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
     const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
@@ -390,13 +390,13 @@ static sp_errc_t iter_cb_scope(const sp_parser_hndl_t *p_phndl,
             p_ihndl->buf1.ptr, (p_ltype ? &tktype : NULL),
             p_ihndl->buf2.ptr, &tkname, p_lbody, p_lbdyenc, p_ldef);
 
-        __CHK_ITER_CB_RET();
+        __CHK_USER_CB_RET();
     }
 finish:
     return ret;
 }
 
-#undef __CHK_ITER_CB_RET
+#undef __CHK_USER_CB_RET
 
 #define __PARSE_WITH_LSC_HANDLING(hndl) \
     for (;;) { \
@@ -438,7 +438,7 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
         goto finish;
     }
 
-    /* prepare callback handle */
+    /* prepare the handle */
     memset(&ihndl, 0, sizeof(ihndl));
     init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -469,8 +469,6 @@ finish:
 typedef struct _prop_dsc_t
 {
     const char *name;
-    size_t nm_len;
-
     int ind;
 } prop_dsc_t;
 
@@ -481,7 +479,7 @@ typedef struct _scope_dsc_t
     int ind;
 } scope_dsc_t;
 
-/* sp_get_prop() iteration handle struct.
+/* sp_get_prop() handle
 
    NOTE: This struct is copied during upward-downward process of following
    a destination scope path.
@@ -494,7 +492,7 @@ typedef struct _getprp_hndl_t
     prop_dsc_t prop;
 
     /* matched props tracking index (shared) */
-    int *p_pind;
+    int *p_eind;
 
     /* property value buffer (const) */
     struct {
@@ -506,7 +504,7 @@ typedef struct _getprp_hndl_t
     sp_prop_info_ex_t *p_info;
 } getprp_hndl_t;
 
-/* sp_get_prop() callback: property */
+/* sp_get_prop() parser callback: property */
 static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
@@ -516,18 +514,20 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
     /* ignore props until the destination scope */
     if (p_gphndl->b.path.beg >= p_gphndl->b.path.end)
     {
+        size_t nm_len = strlen(p_gphndl->prop.name);
+
         CMPLOC_RG(p_phndl,
-            SP_TKN_ID, p_lname, p_gphndl->prop.name, p_gphndl->prop.nm_len, 0);
+            SP_TKN_ID, p_lname, p_gphndl->prop.name, nm_len, 0);
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
         /* matching property found */
-        *p_gphndl->p_pind += 1;
+        *p_gphndl->p_eind += 1;
 
-        if (p_gphndl->prop.ind==*p_gphndl->p_pind ||
+        if (p_gphndl->prop.ind==*p_gphndl->p_eind ||
             p_gphndl->prop.ind==SP_IND_LAST)
         {
-            p_gphndl->p_info->tkname.len = p_gphndl->prop.nm_len;
+            p_gphndl->p_info->tkname.len = nm_len;
             p_gphndl->p_info->tkname.loc = *p_lname;
             if (p_lval) {
                 p_gphndl->p_info->val_pres = 1;
@@ -548,7 +548,7 @@ finish:
     return ret;
 }
 
-/* sp_get_prop() callback: scope */
+/* sp_get_prop() parser callback: scope */
 static sp_errc_t getprp_cb_scope(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
     const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
@@ -581,7 +581,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     /* split scope tracking index (shared) */
     int sind;
     /* matched props tracking index (shared) */
-    int pind;
+    int eind;
 
     /* line & columns are 1-based, therefore 0 has
        a special meaning to distinguish unset state */
@@ -594,16 +594,15 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         goto finish;
     }
 
-    /* prepare callback handle */
+    /* prepare the handle */
     memset(&gphndl, 0, sizeof(gphndl));
     init_base_hndl(&gphndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     gphndl.prop.name = name;
-    gphndl.prop.nm_len = strlen(name);
 
     gphndl.prop.ind = ind;
-    pind = -1;
-    gphndl.p_pind = &pind;
+    eind = -1;
+    gphndl.p_eind = &eind;
 
     gphndl.val.ptr = val;
     gphndl.val.sz = len-1;
@@ -745,11 +744,11 @@ typedef enum _eol_t {
     EOL_CR          /* legacy mac */
 } eol_t;
 
-/* Base struct for update handlers.
+/* Base struct for update handles.
  */
 typedef struct _base_updt_hndl_t
 {
-    /* input/output handles */
+    /* input/output streams */
     FILE *in;
     FILE *out;
 
@@ -840,39 +839,85 @@ finish:
     return ret;
 }
 
-/* Skip input spaces (by updating the offset starting not processed range)
-   beginning from the offset, up to the following EOL (inclusive) OR a first
-   non-space character. The function writes 'p_skip_n' and 'p_eol_n' with
-   a number of updated bytes and EOL size (0, 1 or 2) respectively.
+/* Skip input spaces starting from the offset 'off', up to the following EOL
+   (inclusive) OR a first non-space character. The function writes 'p_skip_n'
+   and 'p_eol_n' with a number of skipped bytes and EOL size (0, 1 or 2)
+   respectively.
  */
-static sp_errc_t
-    skip_sp_to_eol(base_updt_hndl_t *p_bu, long *p_skip_n, int *p_eol_n)
+static sp_errc_t skip_sp_to_eol(
+    const base_updt_hndl_t *p_bu, long off, long *p_skip_n, int *p_eol_n)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    long org_off=p_bu->in_off;
+    long org_off=off;
     int c, eol_n=0;
 
-    if (fseek(p_bu->in, p_bu->in_off, SEEK_SET)) {
+    if (fseek(p_bu->in, off, SEEK_SET)) {
         ret=SPEC_ACCS_ERR;
         goto finish;
     }
 
-    for (; !eol_n && isspace(c=fgetc(p_bu->in)) && c!='\v' && c!='\f';
-        p_bu->in_off++)
+    for (; !eol_n && isspace(c=fgetc(p_bu->in)) && c!='\v' && c!='\f'; off++)
     {
         if (c!='\r' && c!='\n') continue;
 
         eol_n++;
         if (c=='\r') {
             if ((c=fgetc(p_bu->in))=='\n') {
-                p_bu->in_off++;
+                off++;
                 eol_n++;
             }
         }
     }
 
-    if (p_skip_n) *p_skip_n = p_bu->in_off-org_off;
+    if (p_skip_n) *p_skip_n = off-org_off;
     if (p_eol_n) *p_eol_n = eol_n;
+
+finish:
+    return ret;
+}
+
+/* Copies input bytes (from the offset staring not processed range) to
+   the ldef pointed by 'p_ldef' but excluding it. In case of success the input
+   offset is set behind ldef.
+ */
+static sp_errc_t cpy_rm_ldef(base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    long skip_n, beg=p_ldef->beg, end=p_ldef->end+1;
+    int eol_n;
+
+    /* recognize ldef trailing spaces */
+    EXEC_RG(skip_sp_to_eol(p_bu, end, &skip_n, &eol_n));
+    end += skip_n-eol_n;
+
+    /* if ldef occupies whole lines, delete them,
+       otherwise delete ldef with trailing spaces */
+    if (eol_n)
+    {
+        int n=p_ldef->first_column-1;
+
+        if (n>0) {
+            CHK_FSEEK(fseek(p_bu->in, p_ldef->beg-n, SEEK_SET));
+            for (; n>0 && isspace(fgetc(p_bu->in)); n--);
+        }
+
+        if (!n) {
+            beg -= p_ldef->first_column-1;
+            end += eol_n;
+
+            if (p_bu->flags & SP_F_EXTEOL) {
+                EXEC_RG(skip_sp_to_eol(p_bu, end, &skip_n, &eol_n));
+                if (eol_n) end += skip_n;
+            }
+        } else
+        if (p_bu->flags & SP_F_EXTEOL) {
+            EXEC_RG(skip_sp_to_eol(p_bu, end+eol_n, &skip_n, &eol_n));
+            if (eol_n) end += skip_n-eol_n;
+        }
+    }
+
+    EXEC_RG(cpy_to_out(p_bu, beg));
+    p_bu->in_off = end;
 
 finish:
     return ret;
@@ -880,7 +925,7 @@ finish:
 
 /* Put EOL on the output.
  */
-static sp_errc_t put_eol(base_updt_hndl_t *p_bu)
+static sp_errc_t put_eol(const base_updt_hndl_t *p_bu)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
@@ -911,8 +956,8 @@ finish:
    IND_F_SCBDY - the indentation should consider additional indent inside scope
    (as its body).
  */
-static sp_errc_t
-    put_ind(base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
+static sp_errc_t put_ind(
+    const base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     int c, n=p_ldef->first_column-1;
@@ -951,20 +996,18 @@ static sp_errc_t put_eol_ind(
     base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    long skip_n;
     int eol_n=0;
 
     if (flgs & (IND_F_CUTGAP|IND_F_TRIMSP|IND_F_CHKEOL))
     {
-        EXEC_RG(skip_sp_to_eol(p_bu, &skip_n, &eol_n));
+        long skip_n;
+        EXEC_RG(skip_sp_to_eol(p_bu, p_bu->in_off, &skip_n, &eol_n));
 
         if (flgs & IND_F_CUTGAP) {
-            p_bu->in_off -= eol_n;
+            p_bu->in_off += skip_n-eol_n;
         } else
-        if (flgs & IND_F_TRIMSP) {
-            p_bu->in_off -= (eol_n ? eol_n : skip_n);
-        } else {
-            p_bu->in_off -= skip_n;
+        if ((flgs & IND_F_TRIMSP) && eol_n) {
+            p_bu->in_off += skip_n-eol_n;
         }
     }
 
@@ -988,7 +1031,7 @@ typedef struct _addh_frst_sc_t
     sp_loc_t ldef;
 } addh_frst_sc_t;
 
-/* Property/scope addition iteration handle struct.
+/* add_elem() handle
 
    NOTE: This struct is copied during upward-downward process of following
    a destination scope path.
@@ -1002,7 +1045,7 @@ typedef struct _add_hndl_t
     /* element position number (const) */
     int n_elem;
     /* element position number tracking index (shared) */
-    int *p_eind;
+    int *p_enind;
 
     /* first, non-global scope matching the path;
        zero initialized - unset (shared) */
@@ -1015,8 +1058,8 @@ typedef struct _add_hndl_t
 
 #define __TRACK_ELEM_POSITION() \
     /* count element in the matched scope */ \
-    *p_ahndl->p_eind += 1; \
-    if (p_ahndl->n_elem==*p_ahndl->p_eind || \
+    *p_ahndl->p_enind += 1; \
+    if (p_ahndl->n_elem==*p_ahndl->p_enind || \
         p_ahndl->n_elem==SP_ELM_LAST) \
     { \
         /* save element's ldef associated with requested position */ \
@@ -1028,7 +1071,7 @@ typedef struct _add_hndl_t
         } \
     }
 
-/* Property/scope addition callback: property */
+/* add_elem() parser callback: property */
 static sp_errc_t add_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
@@ -1041,7 +1084,7 @@ static sp_errc_t add_cb_prop(const sp_parser_hndl_t *p_phndl,
     return ret;
 }
 
-/* Property/scope addition callback: scope */
+/* add_elem() parser callback: scope */
 static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
     const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
@@ -1165,7 +1208,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     /* split scope tracking index (shared) */
     int sind;
     /* element position number tracking index (shared) */
-    int eind = 0;
+    int enind = 0;
     /* first scope matching the path (shared) */
     addh_frst_sc_t frst_sc = {};
     /* ldef of an element associated with requested position (shared) */
@@ -1181,7 +1224,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         goto finish;
     }
 
-    /* prepare callback handle */
+    /* prepare the handle */
     memset(&ahndl, 0, sizeof(ahndl));
     init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -1189,7 +1232,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     ahndl.p_bu = &bu;
 
     ahndl.n_elem = n_elem;
-    ahndl.p_eind = &eind;
+    ahndl.p_enind = &enind;
     ahndl.p_frst_sc = &frst_sc;
     ahndl.p_ldef_elem = &ldef_elem;
 
@@ -1200,7 +1243,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
     if ((ahndl.b.path.beg < ahndl.b.path.end) && !frst_sc.ldef.first_column)
     {
-        /* path specified but the destination not found */
+        /* path specified but the destination scope was not found */
         ret=SPEC_NOTFOUND;
         goto finish;
     }
@@ -1291,7 +1334,8 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
     lstcpy_n = bu.in_off-lstcpy_n;
 
-    if (chk_end_eol && !lstcpy_n && !p_parsc) {
+    if (chk_end_eol && !lstcpy_n && !p_parsc && !(flags & SP_F_NLSTEOL))
+    {
         /* ensure EOL if updated elem ends the input */
         EXEC_RG(put_eol(&bu));
     }
@@ -1317,5 +1361,35 @@ sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     return add_elem(
         in, out, p_parsc, NULL, NULL, type, name, n_elem, path, deftp, flags);
 }
+
+/* rm_elem() handle
+
+   NOTE: This struct is copied during upward-downward process of following
+   a destination scope path.
+ */
+typedef struct _rm_hndl_t
+{
+    base_hndl_t b;
+    /* base class for update part (shared) */
+    base_updt_hndl_t *p_bu;
+
+    /* element desc. (const) */
+    struct {
+        int is_scp;
+        union {
+            prop_dsc_t prop;
+            scope_dsc_t scp;
+        };
+    } e;
+
+    /* matched elements tracking index (shared) */
+    int *p_eind;
+
+    /* if !=0 - destination scope was found (shared) */
+    int *p_dest_fnd;
+
+    /* last element spec. (shared) */
+    lastsc_t *p_lst_ldef;
+} rm_hndl_t;
 
 #undef __PARSE_WITH_LSC_HANDLING

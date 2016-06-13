@@ -19,5 +19,5 @@ makelib ../libsprops.a:
 
 %: %.c makelib ../libsprops.a
 	@if [ "$?" != "makelib" ]; then \
-		(PS4=; set -x; $(CC) $(CFLAGS) $< -o $@ ../libsprops.a;) \
+	  (PS4=; set -x; $(CC) $(CFLAGS) $< -o $@ ../libsprops.a;) \
 	fi
