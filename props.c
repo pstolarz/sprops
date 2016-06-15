@@ -520,7 +520,7 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
         EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_VAL, p_lval,
             p_gphndl->val.ptr, p_gphndl->val.sz, &p_gphndl->p_info->tkval.len));
 
-        /* matching property found */
+        /* matching element found */
         *p_gphndl->p_eind += 1;
 
         if (p_gphndl->prop.ind==*p_gphndl->p_eind ||
@@ -528,15 +528,17 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
         {
             p_gphndl->p_info->tkname.len = nm_len;
             p_gphndl->p_info->tkname.loc = *p_lname;
+
             if (p_lval) {
                 p_gphndl->p_info->val_pres = 1;
                 p_gphndl->p_info->tkval.loc = *p_lval;
             } else {
                 p_gphndl->p_info->val_pres = 0;
             }
+
             p_gphndl->p_info->ldef = *p_ldef;
 
-            /* done if there is no need to track last property */
+            /* done if there is no need to track last element */
             if (p_gphndl->prop.ind!=SP_IND_LAST) {
                 ret = SPEC_CB_FINISH;
                 *p_gphndl->b.p_finish = 1;
@@ -582,8 +584,7 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     /* matched props tracking index (shared) */
     int eind = -1;
 
-    /* line & columns are 1-based, therefore 0 has
-       a special meaning to distinguish unset state */
+    /* initialize to unset state */
     sp_prop_info_ex_t info;
     memset(&info, 0, sizeof(info));
 
@@ -598,7 +599,6 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     init_base_hndl(&gphndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     gphndl.prop.name = name;
-
     gphndl.prop.ind = ind;
     gphndl.p_eind = &eind;
 
@@ -734,6 +734,136 @@ finish:
     if (p_info) *p_info=info;
     if (p_val) *p_val=v;
     return ret;
+}
+
+/* sp_get_scope_info() handle
+
+   NOTE: This struct is copied during upward-downward process of following
+   a destination scope path.
+ */
+typedef struct _getscp_hndl_t
+{
+    base_hndl_t b;
+
+    /* scope desc. (const) */
+    scope_dsc_t scp;
+
+    /* matched scope tracking index (shared) */
+    int *p_eind;
+
+    /* extra info will be written under this address (shared) */
+    sp_scope_info_ex_t *p_info;
+} getscp_hndl_t;
+
+/* sp_get_scope_info() parser callback: scope */
+static sp_errc_t getscp_cb_scope(const sp_parser_hndl_t *p_phndl,
+    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
+    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    getscp_hndl_t *p_gshndl=(getscp_hndl_t*)p_phndl->cb.arg;
+
+    if (p_gshndl->b.path.beg < p_gshndl->b.path.end) {
+        getscp_hndl_t gshndl = *p_gshndl;
+        CALL_FOLLOW_SCOPE_PATH(gshndl);
+    } else
+    {
+        size_t typ_len = (p_gshndl->scp.type ? strlen(p_gshndl->scp.type) : 0);
+        size_t nm_len = strlen(p_gshndl->scp.name);
+
+        CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, p_gshndl->scp.type, typ_len, 0);
+        CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, p_gshndl->scp.name, nm_len, 0);
+
+        /* matching element found */
+        *p_gshndl->p_eind += 1;
+
+        if (p_gshndl->scp.ind==*p_gshndl->p_eind ||
+            p_gshndl->scp.ind==SP_IND_LAST)
+        {
+            if (p_ltype) {
+                p_gshndl->p_info->type_pres = 1;
+                p_gshndl->p_info->tktype.loc = *p_ltype;
+                EXEC_RG(sp_parser_tkn_cpy(p_phndl, SP_TKN_ID, p_ltype,
+                    NULL, 0, &p_gshndl->p_info->tktype.len));
+            } else {
+                p_gshndl->p_info->type_pres = 0;
+            }
+
+            p_gshndl->p_info->tkname.len = nm_len;
+            p_gshndl->p_info->tkname.loc = *p_lname;
+
+            if (p_lbody) {
+                p_gshndl->p_info->body_pres = 1;
+                p_gshndl->p_info->lbody = *p_lbody;
+            } else {
+                p_gshndl->p_info->body_pres = 0;
+            }
+
+            p_gshndl->p_info->lbdyenc = *p_lbdyenc;
+            p_gshndl->p_info->ldef = *p_ldef;
+
+            /* done if there is no need to track last element */
+            if (p_gshndl->scp.ind!=SP_IND_LAST) {
+                ret = SPEC_CB_FINISH;
+                *p_gshndl->b.p_finish = 1;
+            }
+        }
+    }
+finish:
+    return ret;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_get_scope_info(
+    FILE *in, const sp_loc_t *p_parsc, const char *type, const char *name,
+    int ind, const char *path, const char *deftp, sp_scope_info_ex_t *p_info)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    getscp_hndl_t gshndl;
+    sp_parser_hndl_t phndl;
+
+    /* processing finish flag (shared)
+       set to 1 if requested scope has been found
+       (doesn't apply for SP_IND_LAST) */
+    int f_finish;
+    /* last scope spec. (shared) */
+    lastsc_t lsc;
+    /* split scope tracking index (shared) */
+    int sind;
+    /* matched scopes tracking index (shared) */
+    int eind = -1;
+
+    if (!in || !name || (ind<0 && ind!=SP_IND_LAST) || !p_info)
+    {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
+
+    /* initialize to unset state */
+    memset(p_info, 0, sizeof(*p_info));
+
+    /* prepare the handle */
+    memset(&gshndl, 0, sizeof(gshndl));
+    init_base_hndl(&gshndl.b, &f_finish, &lsc, &sind, path, deftp);
+
+    gshndl.scp.type = type;
+    gshndl.scp.name = name;
+    gshndl.scp.ind = ind;
+    gshndl.p_eind = &eind;
+    gshndl.p_info = p_info;
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, NULL, getscp_cb_scope, &gshndl));
+
+    __PARSE_WITH_LSC_HANDLING(gshndl);
+
+    /* check if the location of the scope definition
+       has not been set, therefore has not been found */
+    if (!p_info->ldef.first_column) ret=SPEC_NOTFOUND;
+
+finish:
+    return ret;
+
 }
 
 typedef enum _eol_t {

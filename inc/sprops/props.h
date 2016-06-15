@@ -140,9 +140,9 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    For split scopes there is possible to provide specific split-scope index
    (0-based) where the iteration shall occur, by appending "@n" to the scope name
    in the NAME token. "@*" names overall (combined) scope and is assumed if no
-   @-specification is provided in NAME. "@$" denotes last split-scope index
-   (usage of this construct shall be avoided due to additional overhead needed
-   for tracking the scope in question).
+   @-addressing is provided in NAME. "@$" denotes last split-scope index (usage
+   of this construct shall be avoided due to additional overhead needed for
+   tracking the scope in question).
 
    NOTE: Both TYPE and NAME may contain escape characters. Primary usage of them
    is escaping ':', '/'  and '@' in the 'path' string to avoid ambiguity with
@@ -169,6 +169,18 @@ typedef struct _sp_prop_info_ex_t
                                    valid only if val_pres is set */
     sp_loc_t ldef;              /* property definition location */
 } sp_prop_info_ex_t;
+
+typedef struct _sp_scope_info_ex_t
+{
+    int type_pres;               /* if !=0: scope type is present */
+    sp_tkn_info_t tktype;       /* scope type token info;
+                                   valid only if type_pres is set */
+    sp_tkn_info_t tkname;       /* scope name token info */
+    int body_pres;              /* if !=0: scope body is present */
+    sp_loc_t lbody;             /* scope body; valid only if body_pres is set */
+    sp_loc_t lbdyenc;           /* scope body content with enclosing brackets */
+    sp_loc_t ldef;              /* scope definition location */
+} sp_scope_info_ex_t;
 
 #define SP_IND_LAST     -1
 #define SP_IND_ALL      -2
@@ -236,6 +248,18 @@ sp_errc_t sp_get_prop_enum(
     FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
     const char *path, const char *deftp, const sp_enumval_t *p_evals,
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
+
+/* Find scope with 'name' and 'type' and write its detailed info under 'p_info'.
+   'path' and 'deftp' specify owning scope of the requested scope. If no scope
+   is found SPEC_NOTFOUND error is returned. The index argument 'ind' enables to
+   specify part of a split scope (SP_IND_LAST - the last one).
+
+   NOTE: One of most useful members of 'sp_scope_info_ex_t' is 'lbody', allowing
+   its further usage as a parsing scope in other functions of the API.
+ */
+sp_errc_t sp_get_scope_info(
+    FILE *in, const sp_loc_t *p_parsc, const char *type, const char *name,
+    int ind, const char *path, const char *deftp, sp_scope_info_ex_t *p_info);
 
 /*
  * Flags specification
@@ -361,9 +385,9 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
 /* Remove a scope of 'name' and 'type' in a scope addressed by 'p_parsc',
    'path' and 'deftp'. The index argument 'ind' enables to specify which part
-   of a split scope to remove (as a special cases: SP_IND_ALL - to remove all
-   scopes constituting a split scope, SP_IND_LAST - remove the last one scope).
-   Additional 'flags' may be used for tune performed removal.
+   of a split scope to remove (SP_IND_ALL - to remove all scopes constituting
+   a split scope, SP_IND_LAST - remove the last one scope).  Additional 'flags'
+   may be used for tune performed removal.
  
    See sp_add_prop() notes for more details.
  */
