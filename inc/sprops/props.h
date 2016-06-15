@@ -303,9 +303,9 @@ sp_errc_t sp_get_prop_enum(
 
 
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
-   (number of elements - scopes/props, before inserted property) in a containing
-   scope addressed by 'p_parsc', 'path' and 'deftp'. Additional 'flags' may be
-   used for tune performed formatting.
+   (number of elements - scopes/props, before inserted property) in a scope
+   addressed by 'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used
+   for tune performed formatting.
 
    NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
    output is confined only to the location specified by the argument. Usage of
@@ -330,15 +330,45 @@ sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *deftp, unsigned long flags);
 
 /* Add (insert) an empty scope of 'name' and 'type' in location 'n_elem'
-   (number of elements - scopes/props before inserted scope) in a containing
-   scope addressed by 'p_parsc', 'path' and 'deftp'. The added scope may be
-   later populated by sp_add_prop() and sp_add_scope(). Additional 'flags' may
-   be used for tune performed formatting.
+   (number of elements - scopes/props before inserted scope) in a scope
+   addressed by 'p_parsc', 'path' and 'deftp'. The added scope may be later
+   populated by sp_add_prop() and sp_add_scope(). Additional 'flags' may be
+   used for tune performed formatting.
 
    See sp_add_prop() notes for more details.
  */
 sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int n_elem, const char *path,
+    const char *deftp, unsigned long flags);
+
+/* Remove a property of 'name' with index 'ind' in a scope addressed by
+   'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used for tune
+   performed removal.
+
+   NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to remove all/last
+   property identified by 'name'.
+   NOTE 2: The function returns SPEC_NOTFOUND if the destination scope is not
+   found. Nonetheless, the input is copied w/o any changes to the output in this
+   case (so, this is more a warning than an error). If the destination scope has
+   been found but the property is absent, the function returns SPEC_SUCCESS and
+   input is copied w/o any changes to the output.
+
+   See sp_add_prop() notes for more details.
+ */
+sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, int ind, const char *path, const char *deftp,
+    unsigned long flags);
+
+/* Remove a scope of 'name' and 'type' in a scope addressed by 'p_parsc',
+   'path' and 'deftp'. The index argument 'ind' enables to specify which part
+   of a split scope to remove (as a special cases: SP_IND_ALL - to remove all
+   scopes constituting a split scope, SP_IND_LAST - remove the last one scope).
+   Additional 'flags' may be used for tune performed removal.
+ 
+   See sp_add_prop() notes for more details.
+ */
+sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *type, const char *name, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
 #ifdef __cplusplus

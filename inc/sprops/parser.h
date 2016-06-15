@@ -13,7 +13,7 @@
 #ifndef __SP_PARSER_H__
 #define __SP_PARSER_H__
 
-#include "sp_props/props.h"
+#include "sprops/props.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include "sp_props/props.h"
+#include "sprops/props.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 

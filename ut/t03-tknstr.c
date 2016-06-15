@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../config.h"
-#include "sp_props/parser.h"
+#include "sprops/parser.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 

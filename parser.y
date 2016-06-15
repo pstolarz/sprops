@@ -16,7 +16,7 @@
 #include <errno.h>
 #include <string.h>
 #include "config.h"
-#include "sp_props/parser.h"
+#include "sprops/parser.h"
 
 /* EOL char code (platform independent) */
 #define EOL (EOF-1)

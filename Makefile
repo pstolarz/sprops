@@ -18,11 +18,11 @@ clean:
 	$(MAKE) -C./ut clean
 
 config.h=config.h
-./inc/sp_props/props.h=./inc/sp_props/props.h
-./inc/sp_props/parser.h=./inc/sp_props/parser.h $(./inc/sp_props/props.h)
+./inc/sprops/props.h=./inc/sprops/props.h
+./inc/sprops/parser.h=./inc/sprops/parser.h $(./inc/sprops/props.h)
 
-parser.o: $(./inc/sp_props/parser.h)
-props.o: $(./inc/sp_props/props.h)
+parser.o: $(./inc/sprops/parser.h)
+props.o: $(./inc/sprops/props.h)
 
 parser.c: parser.y
 	$(YACC) $< -o $@

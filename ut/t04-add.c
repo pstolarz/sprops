@@ -12,7 +12,7 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include "sp_props/props.h"
+#include "sprops/props.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
@@ -163,7 +163,7 @@ int main(void)
         "/2@$", "scope",
         indf|SP_F_EXTEOL));
 
-    printf("\n--- Prop w/o value added to: /, elm:LAST|EXTEOL\n");
+    printf("\n--- Prop w/o value added to: /, elm:LAST, flags:EXTEOL\n");
     EXEC_RG(sp_add_prop(
         in, stdout,
         NULL,

@@ -80,8 +80,8 @@ API specification
 -----------------
 
 The library provides two types of API:
- - Low level parser API with header: inc/sp_props/parser.h,
- - High level functional API with header: inc/sp_props/props.h.
+ - Low level parser API with header: inc/sprops/parser.h,
+ - High level functional API with header: inc/sprops/props.h.
 
 The first type of API defines low level, parser specific functionality and is
 not intended to be used unless, for some reason, you need a direct cooperation
