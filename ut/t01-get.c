@@ -19,6 +19,8 @@
 
 static void print_prop_info(const sp_prop_info_ex_t *p_info)
 {
+    printf("ELM %d, ", p_info->n_elem);
+
     printf("NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
         p_info->tkname.len,
         p_info->tkname.loc.first_line,
@@ -44,6 +46,8 @@ static void print_prop_info(const sp_prop_info_ex_t *p_info)
 
 static void print_scope_info(const sp_scope_info_ex_t *p_info)
 {
+    printf("ELM %d, ", p_info->n_elem);
+
     printf("NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
         p_info->tkname.len,
         p_info->tkname.loc.first_line,
@@ -190,8 +194,8 @@ int main(void)
     print_str_prop("/", "}'\"{", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, ";\"'#", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
-    print_str_prop("/", ";\"'#", 0, buf1, &pi);
+        in, NULL, ";\"'#", SP_IND_LAST, NULL, NULL, buf1, sizeof(buf1), &pi));
+    print_str_prop("/", ";\"'#", SP_IND_LAST, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
         in, NULL, "a", 0, "/:\\'\\:\\x20\\/", NULL, buf1, sizeof(buf1), &pi));
@@ -298,8 +302,9 @@ int main(void)
 
     printf("\n--- Scopes info\n");
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "': /", 0, NULL, NULL, &si));
-    print_scope("/", "': /", 0, &si);
+    EXEC_RG(sp_get_scope_info(
+        in, NULL, NULL, "': /", SP_IND_LAST, NULL, NULL, &si));
+    print_scope("/", "': /", SP_IND_LAST, &si);
 
     EXEC_RG(sp_get_scope_info(in, NULL, "scope", "1", 0, "/", NULL, &si));
     print_scope("/", "/scope:1", 0, &si);
@@ -325,11 +330,32 @@ int main(void)
     EXEC_RG(sp_get_scope_info(in, NULL, NULL, "scope", 0, NULL, NULL, &si));
     print_scope("/", "/:scope", 0, &si);
 
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 0, NULL, NULL, &si));
+    print_scope("/", "/:1", 0, &si);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 0, "/:1", NULL, &si));
+    print_scope("/:1", "/:2", 0, &si);
+
     EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 0, "1/2", "", &si));
     print_scope("/:1/:2", "/:3", 0, &si);
 
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 1, NULL, NULL, &si));
+    print_scope("/", "/:1", 1, &si);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 1, "/:1", NULL, &si));
+    print_scope("/:1", "/:2", 1, &si);
+
     EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 1, "1/2", "", &si));
     print_scope("/:1/:2", "/:3", 1, &si);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 2, NULL, NULL, &si));
+    print_scope("/", "/:1", 2, &si);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 2, "/:1", NULL, &si));
+    print_scope("/:1", "/:2", 2, &si);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 2, "1/2", "", &si));
+    print_scope("/:1/:2", "/:3", 2, &si);
 
     EXEC_RG(sp_get_scope_info(in, NULL, "scope", "xyz", 0, "1/2/3", "", &si));
     print_scope("/:1/:2/:3", "/scope:xyz", 0, &si);
@@ -345,6 +371,9 @@ int main(void)
     EXEC_RG(sp_get_scope_info(
         in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@1", "", &si));
     print_scope("/:1@2/:2@1", "/:3", SP_IND_LAST, &si);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 3, "/:1", NULL, &si));
+    print_scope("/:1", "/:2", 3, &si);
 
     EXEC_RG(sp_get_scope_info(in, NULL, "scope", "3", 0, "/", NULL, &si));
     print_scope("/", "/scope:3", 0, &si);

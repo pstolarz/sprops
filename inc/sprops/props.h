@@ -164,10 +164,16 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
 typedef struct _sp_prop_info_ex_t
 {
     sp_tkn_info_t tkname;       /* property name token info */
+
     int val_pres;               /* if !=0: property value is present */
     sp_tkn_info_t tkval;        /* property value token info;
                                    valid only if val_pres is set */
+
     sp_loc_t ldef;              /* property definition location */
+
+    int n_elem;                 /* number of elements before the property
+                                   NOTE: the value is dependant on type of
+                                   containing scope used in a query */
 } sp_prop_info_ex_t;
 
 typedef struct _sp_scope_info_ex_t
@@ -175,11 +181,19 @@ typedef struct _sp_scope_info_ex_t
     int type_pres;               /* if !=0: scope type is present */
     sp_tkn_info_t tktype;       /* scope type token info;
                                    valid only if type_pres is set */
+
     sp_tkn_info_t tkname;       /* scope name token info */
+
     int body_pres;              /* if !=0: scope body is present */
     sp_loc_t lbody;             /* scope body; valid only if body_pres is set */
+
     sp_loc_t lbdyenc;           /* scope body content with enclosing brackets */
+
     sp_loc_t ldef;              /* scope definition location */
+
+    int n_elem;                 /* number of elements before the property
+                                   NOTE: the value is dependant on type of
+                                   containing scope used in a query */
 } sp_scope_info_ex_t;
 
 #define SP_IND_LAST     -1

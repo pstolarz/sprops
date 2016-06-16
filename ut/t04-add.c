@@ -194,7 +194,7 @@ int main(void)
 
 #undef __ITER_ADD
 
-    /* check for some addressing errors */
+    /* not existent elements */
 
     assert(sp_add_prop(
         in, stdout,

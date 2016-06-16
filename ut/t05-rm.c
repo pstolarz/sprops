@@ -127,7 +127,25 @@ int main(void)
         NULL, NULL,
         SP_F_EXTEOL));
 
-    printf("\n--- END\n");
+    /* not existent elements */
+
+    printf("\n--- Del absent prop 3, own-scope /\n");
+    assert(sp_rm_prop(
+        in, stdout,
+        NULL,
+        "3",
+        0,
+        "/", NULL,
+        0)==SPEC_SUCCESS);
+
+    printf("\n--- Del prop 1 in absent own-scope /:1\n");
+    assert(sp_rm_prop(
+        in, stdout,
+        NULL,
+        "1",
+        0,
+        "/:1", NULL,
+        0)==SPEC_NOTFOUND);
 
 finish:
     if (ret) printf("Error: %d\n", ret);
