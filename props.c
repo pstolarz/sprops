@@ -1081,7 +1081,7 @@ static sp_errc_t put_ind(
     }
 
     if (flgs & IND_F_SCBDY) {
-        n = (int)(p_bu->flags & SP_MSK_SPIND);
+        n = (int)SP_F_GET_SPIND(p_bu->flags);
         c = (!n ? (n++, '\t') : ' ');
         for (; n; n--) { CHK_FERR(fputc(c, p_bu->out)); }
     }

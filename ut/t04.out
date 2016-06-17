@@ -1,0 +1,160 @@
+--- Prop added to: /, elm:0, flags:EXTEOL
+PROP = VAL;
+
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Prop w/o value added to: /, elm:1
+1;
+PROP;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Scope added to: /scope:2, elm:0
+1;
+scope 2 {
+    TYPE SCOPE {
+    }
+}
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Scope added to: /scope:2@0, elm:LAST, flags:EMPCPT|EXTEOL
+1;
+scope 2 {
+    TYPE SCOPE;
+
+}
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Scope w/o type added to: /scope:2@1, elm:0, flags:EMPCPT
+1;
+scope 2;
+scope 2 {
+    SCOPE {}
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Scope w/o type added to: /scope:2/scope:2, elm:LAST, flags:EMPCPT|SPLBRA|EXTEOL
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+        SCOPE
+        {}
+
+    }
+}
+scope 2 {}
+
+--- Scope added to: /scope:2, elm:LAST, flags:SPLBRA
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+    TYPE SCOPE
+    {
+    }
+}
+scope 2 {}
+
+--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {
+    PROP = VAL;
+
+}
+
+--- Prop w/o value added to: /, elm:LAST, flags:EXTEOL
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+PROP;
+
+
+--- Adding scope to /scope:2 during / scope iteration, elm:0, flags:EXTEOL
+1;
+scope 2;
+scope 2 {
+    TYPE SCOPE {
+    }
+
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Adding scope to /scope:2 during / scope iteration, elm:1, flags:EMPCPT
+1;
+scope 2;
+scope 2 {
+    1;
+    TYPE SCOPE;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+--- Adding scope to /scope:2 during / scope iteration, elm:LAST, flags:SPLBRA|EXTEOL
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+    TYPE SCOPE
+    {
+    }
+
+}
+scope 2 {}

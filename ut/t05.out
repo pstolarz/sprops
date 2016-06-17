@@ -1,0 +1,145 @@
+--- Del prop 1, own-scope: /, elm:0, flags:EXTEOL
+2; scope 3; 4;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+2;
+
+--- Del prop 2, own-scope /, elm:ALL
+1;
+
+scope 3; 4;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+
+--- Del scope:3, own-scope /, elm:LAST
+1;
+
+2; 4;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+2;
+
+--- Del prop 4, own-scope /, elm:0, flags:EXTEOL
+1;
+
+2; scope 3;
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+2;
+
+--- Del prop 4, own-scope /, elm:LAST
+1;
+
+2; scope 3;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+2;
+
+--- Del scope :5, own-scope /, elm:LAST, flags:EXTEOL
+1;
+
+2; scope 3; 4;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+2;
+
+--- Del scope :5, own-scope /, elm:ALL
+1;
+
+2; scope 3; 4;
+
+2;
+
+--- Del prop 1, own-scope /:5, elm:0
+1;
+
+2; scope 3; 4;
+
+5 {
+    scope 2;
+    3;
+
+}
+5 {}
+2;
+
+--- Del prop 3, own-scope /:5, elm:0, flags:EXTEOL
+1;
+
+2; scope 3; 4;
+
+5 {
+    1;
+    scope 2;
+}
+5 {}
+2;
+
+--- Del prop 1, parsing scope /:5, elm:0
+    scope 2;
+    3;
+--- Del prop 3, parsing scope /:5, elm:0, flags:EXTEOL
+1;
+    scope 2;
+
+--- Del absent prop 3, own-scope /
+1;
+
+2; scope 3; 4;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+2;
+
+--- Del prop 1 in absent own-scope /:1
+1;
+
+2; scope 3; 4;
+
+5 {
+    1;
+    scope 2;
+    3;
+
+}
+5 {}
+2;

@@ -281,13 +281,13 @@ sp_errc_t sp_get_scope_info(
 
 /* Use n (1-8) spaces as indent; if 0 - single tab is used
  */
-#define SP_F_SPIND(n)   ((unsigned)(n)>8 ? 8U : (unsigned)(n))
+#define SP_F_SPIND(n)       ((unsigned)(n)>8 ? 8U : (unsigned)(n))
 
 /* Use single tab as indent; SP_F_SPIND(0) acronym
  */
-#define SP_F_TBIND      SP_F_SPIND(0)
+#define SP_F_TBIND          SP_F_SPIND(0)
 
-#define SP_MSK_SPIND    0x0fU
+#define SP_F_GET_SPIND(f)   ((f)&0x0fU)
 
 /* Keep opening bracket of a scope body in separate line rather than in-lined
    with the scope header. That is:
