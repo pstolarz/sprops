@@ -25,9 +25,9 @@ int main(void)
     char fbuf[64];
     FILE *f=NULL;
 
-#define __TEST(tkn, in, exp) \
+#define __TEST(tkn, in, exp, flgs) \
     fflush(f); memset(fbuf, 0, sizeof(fbuf)); \
-    EXEC_RG(sp_parser_tokenize_str(f, (tkn), (in))); \
+    EXEC_RG(sp_parser_tokenize_str(f, (tkn), (in), (flgs))); \
     printf("IN<%s> OUT<%s>\n", (in), fbuf); \
     assert(!strcmp(fbuf, (exp)));
 
@@ -47,50 +47,73 @@ int main(void)
     printf("\n--- SP_TKN_ID tokenizing\n");
 
     /* simplest case; no escaping required */
-    __TEST(SP_TKN_ID, "abc", "abc");
+    __TEST(SP_TKN_ID, "abc", "abc", 0);
 
     /* various printable, non-space, non-reserved chars;
        no escaping/quotation required */
-    __TEST(SP_TKN_ID, "+-*/%()[]|&:@/,.!?\"'$^", "+-*/%()[]|&:@/,.!?\"'$^");
+    __TEST(SP_TKN_ID, "+-*/%()[]|&:@/,.!?\"'$^", "+-*/%()[]|&:@/,.!?\"'$^", 0);
 
     /* similar to previous, but first quotation char need to be escaped */
-    __TEST(SP_TKN_ID, "\"abc\"", "\\\"abc\"");
-    __TEST(SP_TKN_ID, "'abc'", "\\'abc'");
+    __TEST(SP_TKN_ID, "\"abc\"", "\\\"abc\"", 0);
+    __TEST(SP_TKN_ID, "'abc'", "\\'abc'", 0);
 
     /* space chars + backslash; escaping inside quotation */
-    __TEST(SP_TKN_ID, "\n\t\\", "\"\\n\\t\\\\\"");
+    __TEST(SP_TKN_ID, "\n\t\\", "\"\\n\\t\\\\\"", 0);
 
     /* space; quotation inside ' since " is present */
-    __TEST(SP_TKN_ID, "a b\"c\"", "'a b\"c\"'");
+    __TEST(SP_TKN_ID, "a b\"c\"", "'a b\"c\"'", 0);
 
     /* reserved chars; quotation inside " */
-    __TEST(SP_TKN_ID, "{=}#", "\"{=}#\"");
+    __TEST(SP_TKN_ID, "{=}#", "\"{=}#\"", 0);
 
 
     printf("\n--- SP_TKN_VAL tokenizing\n");
 
     /* no escaping required */
-    __TEST(SP_TKN_VAL, "\"abc'd !?/*", "\"abc'd !?/*");
+    __TEST(SP_TKN_VAL, "\"abc'd !?/*", "\"abc'd !?/*", 0);
 
     /* non printable chars + backslash; escaping */
-    __TEST(SP_TKN_VAL, "\n\t\a\\", "\\n\\t\\a\\\\");
+    __TEST(SP_TKN_VAL, "\n\t\a\\", "\\n\\t\\a\\\\", 0);
 
     /* semicolon escaping */
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
-    __TEST(SP_TKN_VAL, "abc;", "abc\\;");
+    __TEST(SP_TKN_VAL, "abc;", "abc\\;", 0);
 #else
-    __TEST(SP_TKN_VAL, "abc;", "abc;");
+    __TEST(SP_TKN_VAL, "abc;", "abc;", 0);
 #endif
 
     /* val with leading spaces */
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
-    __TEST(SP_TKN_VAL, "  abc", "\\  abc");
+    __TEST(SP_TKN_VAL, "  abc", "\\  abc", 0);
 #else
-    __TEST(SP_TKN_VAL, "  abc", "  abc");
+    __TEST(SP_TKN_VAL, "  abc", "  abc", 0);
 #endif
 
     /* val with trailing spaces (last escaped by \x) */
-    __TEST(SP_TKN_VAL, "abc  ", "abc \\x20");
+    __TEST(SP_TKN_VAL, "abc  ", "abc \\x20", 0);
+
+#if (SPAR_MIN_CV_LEN != 10)
+# error SPAR_MIN_CV_LEN must be 10 for this test
+#endif
+
+    /* val cuts tests */
+    __TEST(SP_TKN_VAL, "0123456789", "0123456789", SPAR_F_CVLEN(10));
+
+    __TEST(SP_TKN_VAL, "0123456789012345",
+        "0123456789\\" "\x0a" "012345",
+        SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_LF));
+
+    __TEST(SP_TKN_VAL, "01234567890123456789",
+        "0123456789\\" "\x0d" "\x0a" "0123456789",
+        SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_CRLF));
+
+    __TEST(SP_TKN_VAL, "01234567890123456789012",
+        "0123456789\\\n0123456789\\\n012",
+        SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_PLAT));
+
+    __TEST(SP_TKN_VAL, "012345678\n12345 ",
+        "012345678\\\n\\n12345\\\n\\x20",
+        SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_PLAT));
 
 finish:
     if (ret) printf("Error: %d\n", ret);

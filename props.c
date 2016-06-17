@@ -895,12 +895,6 @@ finish:
 
 }
 
-typedef enum _eol_t {
-    EOL_LF=0,       /* unix */
-    EOL_CRLF,       /* win */
-    EOL_CR          /* legacy mac */
-} eol_t;
-
 /* Base struct for update handles.
  */
 typedef struct _base_updt_hndl_t
@@ -919,7 +913,7 @@ typedef struct _base_updt_hndl_t
     unsigned long flags;
 
     /* type of EOL detected */
-    eol_t eol_typ;
+    sp_eol_t eol_typ;
 } base_updt_hndl_t;
 
 /* Initialize base_updt_hndl_t struct.
@@ -939,7 +933,7 @@ static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
     /* detect EOL */
     if (fseek(in, 0, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
 
-    p_bu->eol_typ = (eol_t)-1;
+    p_bu->eol_typ=EOL_PLAT;
     while ((c=fgetc(in))!=EOF)
     {
         if (c=='\n') {
@@ -953,9 +947,8 @@ static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
         }
     }
 
-    /* if no EOL is present in the input set it basing on the compiler
-       specific defs */
-    if (p_bu->eol_typ==(eol_t)-1)
+    /* compilation platform specific */
+    if (p_bu->eol_typ==EOL_PLAT)
     {
         p_bu->eol_typ =
 #if defined(_WIN32) || defined(_WIN64)
@@ -1040,6 +1033,7 @@ static sp_errc_t put_eol(const base_updt_hndl_t *p_bu)
     sp_errc_t ret=SPEC_SUCCESS;
 
     switch (p_bu->eol_typ) {
+        default:
         case EOL_LF:
             CHK_FERR(fputc('\n', p_bu->out));
             break;
@@ -1246,7 +1240,7 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
     if (prop_nm)
     {
         /* element is a property */
-        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, prop_nm));
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, prop_nm, 0));
         if (prop_val)
         {
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
@@ -1254,7 +1248,7 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
 #else
             CHK_FERR(fputc('=', p_bu->out));
 #endif
-            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val));
+            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val, 0));
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             CHK_FERR(fputc(';', p_bu->out));
 #else
@@ -1268,10 +1262,10 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
     {
         /* element is a scope */
         if (sc_typ) {
-            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_typ));
+            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_typ, 0));
             CHK_FERR(fputc(' ', p_bu->out));
         }
-        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_nm));
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_nm, 0));
 
         if (p_bu->flags & SP_F_SPLBRA) {
             EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));

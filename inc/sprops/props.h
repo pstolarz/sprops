@@ -54,6 +54,14 @@ typedef enum _sp_errc_t
     SPEC_CB_BASE = 20
 } sp_errc_t;
 
+/* EOL types */
+typedef enum _sp_eol_t {
+    EOL_PLAT=0,     /* compilation platform specific */
+    EOL_LF,         /* unix */
+    EOL_CRLF,       /* win */
+    EOL_CR          /* legacy mac */
+} sp_eol_t;
+
 /* parsing location */
 typedef struct _sp_loc_t {
     /* stream offsets */
@@ -279,15 +287,16 @@ sp_errc_t sp_get_scope_info(
  * Flags specification
  */
 
-/* Use n (1-8) spaces as indent; if 0 - single tab is used
+/* Use n (1-8) spaces as indent; if 0 - single tab is used.
  */
-#define SP_F_SPIND(n)       ((unsigned)(n)>8 ? 8U : (unsigned)(n))
+#define SP_F_SPIND(n)       ((unsigned long)(n)>8 ? 8UL : (unsigned long)(n))
 
-/* Use single tab as indent; SP_F_SPIND(0) acronym
+/* Use single tab as indent; SP_F_SPIND(0) acronym.
  */
 #define SP_F_TBIND          SP_F_SPIND(0)
 
-#define SP_F_GET_SPIND(f)   ((f)&0x0fU)
+/* internal use only */
+#define SP_F_GET_SPIND(f)   ((unsigned long)(f) & 0x0f)
 
 /* Keep opening bracket of a scope body in separate line rather than in-lined
    with the scope header. That is:
@@ -301,7 +310,7 @@ sp_errc_t sp_get_scope_info(
    scope {
    }
  */
-#define SP_F_SPLBRA     0x0010U
+#define SP_F_SPLBRA     0x0010UL
 
 /* Use compact version for an empty scope definition. That is:
 
@@ -327,17 +336,17 @@ sp_errc_t sp_get_scope_info(
    {
    }
  */
-#define SP_F_EMPCPT     0x0020U
+#define SP_F_EMPCPT     0x0020UL
 
 /* Element addition - put an extra EOL after the inserted element,
    Element removal - delete an extra EOL (if exists) after the removed element.
  */
-#define SP_F_EXTEOL     0x0040U
+#define SP_F_EXTEOL     0x0040UL
 
 /* If adding  element on the global scope's end, don't put an extra EOL after
    it. Effectively, the element will be finished by EOF.
  */
-#define SP_F_NLSTEOL    0x0080U
+#define SP_F_NLSTEOL    0x0080UL
 
 
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
@@ -402,7 +411,7 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
    of a split scope to remove (SP_IND_ALL - to remove all scopes constituting
    a split scope, SP_IND_LAST - remove the last one scope).  Additional 'flags'
    may be used for tune performed removal.
- 
+
    See sp_add_prop() notes for more details.
  */
 sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,

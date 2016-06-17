@@ -2447,17 +2447,59 @@ finish:
 
 /* exported; see header for details */
 sp_errc_t sp_parser_tokenize_str(
-    FILE *out, sp_parser_token_t tkn, const char *str)
+    FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int quot_chr=-1, c;
     const char *in;
 
+    char bf[16];
+    size_t bfs=0, i, cvi;
+    unsigned cvlen = SPAR_F_GET_CVLEN(cv_flags);
+    sp_eol_t cveol = SPAR_F_GET_CVEOL(cv_flags);
+
 #define __CHK_FERR(c) if ((c)==EOF) goto finish;
 #define __CHK_FPRF(c) if ((c)<0) goto finish;
 
-    if (!out || !str) { ret=SPEC_INV_ARG; goto finish; }
-    if (!(strlen(str))) { ret=SPEC_SUCCESS; goto finish; }
+    if (!out || !str || (tkn==SP_TKN_VAL && cvlen>0 && cvlen<SPAR_MIN_CV_LEN))
+    {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
+
+    if (!(strlen(str))) {
+        ret=SPEC_SUCCESS;
+        goto finish;
+    }
+
+    if (tkn==SP_TKN_VAL)
+    {
+        bf[bfs++] = '\\';
+
+        switch (cveol)
+        {
+        case EOL_LF:
+            bf[bfs++] = '\n';
+            break;
+
+        case EOL_CRLF:
+            bf[bfs++] = '\r';
+            bf[bfs++] = '\n';
+            break;
+
+        case EOL_CR:
+            bf[bfs++] = '\r';
+            break;
+
+        /* compilation platform specific */
+        default:
+#if defined(_WIN32) || defined(_WIN64)
+            bf[bfs++] = '\r';
+#endif
+            bf[bfs++] = '\n';
+            break;
+        }
+    }
 
     in = str;
     if (tkn==SP_TKN_ID)
@@ -2485,7 +2527,7 @@ sp_errc_t sp_parser_tokenize_str(
         }
     }
 
-    while ((c=(*in++ & 0xff))!=0)
+    for (i=bfs, cvi=0; (c=(*in++ & 0xff))!=0;)
     {
         if (!isprint(c) || c=='\\' || c==quot_chr
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
@@ -2504,45 +2546,59 @@ sp_errc_t sp_parser_tokenize_str(
            )
         {
             /* char need to escaped */
-            __CHK_FERR(fputc('\\', out));
+            bf[i++] = '\\';
 
             switch (c)
             {
             case '\a':
-                __CHK_FERR(fputc('a', out));
+                bf[i++] = 'a';
                 break;
             case '\b':
-                __CHK_FERR(fputc('b', out));
+                bf[i++] = 'b';
                 break;
             case '\f':
-                __CHK_FERR(fputc('f', out));
+                bf[i++] = 'f';
                 break;
             case '\n':
-                __CHK_FERR(fputc('n', out));
+                bf[i++] = 'n';
                 break;
             case '\r':
-                __CHK_FERR(fputc('r', out));
+                bf[i++] = 'r';
                 break;
             case '\t':
-                __CHK_FERR(fputc('t', out));
+                bf[i++] = 't';
                 break;
             case '\v':
-                __CHK_FERR(fputc('v', out));
+                bf[i++] = 'v';
                 break;
             case '\\':
-                __CHK_FERR(fputc('\\', out));
+                bf[i++] = '\\';
                 break;
             default:
                 if (!isprint(c) || (isspace(c) && !*in)) {
-                    __CHK_FPRF(fprintf(out, "x%02x", c));
+                    sprintf(&bf[i], "x%02x", c);
+                    i+=3;
                 } else {
-                    __CHK_FERR(fputc(c, out));
+                    bf[i++] = c;
                 }
                 break;
             }
         } else {
-            __CHK_FERR(fputc(c, out));
+            bf[i++] = c;
         }
+
+        bf[i] = 0;
+
+        /* check if a SP_TKN_VAL token cut is needed */
+        if (tkn==SP_TKN_VAL && cvlen>0 && (cvi+i-bfs)>cvlen) {
+            __CHK_FERR(fputs(&bf[0], out));
+            cvi = 0;
+        } else {
+            __CHK_FERR(fputs(&bf[bfs], out));
+        }
+
+        cvi += i-bfs;
+        i = bfs;
     }
 
     if (quot_chr>=0) {

@@ -131,11 +131,30 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
     sp_parser_token_t tkn, const sp_loc_t *p_loc, const char *str,
     size_t max_num, int stresc, int *p_equ);
 
+#define SPAR_MIN_CV_LEN     10
+
+/* Set cut SP_TKN_VAL token length. 0: no length constraint, otherwise 'n' must
+   be >= SPAR_MIN_CV_LEN and <= 255.
+ */
+#define SPAR_F_CVLEN(n)     ((unsigned)(n) & 0xff)
+
+/* internal use only */
+#define SPAR_F_GET_CVLEN(f) SPAR_F_CVLEN(f)
+
+/* Set type of EOL used for SP_TKN_VAL token cut.
+ */
+#define SPAR_F_CVEOL(eol)   (((unsigned)(eol) & 3) << 8)
+
+/* internal use only */
+#define SPAR_F_GET_CVEOL(f) ((sp_eol_t)(((unsigned)(f)>>8) & 3))
+
 /* Tokenize string 'str' into token of type 'tkn' and write it to the output
-   'out' (must be opened in the binary mode with write access).
+   'out' (must be opened in the binary mode with write access). The function
+   allows to specify SPAR_F_CV* flags controlling cutting an SP_TKN_VAL token
+   if its length exceeds some threshold.
  */
 sp_errc_t sp_parser_tokenize_str(
-    FILE *out, sp_parser_token_t tkn, const char *str);
+    FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags);
 
 #ifdef __cplusplus
 }
