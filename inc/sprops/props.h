@@ -352,7 +352,8 @@ sp_errc_t sp_get_scope_info(
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
    (number of elements - scopes/props, before inserted property) in a scope
    addressed by 'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used
-   for tune performed formatting.
+   for tune performed formatting (SP_F_SPIND, SP_F_SPLBRA, SP_F_EMPCPT,
+   SP_F_EXTEOL, SP_F_NLSTEOL).
 
    NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
    output is confined only to the location specified by the argument. Usage of
@@ -380,7 +381,8 @@ sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
    (number of elements - scopes/props before inserted scope) in a scope
    addressed by 'p_parsc', 'path' and 'deftp'. The added scope may be later
    populated by sp_add_prop() and sp_add_scope(). Additional 'flags' may be
-   used for tune performed formatting.
+   used for tune performed formatting (SP_F_SPIND, SP_F_SPLBRA, SP_F_EMPCPT,
+   SP_F_EXTEOL, SP_F_NLSTEOL).
 
    See sp_add_prop() notes for more details.
  */
@@ -390,7 +392,7 @@ sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
 /* Remove a property of 'name' with index 'ind' in a scope addressed by
    'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used for tune
-   performed removal.
+   performed removal (SP_F_EXTEOL).
 
    NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to remove all/last
    property identified by 'name'.
@@ -410,7 +412,7 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
    'path' and 'deftp'. The index argument 'ind' enables to specify which part
    of a split scope to remove (SP_IND_ALL - to remove all scopes constituting
    a split scope, SP_IND_LAST - remove the last one scope).  Additional 'flags'
-   may be used for tune performed removal.
+   may be used for tune performed removal (SP_F_EXTEOL).
 
    See sp_add_prop() notes for more details.
  */

@@ -1094,7 +1094,7 @@ finish:
    IND_F_CHKEOL - don't do anything if the in-off points to the end of line
    (possibly followed by spaces). An extra EOL is written nonetheless if
    IND_F_EXTEOL is also specified and the configuration requires this.
-   IND_F_EXTEOL - put an extra EOL if required.
+   IND_F_EXTEOL - put an extra EOL if required by user flags.
  */
 static sp_errc_t put_eol_ind(
     base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
@@ -1252,7 +1252,8 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             CHK_FERR(fputc(';', p_bu->out));
 #else
-            *p_traileol = 1;     /* added value need to be finished by EOL */
+            /* added value need to be finished by EOL */
+            *p_traileol = 1;
 #endif
         } else {
             CHK_FERR(fputc(';', p_bu->out));
@@ -1466,6 +1467,13 @@ sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         in, out, p_parsc, NULL, NULL, type, name, n_elem, path, deftp, flags);
 }
 
+typedef enum _fndstat_t
+{
+    ELM_NOT_FND=0,  /* element and its destination scope was not found */
+    ELM_DEST_FND,   /* destination scope found but not an element in it */
+    ELM_FND         /* element was found */
+} fndstat_t;
+
 /* rm_elem() handle
 
    NOTE: This struct is copied during upward-downward process of following
@@ -1489,10 +1497,10 @@ typedef struct _rm_hndl_t
     /* matched elements tracking index (shared) */
     int *p_eind;
 
-    /* if !=0 - destination scope was found (shared) */
-    int *p_dest_fnd;
+    /* found status (shared) */
+    fndstat_t *p_fndstat;
 
-    /* last element spec. (shared) */
+    /* last element def. for @$-addressing (shared) */
     sp_loc_t *p_lst_ldef;
 } rm_hndl_t;
 
@@ -1553,6 +1561,7 @@ finish:
 }
 
 #define __RM_LDEF(ind) \
+    *p_rhndl->p_fndstat = ELM_FND; \
     *p_rhndl->p_eind += 1; \
     if ((ind)==*p_rhndl->p_eind) { \
         EXEC_RG(cpy_rm_ldef(p_rhndl->p_bu, p_ldef)); \
@@ -1577,7 +1586,7 @@ static sp_errc_t rm_cb_prop(const sp_parser_hndl_t *p_phndl,
     {
         size_t nm_len = strlen(p_rhndl->e.prop.name);
 
-        if (!*p_rhndl->p_dest_fnd) *p_rhndl->p_dest_fnd=1;
+        if (*p_rhndl->p_fndstat==ELM_NOT_FND) *p_rhndl->p_fndstat=ELM_DEST_FND;
         CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, p_rhndl->e.prop.name, nm_len, 0);
 
         /* matching element found */
@@ -1604,7 +1613,7 @@ static sp_errc_t rm_cb_scope(const sp_parser_hndl_t *p_phndl,
         size_t typ_len = (p_rhndl->e.scp.type ? strlen(p_rhndl->e.scp.type) : 0);
         size_t nm_len = strlen(p_rhndl->e.scp.name);
 
-        if (!*p_rhndl->p_dest_fnd) *p_rhndl->p_dest_fnd=1;
+        if (*p_rhndl->p_fndstat==ELM_NOT_FND) *p_rhndl->p_fndstat=ELM_DEST_FND;
         CMPLOC_RG(p_phndl, SP_TKN_ID, p_ltype, p_rhndl->e.scp.type, typ_len, 0);
         CMPLOC_RG(p_phndl, SP_TKN_ID, p_lname, p_rhndl->e.scp.name, nm_len, 0);
 
@@ -1639,9 +1648,9 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     base_updt_hndl_t bu;
     /* matched elements tracking index (shared) */
     int eind = -1;
-    /* destination scope was found flag (shared) */
-    int dest_fnd = 0;
-    /* last element spec.; zero initialized - unset (shared) */
+    /* found status (shared) */
+    fndstat_t fndstat = ELM_NOT_FND;
+    /* last element def.; zero initialized - unset (shared) */
     sp_loc_t lst_ldef;
     memset(&lst_ldef, 0, sizeof(lst_ldef));
 
@@ -1672,7 +1681,7 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     }
 
     rhndl.p_eind = &eind;
-    rhndl.p_dest_fnd = &dest_fnd;
+    rhndl.p_fndstat = &fndstat;
     rhndl.p_lst_ldef = &lst_ldef;
 
     EXEC_RG(sp_parser_hndl_init(
@@ -1688,8 +1697,11 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     /* copy untouched last part of the input */
     EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
 
-    /* destination scope was not found (nonetheless the output is copied) */
-    if (!dest_fnd) ret=SPEC_NOTFOUND;
+    if (fndstat==ELM_NOT_FND) {
+        /* destination scope was not found (nonetheless the output is copied) */
+        ret=SPEC_NOTFOUND;
+    }
+
 finish:
     return ret;
 }
@@ -1708,6 +1720,189 @@ sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *deftp, unsigned long flags)
 {
     return rm_elem(in, out, p_parsc, NULL, type, name, ind, path, deftp, flags);
+}
+
+typedef union _mod_lst_t
+{
+    struct {
+        sp_loc_t lname;
+        sp_loc_t lval;
+        sp_loc_t ldef;
+    } prop;
+
+    struct {
+        sp_loc_t ltype;
+        sp_loc_t lname;
+        sp_loc_t lbdyenc;
+    } scp;
+} mod_lst_t;
+
+/* mod_elem() handle
+
+   NOTE: This struct is copied during upward-downward process of following
+   a destination scope path.
+ */
+typedef struct _mod_hndl_t
+{
+    base_hndl_t b;
+    /* base class for update part (shared) */
+    base_updt_hndl_t *p_bu;
+
+    /* element desc. (const) */
+    struct
+    {
+        int is_scp;
+        union {
+            prop_dsc_t prop;
+            scope_dsc_t scp;
+        };
+    } e;
+
+    /* modification desc. (const) */
+    union
+    {
+        struct {
+            unsigned flags;
+            const char *name;
+            const char *val;
+        } prop;
+
+        struct {
+            unsigned flags;
+            const char *type;
+            const char *name;
+        } scp;
+    } mod;
+
+    /* matched elements tracking index (shared) */
+    int *p_eind;
+
+    /* found status (shared) */
+    fndstat_t *p_fndstat;
+
+    /* last element spec. for @$-addressing (shared) */
+    mod_lst_t *p_lst;
+} mod_hndl_t;
+
+#define MOD_F_PROP_NAME     1
+#define MOD_F_PROP_VAL      2
+
+/* mod_elem() support function.
+
+   Copies input bytes (from the offset staring not processed range) to a property
+   (whose parts are described by appropriate sp_loc_t structs) which is modified
+   by the function.
+
+   NOTE: The function may leave some (last) part of the property not copied if
+   this part need not to be modified. The part will be finally copied by a next
+   call to cpy_to_out().
+ */
+static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
+    const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef,
+    const char *new_name, const char *new_val, int mod_flags)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+
+    /* name */
+    EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+
+    if (mod_flags & MOD_F_PROP_NAME) {
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_name, 0));
+        p_bu->in_off = p_lname->end+1;
+    } else {
+        EXEC_RG(cpy_to_out(p_bu, p_lname->end+1));
+    }
+
+    /* value */
+    if (p_lval) {
+        if (mod_flags & MOD_F_PROP_VAL) {
+            if (new_val) {
+                EXEC_RG(cpy_to_out(p_bu, p_lval->beg));
+                EXEC_RG(
+                    sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
+                p_bu->in_off = p_lval->end+1;
+            } else {
+                CHK_FERR(fputc(';', p_bu->out));
+                p_bu->in_off = p_ldef->end+1;
+            }
+        }
+    } else
+    if ((mod_flags & MOD_F_PROP_VAL) && new_val)
+    {
+        p_bu->in_off = p_ldef->end+1;
+
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+        CHK_FERR(fputs(" = ", p_bu->out));
+#else
+        CHK_FERR(fputc('=', p_bu->out));
+#endif
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+        CHK_FERR(fputc(';', p_bu->out));
+#else
+        /* added value need to be finished by EOL */
+        EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
+#endif
+    }
+
+finish:
+    return ret;
+}
+
+#define MOD_F_SCOPE_TYPE    1
+#define MOD_F_SCOPE_NAME    2
+
+/* mod_elem() support function; section-related counterpart to cpy_mod_prop().
+ */
+static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
+    const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbdyenc,
+    const char *new_type, const char *new_name, int mod_flags)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    int typ_rmed=0;
+
+    /* type */
+    if (p_ltype) {
+        EXEC_RG(cpy_to_out(p_bu, p_ltype->beg));
+
+        if (mod_flags & MOD_F_SCOPE_TYPE) {
+            if (new_type) {
+                EXEC_RG(
+                    sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
+                p_bu->in_off = p_ltype->end+1;
+                EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+            } else {
+                p_bu->in_off = p_lname->beg;
+                typ_rmed = 1;
+            }
+        } else {
+            EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+        }
+    } else {
+        EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+
+        if ((mod_flags & MOD_F_SCOPE_TYPE) && new_type) {
+            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
+            CHK_FERR(fputc(' ', p_bu->out));
+        }
+    }
+
+    /* name */
+    if (mod_flags & MOD_F_SCOPE_NAME) {
+        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_name, 0));
+        p_bu->in_off = p_lname->end+1;
+    } else {
+        EXEC_RG(cpy_to_out(p_bu, p_lname->end+1));
+    }
+
+    /* body */
+    if (sp_loc_len(p_lbdyenc)==1 && typ_rmed) {
+        CHK_FERR(fputs(" {}", p_bu->out));
+        p_bu->in_off = p_lbdyenc->end+1;
+    }
+
+finish:
+    return ret;
 }
 
 #undef __PARSE_WITH_LSC_HANDLING
