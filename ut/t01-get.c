@@ -242,10 +242,16 @@ int main(void)
         in, NULL, "a", 0, "1/2/3", "", buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "a", 0, buf1, &pi);
 
+    ret = sp_get_prop(in, NULL, "x", 0, "1@0/2/3", "", buf1, sizeof(buf1), &pi);
+    assert(ret==SPEC_NOTFOUND);
+
     /* truncated to the buffer size */
     EXEC_RG(sp_get_prop(
         in, NULL, "b", 0, "/1/:2/3", "", buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "b", 0, buf1, &pi);
+
+    ret = sp_get_prop(in, NULL, "x", 0, "1/2/3@0", "", buf1, sizeof(buf1), &pi);
+    assert(ret==SPEC_NOTFOUND);
 
     EXEC_RG(sp_get_prop_enum(in, NULL,
         "c", 0, "/1/2/3", "", evals, 1, buf1, sizeof(buf1), &ival, &pi));
@@ -364,8 +370,11 @@ int main(void)
         in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@0", "", &si));
     print_scope("/:1@2/:2@0", "/:3", SP_IND_LAST, &si);
 
-    EXEC_RG(sp_get_scope_info(
-        in, NULL, NULL, "3", 0, "1@2/2@1", "", &si));
+    ret = sp_get_scope_info(
+        in, NULL, NULL, "4", SP_IND_LAST, "1@2/2@0", "", &si);
+    assert(ret==SPEC_NOTFOUND);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 0, "1@2/2@1", "", &si));
     print_scope("/:1@2/:2@1", "/:3", 0, &si);
 
     EXEC_RG(sp_get_scope_info(

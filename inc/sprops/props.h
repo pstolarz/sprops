@@ -348,6 +348,10 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_NLSTEOL    0x0080UL
 
+/* If property being set doesn't exist, don't add it to the destination scope.
+ */
+#define SP_F_NOADD      0x0100UL
+
 
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
    (number of elements - scopes/props, before inserted property) in a scope
