@@ -431,29 +431,30 @@ finish:
         } else break; \
     }
 
+#define __BASE_DEFS() \
+    /* processing finish flag */ \
+    int f_finish; \
+    /* last scope spec. */ \
+    lastsc_t lsc; \
+    /* split scope tracking index */ \
+    int sind;
+
 /* exported; see header for details */
 sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     const char *deftp, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
     void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    iter_hndl_t ihndl;
+    iter_hndl_t ihndl = {};
     sp_parser_hndl_t phndl;
 
-    /* processing finish flag (shared) */
-    int f_finish;
-    /* last scope spec. (shared) */
-    lastsc_t lsc;
-    /* split scope tracking index (shared) */
-    int sind;
+    __BASE_DEFS();
 
     if (!in || (!cb_prop && !cb_scope)) {
         ret=SPEC_INV_ARG;
         goto finish;
     }
 
-    /* prepare the handle */
-    memset(&ihndl, 0, sizeof(ihndl));
     init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     ihndl.cb.arg = arg;
@@ -587,29 +588,32 @@ static sp_errc_t getprp_cb_scope(const sp_parser_hndl_t *p_phndl,
     return ret;
 }
 
+#define __EIND_DEF() \
+    /* matched elements tracking index */ \
+    int eind = -1;
+
+#define __NEIND_DEF() \
+    /* element position number tracking index */ \
+    int neind = 0;
+
+#define __INDS_DEFS() \
+    __EIND_DEF(); \
+    __NEIND_DEF();
+
 /* exported; see header for details */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *deftp, char *val, size_t len,
     sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    getprp_hndl_t gphndl;
+    getprp_hndl_t gphndl = {};
     sp_parser_hndl_t phndl;
 
-    /* processing finish flag (shared) */
-    int f_finish;
-    /* last scope spec. (shared) */
-    lastsc_t lsc;
-    /* split scope tracking index (shared) */
-    int sind;
-    /* matched props tracking index (shared) */
-    int eind = -1;
-    /* element position number tracking index (shared) */
-    int neind = 0;
+    __BASE_DEFS();
+    __INDS_DEFS();
 
-    /* initialize to unset state */
-    sp_prop_info_ex_t info;
-    memset(&info, 0, sizeof(info));
+    /* initialized to unset state */
+    sp_prop_info_ex_t info = {};
 
     if (!in || !len || !name || (ind<0 && ind!=SP_IND_LAST))
     {
@@ -617,8 +621,6 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
         goto finish;
     }
 
-    /* prepare the handle */
-    memset(&gphndl, 0, sizeof(gphndl));
     init_base_hndl(&gphndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     gphndl.prop.name = name;
@@ -731,8 +733,7 @@ sp_errc_t sp_get_prop_enum(
     sp_errc_t ret=SPEC_SUCCESS;
     int v=0;
 
-    sp_prop_info_ex_t info;
-    memset(&info, 0, sizeof(info));
+    sp_prop_info_ex_t info = {};
 
     if (!p_evals) { ret=SPEC_INV_ARG; goto finish; }
 
@@ -859,19 +860,11 @@ sp_errc_t sp_get_scope_info(
     int ind, const char *path, const char *deftp, sp_scope_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    getscp_hndl_t gshndl;
+    getscp_hndl_t gshndl = {};
     sp_parser_hndl_t phndl;
 
-    /* processing finish flag (shared) */
-    int f_finish;
-    /* last scope spec. (shared) */
-    lastsc_t lsc;
-    /* split scope tracking index (shared) */
-    int sind;
-    /* matched scopes tracking index (shared) */
-    int eind = -1;
-    /* element position number tracking index (shared) */
-    int neind = 0;
+    __BASE_DEFS();
+    __INDS_DEFS();
 
     if (!in || !name || (ind<0 && ind!=SP_IND_LAST) || !p_info)
     {
@@ -882,8 +875,6 @@ sp_errc_t sp_get_scope_info(
     /* initialize to unset state */
     memset(p_info, 0, sizeof(*p_info));
 
-    /* prepare the handle */
-    memset(&gshndl, 0, sizeof(gshndl));
     init_base_hndl(&gshndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     gshndl.scp.type = type;
@@ -1162,7 +1153,7 @@ typedef struct _add_hndl_t
     int *p_neind;
 
     /* first, non-global scope matching the path;
-       zero initialized - unset (shared) */
+       zero initialized - unset state (shared) */
     addh_frst_sc_t *p_frst_sc;
 
     /* definition's location of an element associated with requested
@@ -1300,6 +1291,10 @@ finish:
     return ret;
 }
 
+#define __BASEUPD_DEF() \
+    /* base class for update part */ \
+    base_updt_hndl_t bu;
+
 /* Add prop/scope element.
  */
 static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
@@ -1308,25 +1303,19 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    add_hndl_t ahndl;
+    add_hndl_t ahndl = {};
     sp_parser_hndl_t phndl;
 
     long lstcpy_n;
     int chk_end_eol=0, traileol;
 
-    /* processing finish flag (shared) */
-    int f_finish;
-    /* last scope spec. (shared) */
-    lastsc_t lsc;
-    /* split scope tracking index (shared) */
-    int sind;
-    /* base class for update part (shared) */
-    base_updt_hndl_t bu;
-    /* element position number tracking index (shared) */
-    int neind = 0;
-    /* first scope matching the path (shared) */
+    __BASE_DEFS();
+    __BASEUPD_DEF();
+    __NEIND_DEF();
+
+    /* first scope matching the path */
     addh_frst_sc_t frst_sc = {};
-    /* ldef of an element associated with requested position (shared) */
+    /* ldef of an element associated with requested position */
     sp_loc_t ldef_elem = {};
 
     if (!in || !out ||
@@ -1337,8 +1326,6 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         goto finish;
     }
 
-    /* prepare the handle */
-    memset(&ahndl, 0, sizeof(ahndl));
     init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     EXEC_RG(init_base_updt_hndl(&bu, in, out, p_parsc, flags));
@@ -1583,7 +1570,7 @@ finish:
     if ((ind)==SP_IND_LAST) \
         *p_rhndl->p_lst_ldef = *p_ldef;
 
-/* sp_rm_elem() parser callback: property */
+/* rm_elem() parser callback: property */
 static sp_errc_t rm_cb_prop(const sp_parser_hndl_t *p_phndl,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef)
 {
@@ -1635,6 +1622,11 @@ finish:
 
 #undef __RM_LDEF
 
+#define __RM_MOD_DEFS() \
+    __EIND_DEF(); \
+    /* found status */ \
+    fndstat_t fndstat = ELM_NOT_FND;
+
 /* Remove prop/scope element.
  */
 static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
@@ -1642,24 +1634,15 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *path, const char *deftp, unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    rm_hndl_t rhndl;
+    rm_hndl_t rhndl = {};
     sp_parser_hndl_t phndl;
 
-    /* processing finish flag (shared) */
-    int f_finish;
-    /* last scope spec. (shared) */
-    lastsc_t lsc;
-    /* split scope tracking index (shared) */
-    int sind;
-    /* base class for update part (shared) */
-    base_updt_hndl_t bu;
-    /* matched elements tracking index (shared) */
-    int eind = -1;
-    /* found status (shared) */
-    fndstat_t fndstat = ELM_NOT_FND;
-    /* last element def.; zero initialized - unset (shared) */
-    sp_loc_t lst_ldef;
-    memset(&lst_ldef, 0, sizeof(lst_ldef));
+    __BASE_DEFS();
+    __BASEUPD_DEF();
+    __RM_MOD_DEFS();
+
+    /* last element def.; initialized to unset state */
+    sp_loc_t lst_ldef = {};
 
     if (!in || !out ||
         (!prop_nm && !sc_nm) ||
@@ -1669,8 +1652,6 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         goto finish;
     }
 
-    /* prepare the handle */
-    memset(&rhndl, 0, sizeof(rhndl));
     init_base_hndl(&rhndl.b, &f_finish, &lsc, &sind, path, deftp);
 
     EXEC_RG(init_base_updt_hndl(&bu, in, out, p_parsc, flags));
@@ -2012,5 +1993,176 @@ static sp_errc_t mod_cb_scope(const sp_parser_hndl_t *p_phndl,
 finish:
     return ret;
 }
+
+/* Property modification; support funct. for sp_set_prop() and sp_mv_prop().
+ */
+static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *new_name, const char *new_val, int ind,
+    const char *path, const char *deftp, unsigned mod_flags, unsigned long flags)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    mod_hndl_t mhndl = {};
+    sp_parser_hndl_t phndl;
+
+    __BASE_DEFS();
+    __BASEUPD_DEF();
+    __RM_MOD_DEFS();
+
+    /* last element spec.; initialized to unset state */
+    mod_lst_t lst = {};
+
+    if (!in || !out || !name ||
+        (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_ALL))
+    {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
+
+    init_base_hndl(&mhndl.b, &f_finish, &lsc, &sind, path, deftp);
+
+    EXEC_RG(init_base_updt_hndl(&bu, in, out, p_parsc, flags));
+    mhndl.p_bu = &bu;
+
+    mhndl.e.is_scp = 0;
+    mhndl.e.prop.name = name;
+    mhndl.e.prop.ind = ind;
+
+    mhndl.mod.prop.flags = mod_flags;
+    mhndl.mod.prop.name = new_name;
+    mhndl.mod.prop.val = new_val;
+
+    mhndl.p_eind = &eind;
+    mhndl.p_fndstat = &fndstat;
+    mhndl.p_lst = &lst;
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, mod_cb_prop, mod_cb_scope, &mhndl));
+
+    __PARSE_WITH_LSC_HANDLING(mhndl);
+
+    if (fndstat==ELM_NOT_FND)
+    {
+        /* destination scope was not found */
+        ret=SPEC_NOTFOUND;
+        goto finish;
+    } else
+    if (fndstat==ELM_DEST_FND)
+    {
+        if ((flags & SP_F_NOADD) || !(mod_flags & MOD_F_PROP_VAL))
+        {
+            /* not found and not allowed/possible to add */
+            ret=SPEC_NOTFOUND;
+        } else {
+            EXEC_RG(sp_add_prop(in, out, p_parsc,
+                ((mod_flags & MOD_F_PROP_NAME) ? new_name : name),
+                new_val, SP_ELM_LAST, path, deftp, flags));
+        }
+        goto finish;
+    }
+
+    /* in case of @$-addressing process the last element */
+    if (lst.prop.ldef.first_column) {
+        EXEC_RG(cpy_mod_prop(&bu, &lst.prop.lname, &lst.prop.lval,
+            &lst.prop.ldef, new_name, new_val, mod_flags));
+    }
+
+    /* copy untouched last part of the input */
+    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
+
+finish:
+    return ret;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *val, int ind, const char *path,
+    const char *deftp, unsigned long flags)
+{
+    return mod_prop(in, out, p_parsc, name, NULL, val,
+        ind, path, deftp, MOD_F_PROP_VAL, flags);
+}
+
+/* exported; see header for details */
+sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *new_name, int ind, const char *path,
+    const char *deftp, unsigned long flags)
+{
+    return mod_prop(in, out, p_parsc, name, new_name, NULL,
+        ind, path, deftp, MOD_F_PROP_NAME, flags);
+}
+
+/* exported; see header for details */
+sp_errc_t sp_mv_scope(
+    FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *type,
+    const char *name, const char *new_type, const char *new_name, int ind,
+    const char *path, const char *deftp, unsigned long flags)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    mod_hndl_t mhndl = {};
+    sp_parser_hndl_t phndl;
+    unsigned mod_flags = MOD_F_SCOPE_TYPE|MOD_F_SCOPE_NAME;
+
+    __BASE_DEFS();
+    __BASEUPD_DEF();
+    __RM_MOD_DEFS();
+
+    /* last element spec.; initialized to unset state */
+    mod_lst_t lst = {};
+
+    if (!in || !out || !name ||
+        (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_ALL))
+    {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
+
+    init_base_hndl(&mhndl.b, &f_finish, &lsc, &sind, path, deftp);
+
+    EXEC_RG(init_base_updt_hndl(&bu, in, out, p_parsc, flags));
+    mhndl.p_bu = &bu;
+
+    mhndl.e.is_scp = 1;
+    mhndl.e.scp.type = type;
+    mhndl.e.scp.name = name;
+    mhndl.e.scp.ind = ind;
+
+    mhndl.mod.scp.flags = mod_flags;
+    mhndl.mod.scp.type = new_type;
+    mhndl.mod.scp.name = new_name;
+
+    mhndl.p_eind = &eind;
+    mhndl.p_fndstat = &fndstat;
+    mhndl.p_lst = &lst;
+
+    EXEC_RG(sp_parser_hndl_init(
+        &phndl, in, p_parsc, mod_cb_prop, mod_cb_scope, &mhndl));
+
+    __PARSE_WITH_LSC_HANDLING(mhndl);
+
+    if (fndstat!=ELM_FND) {
+        /* scope not found */
+        ret=SPEC_NOTFOUND;
+        goto finish;
+    }
+
+    /* in case of @$-addressing process the last element */
+    if (lst.scp.lbdyenc.first_column) {
+        EXEC_RG(cpy_mod_scope(&bu, &lst.scp.ltype, &lst.scp.lname,
+            &lst.scp.lbdyenc, new_type, new_name, mod_flags));
+    }
+
+    /* copy untouched last part of the input */
+    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
+
+finish:
+    return ret;
+}
+
+#undef __RM_MOD_DEFS
+#undef __BASEUPD_DEF
+#undef __INDS_DEFS
+#undef __NEIND_DEF
+#undef __EIND_DEF
+#undef __BASE_DEFS
 
 #undef __PARSE_WITH_LSC_HANDLING

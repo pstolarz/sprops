@@ -349,6 +349,8 @@ sp_errc_t sp_get_scope_info(
 #define SP_F_NLSTEOL    0x0080UL
 
 /* If property being set doesn't exist, don't add it to the destination scope.
+   In case the flag is not specified the new property will be added as the last
+   one in the destination scope.
  */
 #define SP_F_NOADD      0x0100UL
 
@@ -423,6 +425,25 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int ind, const char *path,
     const char *deftp, unsigned long flags);
+
+/*
+ */
+sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *val, int ind, const char *path,
+    const char *deftp, unsigned long flags);
+
+/*
+ */
+sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+    const char *name, const char *new_name, int ind, const char *path,
+    const char *deftp, unsigned long flags);
+
+/*
+ */
+sp_errc_t sp_mv_scope(
+    FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *type,
+    const char *name, const char *new_type, const char *new_name, int ind,
+    const char *path, const char *deftp, unsigned long flags);
 
 #ifdef __cplusplus
 }
