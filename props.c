@@ -249,7 +249,8 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     if (scp) end=scp;
     if (typ>=end) typ=NULL;
 
-    if (typ) {
+    if (typ)
+    {
         /* type and name specified */
         type = beg;
         typ_len = typ-beg;
@@ -310,6 +311,14 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
             EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
                 p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
             EXEC_RG(sp_parse(&phndl));
+        }
+
+        if (ind!=SP_IND_ALL && ph_nstb->path.beg>=ph_nstb->path.end)
+        {
+            /* the path finishes with a scope addressed by explicit index;
+               the scope has been already handled, therefore no further path
+               following is needed */
+            *ph_nstb->p_finish = 1;
         }
     } else
     if (*p_sind>ind)

@@ -370,6 +370,9 @@ int main(void)
         in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@0", "", &si));
     print_scope("/:1@2/:2@0", "/:3", SP_IND_LAST, &si);
 
+    ret = sp_get_scope_info(in, NULL, NULL, "4", SP_IND_LAST, "1@0/2", "", &si);
+    assert(ret==SPEC_NOTFOUND);
+
     ret = sp_get_scope_info(
         in, NULL, NULL, "4", SP_IND_LAST, "1@2/2@0", "", &si);
     assert(ret==SPEC_NOTFOUND);
