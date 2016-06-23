@@ -1495,7 +1495,7 @@ typedef struct _rm_hndl_t
     /* found status (shared) */
     fndstat_t *p_fndstat;
 
-    /* last element def. for @$-addressing (shared) */
+    /* last element def. (shared) */
     sp_loc_t *p_lst_ldef;
 } rm_hndl_t;
 
@@ -1677,7 +1677,7 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
     __PARSE_WITH_LSC_HANDLING(rhndl);
 
-    /* in case of @$-addressing process the last element */
+    /* process the last element if required */
     if (lst_ldef.first_column) {
         EXEC_RG(cpy_rm_ldef(&bu, &lst_ldef));
     }
@@ -1768,7 +1768,7 @@ typedef struct _mod_hndl_t
     /* found status (shared) */
     fndstat_t *p_fndstat;
 
-    /* last element spec. for @$-addressing (shared) */
+    /* last element spec. (shared) */
     mod_lst_t *p_lst;
 } mod_hndl_t;
 
@@ -1933,7 +1933,12 @@ static sp_errc_t mod_cb_prop(const sp_parser_hndl_t *p_phndl,
         if (p_mhndl->e.prop.ind == SP_IND_LAST)
         {
             p_mhndl->p_lst->prop.lname = *p_lname;
-            p_mhndl->p_lst->prop.lval = *p_lval;
+            if (p_lval) {
+                p_mhndl->p_lst->prop.lval = *p_lval;
+            } else {
+                /* mark location as unset */
+                memset(&p_mhndl->p_lst->prop.lval, 0, sizeof(sp_loc_t));
+            }
             p_mhndl->p_lst->prop.ldef = *p_ldef;
         }
     }
@@ -1985,7 +1990,12 @@ static sp_errc_t mod_cb_scope(const sp_parser_hndl_t *p_phndl,
         } else
         if (p_mhndl->e.scp.ind == SP_IND_LAST)
         {
-            p_mhndl->p_lst->scp.ltype = *p_ltype;
+            if (p_ltype) {
+                p_mhndl->p_lst->scp.ltype = *p_ltype;
+            } else {
+                /* mark location as unset */
+                memset(&p_mhndl->p_lst->scp.ltype, 0, sizeof(sp_loc_t));
+            }
             p_mhndl->p_lst->scp.lname = *p_lname;
             p_mhndl->p_lst->scp.lbdyenc = *p_lbdyenc;
         }
@@ -2045,12 +2055,15 @@ static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         /* destination scope was not found */
         ret=SPEC_NOTFOUND;
         goto finish;
-    } else
-    if (fndstat==ELM_DEST_FND)
+    }
+
+    if (fndstat==ELM_DEST_FND || (ind>=0 && eind!=ind))
     {
-        if ((flags & SP_F_NOADD) || !(mod_flags & MOD_F_PROP_VAL))
+        if ((flags & SP_F_NOADD) ||
+            !(mod_flags & MOD_F_PROP_VAL) ||
+            (ind>=0 && (eind+1)!=ind))
         {
-            /* not found and not allowed/possible to add */
+            /* not found or not allowed/possible to add */
             ret=SPEC_NOTFOUND;
         } else {
             EXEC_RG(sp_add_prop(in, out, p_parsc,
@@ -2060,9 +2073,10 @@ static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         goto finish;
     }
 
-    /* in case of @$-addressing process the last element */
+    /* process the last element if required */
     if (lst.prop.ldef.first_column) {
-        EXEC_RG(cpy_mod_prop(&bu, &lst.prop.lname, &lst.prop.lval,
+        EXEC_RG(cpy_mod_prop(&bu, &lst.prop.lname,
+            (lst.prop.lval.first_column ? &lst.prop.lval : NULL),
             &lst.prop.ldef, new_name, new_val, mod_flags));
     }
 
@@ -2145,10 +2159,11 @@ sp_errc_t sp_mv_scope(
         goto finish;
     }
 
-    /* in case of @$-addressing process the last element */
+    /* process the last element if required */
     if (lst.scp.lbdyenc.first_column) {
-        EXEC_RG(cpy_mod_scope(&bu, &lst.scp.ltype, &lst.scp.lname,
-            &lst.scp.lbdyenc, new_type, new_name, mod_flags));
+        EXEC_RG(cpy_mod_scope(&bu,
+            (lst.scp.ltype.first_column ? &lst.scp.ltype : NULL),
+            &lst.scp.lname, &lst.scp.lbdyenc, new_type, new_name, mod_flags));
     }
 
     /* copy untouched last part of the input */

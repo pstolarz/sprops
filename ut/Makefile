@@ -8,7 +8,8 @@ TESTS= \
     t02-iter \
     t03-tknstr \
     t04-add \
-    t05-rm
+    t05-rm \
+    t06-set
 
 all: $(TESTS)
 
