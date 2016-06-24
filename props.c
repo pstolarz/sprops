@@ -132,8 +132,8 @@ static void init_base_hndl(base_hndl_t *p_b, int *p_finish,
     p_b->p_finish = p_finish;
     *p_finish = 0;
 
+    memset(p_lsc, 0, sizeof(*p_lsc));
     p_b->p_lsc = p_lsc;
-    memset(p_b->p_lsc, 0, sizeof(*p_b->p_lsc));
 
     p_b->p_sind = p_sind;
     *p_sind = -1;
@@ -290,7 +290,8 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
         if (p_lbody) {
             ph_nstb->p_lsc->lbody = *p_lbody;
         } else {
-            memset(&ph_nstb->p_lsc->lbody, 0, sizeof(ph_nstb->p_lsc->lbody));
+            /* mark location as unset */
+            memset(&ph_nstb->p_lsc->lbody, 0, sizeof(sp_loc_t));
         }
         ph_nstb->p_lsc->ldef = *p_ldef;
     } else
@@ -431,7 +432,7 @@ finish:
         } else break; \
     }
 
-#define __BASE_DEFS() \
+#define __BASE_DEFS \
     /* processing finish flag */ \
     int f_finish; \
     /* last scope spec. */ \
@@ -445,15 +446,17 @@ sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
     void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    iter_hndl_t ihndl = {};
+    iter_hndl_t ihndl;
     sp_parser_hndl_t phndl;
 
-    __BASE_DEFS();
+    __BASE_DEFS
 
     if (!in || (!cb_prop && !cb_scope)) {
         ret=SPEC_INV_ARG;
         goto finish;
     }
+
+    memset(&ihndl, 0, sizeof(ihndl));
 
     init_base_hndl(&ihndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -588,17 +591,13 @@ static sp_errc_t getprp_cb_scope(const sp_parser_hndl_t *p_phndl,
     return ret;
 }
 
-#define __EIND_DEF() \
+#define __EIND_DEF \
     /* matched elements tracking index */ \
     int eind = -1;
 
-#define __NEIND_DEF() \
+#define __NEIND_DEF \
     /* element position number tracking index */ \
     int neind = 0;
-
-#define __INDS_DEFS() \
-    __EIND_DEF(); \
-    __NEIND_DEF();
 
 /* exported; see header for details */
 sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
@@ -606,20 +605,23 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
     sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    getprp_hndl_t gphndl = {};
+    getprp_hndl_t gphndl;
     sp_parser_hndl_t phndl;
 
-    __BASE_DEFS();
-    __INDS_DEFS();
+    __BASE_DEFS
+    __EIND_DEF
+    __NEIND_DEF
 
-    /* initialized to unset state */
-    sp_prop_info_ex_t info = {};
+    sp_prop_info_ex_t info;
 
     if (!in || !len || !name || (ind<0 && ind!=SP_IND_LAST))
     {
         ret=SPEC_INV_ARG;
         goto finish;
     }
+
+    memset(&gphndl, 0, sizeof(gphndl));
+    memset(&info, 0, sizeof(info));
 
     init_base_hndl(&gphndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -733,9 +735,11 @@ sp_errc_t sp_get_prop_enum(
     sp_errc_t ret=SPEC_SUCCESS;
     int v=0;
 
-    sp_prop_info_ex_t info = {};
+    sp_prop_info_ex_t info;
 
     if (!p_evals) { ret=SPEC_INV_ARG; goto finish; }
+
+    memset(&info, 0, sizeof(info));
 
     EXEC_RG(sp_get_prop(in, p_parsc, name, ind, path, deftp, buf, blen, &info));
 
@@ -860,11 +864,12 @@ sp_errc_t sp_get_scope_info(
     int ind, const char *path, const char *deftp, sp_scope_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    getscp_hndl_t gshndl = {};
+    getscp_hndl_t gshndl;
     sp_parser_hndl_t phndl;
 
-    __BASE_DEFS();
-    __INDS_DEFS();
+    __BASE_DEFS
+    __EIND_DEF
+    __NEIND_DEF
 
     if (!in || !name || (ind<0 && ind!=SP_IND_LAST) || !p_info)
     {
@@ -872,7 +877,7 @@ sp_errc_t sp_get_scope_info(
         goto finish;
     }
 
-    /* initialize to unset state */
+    memset(&gshndl, 0, sizeof(gshndl));
     memset(p_info, 0, sizeof(*p_info));
 
     init_base_hndl(&gshndl.b, &f_finish, &lsc, &sind, path, deftp);
@@ -1291,7 +1296,7 @@ finish:
     return ret;
 }
 
-#define __BASEUPD_DEF() \
+#define __BASEUPD_DEF \
     /* base class for update part */ \
     base_updt_hndl_t bu;
 
@@ -1303,20 +1308,20 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    add_hndl_t ahndl = {};
+    add_hndl_t ahndl;
     sp_parser_hndl_t phndl;
 
     long lstcpy_n;
     int chk_end_eol=0, traileol;
 
-    __BASE_DEFS();
-    __BASEUPD_DEF();
-    __NEIND_DEF();
+    __BASE_DEFS
+    __BASEUPD_DEF
+    __NEIND_DEF
 
     /* first scope matching the path */
-    addh_frst_sc_t frst_sc = {};
+    addh_frst_sc_t frst_sc;
     /* ldef of an element associated with requested position */
-    sp_loc_t ldef_elem = {};
+    sp_loc_t ldef_elem;
 
     if (!in || !out ||
         (!prop_nm && !sc_nm) ||
@@ -1325,6 +1330,10 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         ret=SPEC_INV_ARG;
         goto finish;
     }
+
+    memset(&ahndl, 0, sizeof(ahndl));
+    memset(&frst_sc, 0, sizeof(frst_sc));
+    memset(&ldef_elem, 0, sizeof(ldef_elem));
 
     init_base_hndl(&ahndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -1622,8 +1631,8 @@ finish:
 
 #undef __RM_LDEF
 
-#define __RM_MOD_DEFS() \
-    __EIND_DEF(); \
+#define __RM_MOD_DEFS \
+    __EIND_DEF \
     /* found status */ \
     fndstat_t fndstat = ELM_NOT_FND;
 
@@ -1634,15 +1643,15 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *path, const char *deftp, unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    rm_hndl_t rhndl = {};
+    rm_hndl_t rhndl;
     sp_parser_hndl_t phndl;
 
-    __BASE_DEFS();
-    __BASEUPD_DEF();
-    __RM_MOD_DEFS();
+    __BASE_DEFS
+    __BASEUPD_DEF
+    __RM_MOD_DEFS
 
-    /* last element def.; initialized to unset state */
-    sp_loc_t lst_ldef = {};
+    /* last element def. */
+    sp_loc_t lst_ldef;
 
     if (!in || !out ||
         (!prop_nm && !sc_nm) ||
@@ -1651,6 +1660,9 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         ret=SPEC_INV_ARG;
         goto finish;
     }
+
+    memset(&rhndl, 0, sizeof(rhndl));
+    memset(&lst_ldef, 0, sizeof(lst_ldef));
 
     init_base_hndl(&rhndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -2011,15 +2023,15 @@ static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *path, const char *deftp, unsigned mod_flags, unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    mod_hndl_t mhndl = {};
+    mod_hndl_t mhndl;
     sp_parser_hndl_t phndl;
 
-    __BASE_DEFS();
-    __BASEUPD_DEF();
-    __RM_MOD_DEFS();
+    __BASE_DEFS
+    __BASEUPD_DEF
+    __RM_MOD_DEFS
 
-    /* last element spec.; initialized to unset state */
-    mod_lst_t lst = {};
+    /* last element spec. */
+    mod_lst_t lst;
 
     if (!in || !out || !name ||
         ((mod_flags & MOD_F_PROP_NAME) && !new_name) ||
@@ -2028,6 +2040,9 @@ static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
         ret=SPEC_INV_ARG;
         goto finish;
     }
+
+    memset(&mhndl, 0, sizeof(mhndl));
+    memset(&lst, 0, sizeof(lst));
 
     init_base_hndl(&mhndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -2113,16 +2128,16 @@ sp_errc_t sp_mv_scope(
     const char *path, const char *deftp, unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    mod_hndl_t mhndl = {};
+    mod_hndl_t mhndl;
     sp_parser_hndl_t phndl;
     unsigned mod_flags = MOD_F_SCOPE_TYPE|MOD_F_SCOPE_NAME;
 
-    __BASE_DEFS();
-    __BASEUPD_DEF();
-    __RM_MOD_DEFS();
+    __BASE_DEFS
+    __BASEUPD_DEF
+    __RM_MOD_DEFS
 
-    /* last element spec.; initialized to unset state */
-    mod_lst_t lst = {};
+    /* last element spec. */
+    mod_lst_t lst;
 
     if (!in || !out || !name || !new_name ||
         (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_ALL))
@@ -2130,6 +2145,9 @@ sp_errc_t sp_mv_scope(
         ret=SPEC_INV_ARG;
         goto finish;
     }
+
+    memset(&mhndl, 0, sizeof(mhndl));
+    memset(&lst, 0, sizeof(lst));
 
     init_base_hndl(&mhndl.b, &f_finish, &lsc, &sind, path, deftp);
 
@@ -2176,7 +2194,6 @@ finish:
 
 #undef __RM_MOD_DEFS
 #undef __BASEUPD_DEF
-#undef __INDS_DEFS
 #undef __NEIND_DEF
 #undef __EIND_DEF
 #undef __BASE_DEFS
