@@ -12,10 +12,14 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include "../config.h"
 #include "sprops/props.h"
 
-#define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
+#if (CONFIG_MAX_SCOPE_LEVEL_DEPTH>0 && CONFIG_MAX_SCOPE_LEVEL_DEPTH<2)
+# error Bad configuration
+#endif
 
+#define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 int main(void)
 {
@@ -127,7 +131,7 @@ int main(void)
         NULL, NULL,
         SP_F_EXTEOL));
 
-    /* not existent elements */
+    /* not existing elements */
 
     printf("\n--- Del absent prop 3, own-scope /\n");
     assert(sp_rm_prop(

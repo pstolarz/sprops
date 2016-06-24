@@ -12,14 +12,21 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include "../config.h"
 #include "sprops/props.h"
 
-#define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
+#if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
+    !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
+    (CONFIG_MAX_SCOPE_LEVEL_DEPTH>0 && CONFIG_MAX_SCOPE_LEVEL_DEPTH<1)
+# error Bad configuration
+#endif
 
+#define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 int main(void)
 {
     sp_errc_t ret=SPEC_SUCCESS;
+    sp_scope_info_ex_t sc;
 
     FILE *in = fopen("c06.conf", "rb");
     if (!in) goto finish;
@@ -184,21 +191,70 @@ int main(void)
         "scope", "",
         0));
 
-    printf("\n--- Set/add prop 4, own-scope: /:scope, elm:LAST\n");
+    printf("\n--- Set/add prop 4, own-scope: /:scope@0, elm:LAST\n");
     EXEC_RG(sp_set_prop(in, stdout,
         NULL,
         "4", "VAL",
         SP_IND_LAST,
-        "scope", "",
+        "scope@0", "",
         0));
 
-    printf("\n--- Set/add prop 4, own-scope: /:scope, elm:ALL\n");
+    printf("\n--- Set/add prop 4, own-scope: /:scope@$, elm:ALL\n");
     EXEC_RG(sp_set_prop(in, stdout,
         NULL,
         "4", "VAL",
         SP_IND_ALL,
-        "scope", "",
+        "scope@$", "",
         0));
+
+    /* destination scope not found */
+    assert(sp_set_prop(in, stdout,
+        NULL,
+        "4", "VAL",
+        SP_IND_LAST,
+        "scope@1", "",
+        0)==SPEC_NOTFOUND);
+    assert(sp_set_prop(in, stdout,
+        NULL,
+        "4", "VAL",
+        SP_IND_LAST,
+        "/:xxx", NULL,
+        0)==SPEC_NOTFOUND);
+
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "scope", 0, NULL, NULL, &sc));
+    assert(sc.body_pres!=0);
+
+    printf("\n--- Set prop 1, parsing scope: /:scope, elm:ALL\n");
+    EXEC_RG(sp_set_prop(in, stdout,
+        &sc.lbody,
+        "1", "VAL",
+        SP_IND_ALL,
+        NULL, NULL,
+        0));
+
+    printf("\n--- No-val-set prop 3, parsing scope: /:scope, elm:LAST\n");
+    EXEC_RG(sp_set_prop(in, stdout,
+        &sc.lbody,
+        "3", NULL,
+        SP_IND_LAST,
+        NULL, NULL,
+        0));
+
+    printf("\n--- Set/add prop 3, parsing scope: /:scope, elm:1, flags:EXTEOL\n");
+    EXEC_RG(sp_set_prop(in, stdout,
+        &sc.lbody,
+        "3", "VAL",
+        1,
+        NULL, NULL,
+        SP_F_EXTEOL));
+
+    /* index conflict, adding not possible */
+    assert(sp_set_prop(in, stdout,
+        &sc.lbody,
+        "3", NULL,
+        2,
+        NULL, NULL,
+        0)==SPEC_NOTFOUND);
 
 finish:
     if (ret) printf("Error: %d\n", ret);

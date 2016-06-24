@@ -13,7 +13,15 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "../config.h"
 #include "sprops/props.h"
+
+#if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
+    !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
+    !defined(CONFIG_TRIM_VAL_TRAILING_SPACES) || \
+    (CONFIG_MAX_SCOPE_LEVEL_DEPTH>0 && CONFIG_MAX_SCOPE_LEVEL_DEPTH<4)
+# error Bad configuration
+#endif
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 

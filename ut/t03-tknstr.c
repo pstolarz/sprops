@@ -16,6 +16,10 @@
 #include "../config.h"
 #include "sprops/parser.h"
 
+#if (SPAR_MIN_CV_LEN != 10)
+# error SPAR_MIN_CV_LEN must be 10 for this test
+#endif
+
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 int main(void)
@@ -91,10 +95,6 @@ int main(void)
 
     /* val with trailing spaces (last escaped by \x) */
     __TEST(SP_TKN_VAL, "abc  ", "abc \\x20", 0);
-
-#if (SPAR_MIN_CV_LEN != 10)
-# error SPAR_MIN_CV_LEN must be 10 for this test
-#endif
 
     /* val cuts tests */
     __TEST(SP_TKN_VAL, "0123456789", "0123456789", SPAR_F_CVLEN(10));

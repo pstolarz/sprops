@@ -2022,6 +2022,7 @@ static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     mod_lst_t lst = {};
 
     if (!in || !out || !name ||
+        ((mod_flags & MOD_F_PROP_NAME) && !new_name) ||
         (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_ALL))
     {
         ret=SPEC_INV_ARG;
@@ -2123,7 +2124,7 @@ sp_errc_t sp_mv_scope(
     /* last element spec.; initialized to unset state */
     mod_lst_t lst = {};
 
-    if (!in || !out || !name ||
+    if (!in || !out || !name || !new_name ||
         (ind<0 && ind!=SP_IND_LAST && ind!=SP_IND_ALL))
     {
         ret=SPEC_INV_ARG;

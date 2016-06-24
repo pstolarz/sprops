@@ -12,13 +12,19 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include "../config.h"
 #include "sprops/props.h"
+
+#if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
+    !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
+    (CONFIG_MAX_SCOPE_LEVEL_DEPTH>0 && CONFIG_MAX_SCOPE_LEVEL_DEPTH<2)
+# error Bad configuration
+#endif
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 /* used indentation */
 static unsigned long indf = SP_F_SPIND(4);
-
 
 /* Copies 'in' input bytes to 'out' starting from 'beg' up to 'end' (exclusive).
    If end==EOL copies up to the end of input.
@@ -194,7 +200,7 @@ int main(void)
 
 #undef __ITER_ADD
 
-    /* not existent elements */
+    /* not existing elements */
 
     assert(sp_add_prop(
         in, stdout,

@@ -146,11 +146,11 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    shall be set to NULL, "" or "/".
 
    For split scopes there is possible to provide specific split-scope index
-   (0-based) where the iteration shall occur, by appending "@n" to the scope name
-   in the NAME token. "@*" names overall (combined) scope and is assumed if no
-   @-addressing is provided in NAME. "@$" denotes last split-scope index (usage
-   of this construct shall be avoided due to additional overhead needed for
-   tracking the scope in question).
+   (0-based) where the iteration shall occur, by appending "@n" to the scope
+   name in the NAME token. "@*" names overall (combined) scope and is assumed if
+   no @-addressing is provided in NAME. "@$" denotes last split-scope index
+   (usage of this construct shall be avoided due to additional overhead needed
+   for tracking the scope in question).
 
    NOTE: Both TYPE and NAME may contain escape characters. Primary usage of them
    is escaping ':', '/'  and '@' in the 'path' string to avoid ambiguity with
@@ -210,9 +210,9 @@ typedef struct _sp_scope_info_ex_t
 #define SP_ELM_LAST     SP_IND_LAST
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
-   'len'. 'path' and 'deftp' specify owning scope of the property. If no property
-   is found SPEC_NOTFOUND error is returned. 'ind' specifies property index
-   used to avoid ambiguity in case many properties with the same name
+   'len'. 'path' and 'deftp' specify owning scope of the property. If no
+   property is found SPEC_NOTFOUND error is returned. 'ind' specifies property
+   index used to avoid ambiguity in case many properties with the same name
    exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
    SP_IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
    property extra information.
@@ -227,8 +227,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
 /* Find integer property with 'name' and write its under 'p_val'. In case of
    integer format error SPEC_VAL_ERR is returned.
 
-   NOTE: This method is a simple wrapper around sp_get_prop() to treat property's
-   value as integer.
+   NOTE: This method is a simple wrapper around sp_get_prop() to treat
+   property's value as integer.
  */
 sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *deftp, long *p_val,
@@ -237,8 +237,8 @@ sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
 /* Find float property with 'name' and write its under 'p_val'. In case of
    float format error SPEC_VAL_ERR is returned.
 
-   NOTE: This method is a simple wrapper around sp_get_prop() to treat property's
-   value as float.
+   NOTE: This method is a simple wrapper around sp_get_prop() to treat
+   property's value as float.
  */
 sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *deftp, double *p_val,
@@ -263,8 +263,8 @@ typedef struct _sp_enumval_t
    names in 'p_evals' OR the working buffer is to small to read a checked
    property, SPEC_VAL_ERR error is returned.
 
-   NOTE: This method is a simple wrapper around sp_get_prop() to treat property's
-   value as enum.
+   NOTE: This method is a simple wrapper around sp_get_prop() to treat
+   property's value as enum.
  */
 sp_errc_t sp_get_prop_enum(
     FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
@@ -361,9 +361,16 @@ sp_errc_t sp_get_scope_info(
 
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
    (number of elements - scopes/props, before inserted property) in a scope
-   addressed by 'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used
-   for tune performed formatting (SP_F_SPIND, SP_F_SPLBRA, SP_F_EMPCPT,
-   SP_F_EXTEOL, SP_F_NLSTEOL).
+   addressed by 'p_parsc', 'path' and 'deftp'.
+
+   If 'n_elem' is SP_ELM_LAST, the property is added as the last one in the
+   scope (that is after the last element). If modified scope is empty SP_ELM_LAST
+   is equivalent to 0.
+   If 'n_elem' is 0, the property is added as the first one in the scope. For
+   split scopes the first compound scope is modified (even if empty).
+
+   Additional 'flags' may be used to tune performed formatting (SP_F_SPIND,
+   SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
 
    NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
    output is confined only to the location specified by the argument. Usage of
@@ -371,14 +378,9 @@ sp_errc_t sp_get_scope_info(
    scopes performed during single-shot iteration of their containing scope OR
    a performance efficient small block updates inside a *huge* input file). For
    most cases 'p_parsc' shall be NULL meaning the global scope.
-   NOTE 2: If n_elem==SP_ELM_LAST, the property is added as the last one in
-   the scope (that is after the last element). If modified scope is empty
-   SP_ELM_LAST is equivalent to 0.
-   NOTE 3: If n_elem==0, the property is added as the first one in the scope.
-   For split scopes the first compound scope is modified (even if empty).
-   NOTE 4: There is possible to use usual @-addressing in the 'path'
+   NOTE 2: There is possible to use usual @-addressing in the 'path'
    specification to reach a specific scope inside a split scope.
-   NOTE 5: Contrary to 'in' which is a random access stream for every API of
+   NOTE 3: Contrary to 'in' which is a random access stream for every API of
    the library (therefore must not be 'stdin'), 'out' is written incrementally
    by any updating function, w/o changing stream's position indicator (fseek())
    during the writing process. This enables 'stdout' to be used as 'out'.
@@ -390,18 +392,18 @@ sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 /* Add (insert) an empty scope of 'name' and 'type' in location 'n_elem'
    (number of elements - scopes/props before inserted scope) in a scope
    addressed by 'p_parsc', 'path' and 'deftp'. The added scope may be later
-   populated by sp_add_prop() and sp_add_scope(). Additional 'flags' may be
-   used for tune performed formatting (SP_F_SPIND, SP_F_SPLBRA, SP_F_EMPCPT,
-   SP_F_EXTEOL, SP_F_NLSTEOL).
+   populated by sp_add_prop() and sp_add_scope().
+   Additional 'flags' may be used to tune performed formatting (SP_F_SPIND,
+   SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
 
-   See sp_add_prop() notes for more details.
+   See sp_add_prop() for more details.
  */
 sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int n_elem, const char *path,
     const char *deftp, unsigned long flags);
 
 /* Remove a property of 'name' with index 'ind' in a scope addressed by
-   'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used for tune
+   'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used to tune
    performed removal (SP_F_EXTEOL).
 
    NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to remove all/last
@@ -412,7 +414,7 @@ sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
    been found but the property is absent, the function returns SPEC_SUCCESS and
    input is copied w/o any changes to the output.
 
-   See sp_add_prop() notes for more details.
+   See also sp_add_prop() notes.
  */
 sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp,
@@ -422,27 +424,54 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
    'path' and 'deftp'. The index argument 'ind' enables to specify which part
    of a split scope to remove (SP_IND_ALL - to remove all scopes constituting
    a split scope, SP_IND_LAST - remove the last one scope).  Additional 'flags'
-   may be used for tune performed removal (SP_F_EXTEOL).
+   may be used to tune performed removal (SP_F_EXTEOL).
 
-   See sp_add_prop() notes for more details.
+   See sp_rm_prop() for more details.
  */
 sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
-/*
+/* Set value 'val' (may be NULL to remove the value) to a property with 'name'
+   and index 'ind' in a scope addressed by 'p_parsc', 'path' and 'deftp'. If
+   the destination scope exists but the property being set is absent there,
+   the function may add the property to the scope if SP_F_NOADD flag is not
+   specified in 'flags' (see SP_F_NOADD flag description for more details).
+
+   NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to set all/last property
+   identified by 'name'.
+   NOTE 2: 'flags' may contain additional flags controlling the addition of the
+   property as for sp_add_prop(). Of course, they have only sense if SP_F_NOADD
+   is not specified.
+   NOTE 3: The function returns SPEC_NOTFOUND if the destination scope is not
+   found OR the property being set is absent in the scope and is not possible
+   (or allowed) to be added.
+
+   See also sp_add_prop() notes.
  */
 sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *val, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
-/*
+/* Move (rename) to 'new_name' a property with 'name' and index 'ind' in a scope
+   addressed by 'p_parsc', 'path' and 'deftp'.
+
+   NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to move all/last
+   property identified by 'name'.
+   NOTE 2: The function returns SPEC_NOTFOUND if the moved property is not found.
+   NOTE 3: 'flags' are ignored (reserved for the future).
+
+   See also sp_add_prop() notes.
  */
 sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *new_name, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
-/*
+/* Move (rename) to 'new_type' (may be NULL to remove the type) and 'new_name'
+   a scope with 'name' and index 'ind' in a scope addressed by 'p_parsc', 'path'
+   and 'deftp'.
+
+   See sp_mv_prop() for more details.
  */
 sp_errc_t sp_mv_scope(
     FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *type,

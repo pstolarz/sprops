@@ -151,7 +151,7 @@ scope {
 }
 1 = x
 
---- Set/add prop 4, own-scope: /:scope, elm:LAST
+--- Set/add prop 4, own-scope: /:scope@0, elm:LAST
 1; 2=x
 scope {
     1=
@@ -162,7 +162,7 @@ scope {
 }
 1 = x
 
---- Set/add prop 4, own-scope: /:scope, elm:ALL
+--- Set/add prop 4, own-scope: /:scope@$, elm:ALL
 1; 2=x
 scope {
     1=
@@ -172,3 +172,20 @@ scope {
     4 = VAL;
 }
 1 = x
+
+--- Set prop 1, parsing scope: /:scope, elm:ALL
+1 = VAL;
+    1 = VAL;
+    2=;
+    3=x
+--- No-val-set prop 3, parsing scope: /:scope, elm:LAST
+1=
+    1;
+    2=;
+    3;
+--- Set/add prop 3, parsing scope: /:scope, elm:1, flags:EXTEOL
+1=
+    1;
+    2=;
+    3=x
+    3 = VAL;
