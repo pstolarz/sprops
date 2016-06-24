@@ -20,6 +20,15 @@
 # error SPAR_MIN_CV_LEN must be 10 for this test
 #endif
 
+#define WIN_EOL  "\x0d" "\x0a"
+#define UNX_EOL  "\x0a"
+
+#if defined(_WIN32) || defined(_WIN64)
+# define PLT_EOL WIN_EOL
+#else
+# define PLT_EOL UNX_EOL
+#endif
+
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
 int main(void)
@@ -100,19 +109,19 @@ int main(void)
     __TEST(SP_TKN_VAL, "0123456789", "0123456789", SPAR_F_CVLEN(10));
 
     __TEST(SP_TKN_VAL, "0123456789012345",
-        "0123456789\\" "\x0a" "012345",
+        "0123456789\\" UNX_EOL "012345",
         SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_LF));
 
     __TEST(SP_TKN_VAL, "01234567890123456789",
-        "0123456789\\" "\x0d" "\x0a" "0123456789",
+        "0123456789\\" WIN_EOL "0123456789",
         SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_CRLF));
 
     __TEST(SP_TKN_VAL, "01234567890123456789012",
-        "0123456789\\\n0123456789\\\n012",
+        "0123456789\\" PLT_EOL "0123456789\\" PLT_EOL "012",
         SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_PLAT));
 
     __TEST(SP_TKN_VAL, "012345678\n12345 ",
-        "012345678\\\n\\n12345\\\n\\x20",
+        "012345678\\" PLT_EOL "\\n12345\\" PLT_EOL "\\x20",
         SPAR_F_CVLEN(10)|SPAR_F_CVEOL(EOL_PLAT));
 
 finish:
