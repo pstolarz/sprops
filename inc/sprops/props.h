@@ -179,9 +179,12 @@ typedef struct _sp_prop_info_ex_t
 
     sp_loc_t ldef;              /* property definition location */
 
-    int n_elem;                 /* number of elements before the property
-                                   NOTE: the value is dependant on type of
-                                   containing scope used in a query */
+    /* values of the members below depend on
+       a type of containing scope used in the
+       query (e.g. split scope vs its component)
+     */
+    int ind;                    /* property index */
+    int n_elem;                 /* number of elements before the element */
 } sp_prop_info_ex_t;
 
 typedef struct _sp_scope_info_ex_t
@@ -199,9 +202,12 @@ typedef struct _sp_scope_info_ex_t
 
     sp_loc_t ldef;              /* scope definition location */
 
-    int n_elem;                 /* number of elements before the property
-                                   NOTE: the value is dependant on type of
-                                   containing scope used in a query */
+    /* values of the members below depend on
+       a type of containing scope used in the
+       query (e.g. split scope vs its component)
+     */
+    int ind;                    /* split-scope index */
+    int n_elem;                 /* number of elements before the element */
 } sp_scope_info_ex_t;
 
 #define SP_IND_LAST     -1
@@ -211,7 +217,7 @@ typedef struct _sp_scope_info_ex_t
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
    'len'. 'path' and 'deftp' specify owning scope of the property. If no
-   property is found SPEC_NOTFOUND error is returned. 'ind' specifies property
+   property is found SPEC_NOTFOUND error is returned. 'ind' specifies a property
    index used to avoid ambiguity in case many properties with the same name
    exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
    SP_IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
@@ -273,8 +279,8 @@ sp_errc_t sp_get_prop_enum(
 
 /* Find scope with 'name' and 'type' and write its detailed info under 'p_info'.
    'path' and 'deftp' specify owning scope of the requested scope. If no scope
-   is found SPEC_NOTFOUND error is returned. The index argument 'ind' enables to
-   specify part of a split scope (SP_IND_LAST - the last one).
+   is found SPEC_NOTFOUND error is returned. The 'ind' argument enables to
+   specify a split-scope index (SP_IND_LAST - the last one).
 
    NOTE: One of most useful members of 'sp_scope_info_ex_t' is 'lbody', allowing
    its further usage as a parsing scope in other functions of the API.
@@ -367,7 +373,7 @@ sp_errc_t sp_get_scope_info(
    scope (that is after the last element). If modified scope is empty SP_ELM_LAST
    is equivalent to 0.
    If 'n_elem' is 0, the property is added as the first one in the scope. For
-   split scopes the first compound scope is modified (even if empty).
+   split scopes the first component scope is modified (even if empty).
 
    Additional 'flags' may be used to tune performed formatting (SP_F_SPIND,
    SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
@@ -379,7 +385,7 @@ sp_errc_t sp_get_scope_info(
    a performance efficient small block updates inside a *huge* input file). For
    most cases 'p_parsc' shall be NULL meaning the global scope.
    NOTE 2: There is possible to use usual @-addressing in the 'path'
-   specification to reach a specific scope inside a split scope.
+   specification to reach a specific component scope inside its split scope.
    NOTE 3: Contrary to 'in' which is a random access stream for every API of
    the library (therefore must not be 'stdin'), 'out' is written incrementally
    by any updating function, w/o changing stream's position indicator (fseek())
@@ -421,10 +427,10 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     unsigned long flags);
 
 /* Remove a scope of 'name' and 'type' in a scope addressed by 'p_parsc',
-   'path' and 'deftp'. The index argument 'ind' enables to specify which part
-   of a split scope to remove (SP_IND_ALL - to remove all scopes constituting
-   a split scope, SP_IND_LAST - remove the last one scope).  Additional 'flags'
-   may be used to tune performed removal (SP_F_EXTEOL).
+   'path' and 'deftp'. The split-scope index 'ind' enables to specify which part
+   of a split scope to remove (SP_IND_ALL - to remove all component scopes
+   constituting the split scope, SP_IND_LAST - remove the last one).
+   Additional 'flags' may be used to tune performed removal (SP_F_EXTEOL).
 
    See sp_rm_prop() for more details.
  */
@@ -468,8 +474,8 @@ sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *deftp, unsigned long flags);
 
 /* Move (rename) to 'new_type' (may be NULL to remove the type) and 'new_name'
-   a scope with 'name' and index 'ind' in a scope addressed by 'p_parsc', 'path'
-   and 'deftp'.
+   a scope with 'name' and the split-scope index 'ind' in a scope addressed by
+   'p_parsc', 'path' and 'deftp'.
 
    See sp_mv_prop() for more details.
  */

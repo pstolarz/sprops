@@ -27,7 +27,7 @@
 
 static void print_prop_info(const sp_prop_info_ex_t *p_info)
 {
-    printf("ELM %d, ", p_info->n_elem);
+    printf("IND:%d ELM:%d, ", p_info->ind, p_info->n_elem);
 
     printf("NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
         p_info->tkname.len,
@@ -54,7 +54,7 @@ static void print_prop_info(const sp_prop_info_ex_t *p_info)
 
 static void print_scope_info(const sp_scope_info_ex_t *p_info)
 {
-    printf("ELM %d, ", p_info->n_elem);
+    printf("IND:%d ELM:%d, ", p_info->ind, p_info->n_elem);
 
     printf("NAME len:%ld loc:%d.%d|%d.%d [0x%02lx|0x%02lx], ",
         p_info->tkname.len,
