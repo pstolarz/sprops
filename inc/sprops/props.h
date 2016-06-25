@@ -344,15 +344,26 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_EMPCPT     0x0020UL
 
+/* Don't add extra surrounding spaces around '=' char while adding a value to a
+   property. That is:
+
+   prop=val
+
+     RATHER THAN
+
+   prop = val
+ */
+#define SP_F_NVSRSP     0x0040UL
+
 /* Element addition - put an extra EOL after the inserted element,
    Element removal - delete an extra EOL (if exists) after the removed element.
  */
-#define SP_F_EXTEOL     0x0040UL
+#define SP_F_EXTEOL     0x0080UL
 
 /* If adding  element on the global scope's end, don't put an extra EOL after
    it. Effectively, the element will be finished by EOF.
  */
-#define SP_F_NLSTEOL    0x0080UL
+#define SP_F_NLSTEOL    0x0100UL
 
 /* If property being set doesn't exist, don't add it to the destination scope.
 
@@ -362,7 +373,7 @@ sp_errc_t sp_get_scope_info(
     - SP_IND_ALL
     - equal to the number of properties with the same name as the set one.
  */
-#define SP_F_NOADD      0x0100UL
+#define SP_F_NOADD      0x0200UL
 
 
 /* Add (insert) a property of 'name' with value 'val' in location 'n_elem'

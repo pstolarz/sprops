@@ -8,7 +8,7 @@ scope {
 }
 1 = x
 
---- Set prop 1, own-scope: /, elm:1
+--- Set prop 1, own-scope: /, elm:1, flags:NVSRSP
 1; 2=x
 scope {
     1=
@@ -81,11 +81,11 @@ scope {
 }
 1 = x
 
---- Set prop 1, own-scope: /:scope, elm:LAST
+--- Set prop 1, own-scope: /:scope, elm:LAST, flags:NVSRSP
 1; 2=x
 scope {
     1=
-    1 = VAL;
+    1=VAL;
     2=;
     3=x
 }

@@ -91,7 +91,7 @@ scope 2 {
 }
 scope 2 {}
 
---- Prop added to: /scope:2@$, elm:0, flags:EXTEOL
+--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL|NVSRSP
 1;
 scope 2;
 scope 2 {
@@ -101,7 +101,7 @@ scope 2 {
     }
 }
 scope 2 {
-    PROP = VAL;
+    PROP=VAL;
 
 }
 

@@ -160,14 +160,14 @@ int main(void)
         "/2", "scope",
         indf|SP_F_SPLBRA));
 
-    printf("\n--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL\n");
+    printf("\n--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL|NVSRSP\n");
     EXEC_RG(sp_add_prop(
         in, stdout,
         NULL,
         "PROP", "VAL",
         0,
         "/2@$", "scope",
-        indf|SP_F_EXTEOL));
+        indf|SP_F_EXTEOL|SP_F_NVSRSP));
 
     printf("\n--- Prop w/o value added to: /, elm:LAST, flags:EXTEOL\n");
     EXEC_RG(sp_add_prop(

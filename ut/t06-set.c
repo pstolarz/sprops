@@ -39,13 +39,13 @@ int main(void)
         "/", NULL,
         0));
 
-    printf("\n--- Set prop 1, own-scope: /, elm:1\n");
+    printf("\n--- Set prop 1, own-scope: /, elm:1, flags:NVSRSP\n");
     EXEC_RG(sp_set_prop(in, stdout,
         NULL,
         "1", "VAL",
         1,
         "/", NULL,
-        0));
+        SP_F_NVSRSP));
 
     printf("\n--- No-val-set prop 1, own-scope: /, elm:ALL\n");
     EXEC_RG(sp_set_prop(in, stdout,
@@ -135,13 +135,13 @@ int main(void)
         "scope", "",
         0));
 
-    printf("\n--- Set prop 1, own-scope: /:scope, elm:LAST\n");
+    printf("\n--- Set prop 1, own-scope: /:scope, elm:LAST, flags:NVSRSP\n");
     EXEC_RG(sp_set_prop(in, stdout,
         NULL,
         "1", "VAL",
         SP_IND_LAST,
         "scope", "",
-        0));
+        SP_F_NVSRSP));
 
     printf("\n--- Set prop 1, own-scope: /:scope, elm:ALL\n");
     EXEC_RG(sp_set_prop(in, stdout,

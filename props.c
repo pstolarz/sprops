@@ -1274,9 +1274,13 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
         if (prop_val)
         {
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
-            CHK_FERR(fputs(" = ", p_bu->out));
-#else
-            CHK_FERR(fputc('=', p_bu->out));
+            if (!(p_bu->flags & SP_F_NVSRSP)) {
+                CHK_FERR(fputs(" = ", p_bu->out));
+            } else {
+#endif
+                CHK_FERR(fputc('=', p_bu->out));
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+            }
 #endif
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val, 0));
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
@@ -1863,9 +1867,13 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
         p_bu->in_off = p_ldef->end+1;
 
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
-        CHK_FERR(fputs(" = ", p_bu->out));
-#else
-        CHK_FERR(fputc('=', p_bu->out));
+        if (!(p_bu->flags & SP_F_NVSRSP)) {
+            CHK_FERR(fputs(" = ", p_bu->out));
+        } else {
+#endif
+            CHK_FERR(fputc('=', p_bu->out));
+#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+        }
 #endif
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
