@@ -1,6 +1,7 @@
 #!/bin/sh
 
-chk_diff() {
+chk_diff()
+{
     echo -n "$1: ";
     if [ `./$1 | diff - $2 | wc -c` -gt 0 ];
     then

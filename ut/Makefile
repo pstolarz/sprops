@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -I../inc
 
-.PHONY: all clean makelib
+.PHONY: all clean makelib run
 
 TESTS= \
     t01-get \
@@ -21,7 +21,7 @@ makelib ../libsprops.a:
 	$(MAKE) -C..
 
 run: all
-	@./ut-run.sh
+	./ut-run.sh
 
 %: %.c makelib ../libsprops.a
 	@if [ "$?" != "makelib" ]; then \

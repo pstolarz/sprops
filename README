@@ -1,10 +1,11 @@
 Scoped properties configuration library
 =======================================
 
-This project provides a lightweight and flexible library for parsing configuration
-files built of properties (key/value pairs) which may reside inside "scopes",
-that is blocks of configuration with assigned name and an optional type. Scopes
-may constitute hierarchical nesting tree of an arbitrary depth.
+This project provides a lightweight and flexible library for parsing
+configuration files built of properties (key/value pairs) which may reside
+inside "scopes", that is blocks of configuration with assigned name and an
+optional type. Scopes may constitute hierarchical nesting tree of an arbitrary
+(configurable) depth.
 
 The library API consists of small but powerful set of C functions for accessing
 properties in a configuration file. There is possible to access a property
@@ -12,14 +13,14 @@ located inside a specific scope when its location (path) is known OR to discover
 a configuration file structure by iterating over properties/scopes located on
 the same level of depth.
 
-Full support for UNIX (LF), Windows (CR/LF) and Legacy Mac (CR) end-of-line
-markers.
+The library provides unique functionality to parse only a specific scope (block
+of configuration), therefore highly reducing an overhead needed by frequent
+access to some limited configuration inside a larger configuration file.
 
 The library is inspired by:
  - Microsoft INI files API: GetPrivateProfileXXX() family of functions with
    their simplicity of usage, sections and basic iteration functionality.
- - JSON serialization format with its C-based grammar and elaborated objects
-   definitions.
+ - C language grammar as a base for scopes and properties definition syntax.
 
 Configuration file format
 -------------------------
@@ -28,12 +29,12 @@ Configuration file format
 The same is true with a good example:
 
     # A comment starts with '#' up to the end of line.
-    # The 2 properties below are located on the depth level 0 (global scope)
+    # This property is located in the global scope (level depth 0)
     prop1 = value
 
     # Quotation marks required in the property name to avoid parsing problem.
     # A property value finishes at the end of a line or at a semicolon (unless
-    # CONFIG_NO_SEMICOL_ENDS_VAL had been defined during library compilation).
+    # the library is configured with CONFIG_NO_SEMICOL_ENDS_VAL).
     "property 2" = some other value;
 
     # Scope with a type and name
@@ -59,22 +60,60 @@ The same is true with a good example:
             d = \;abc\n\ \\
         }
 
-        # Property names may contain arbitrary characters. Escaped characters
-        # may be used. In this example quotation marks are required since '{',
-        # '}' are parser's reserved tokens (marking start/end of a scope).
+        # Property names may contain arbitrary characters. In this example
+        # quotation marks are required since '{', '}' are parser's reserved
+        # tokens. Additionally tab characters were escaped by \t.
         "{\tprop name w/o a value\t}";
-
-        # Scope "scope name" continuation (with empty body).
-        "scope name" {}
     }
 
-In this example there have been defined several properties (in the global scope
-and 2 nested scopes). The library provides file-path-based method of addressing
-properties. Here:
+    # This scope is a continuation of the scope above (with the same name and
+    # type). The library allows to sum (concatenate) all scopes with the same
+    # name and type as a single compound scope (so called split scope). This
+    # functionality is similar to the C++ namespaces.
+    scope_type scope_name
+    {
+        # these 2 properties duplicate ones defined above
+        a=val;
+        b=val;
 
-    prop1 OR /prop1 -> "prop1" property path
-    /scope_type:scope_name/a -> "a" inside "scope_name" of a type "scope_type"
-    /scope_type:scope_name/scope name/c -> "c" property
+        c;
+
+        # scope with "type" and "name" and an empty body
+        type name;
+
+        # same as above (continuation)
+        type name {}
+    }
+
+Path-based addressing
+---------------------
+
+The library provides path-based method of scope addressing to reach for a
+specific property inside it (similarly to path and file analogous).
+Basing on the previous example:
+
+global scope
+    -> "/"
+
+1st compound (split) scope in /
+    -> "/scope_type:scope_name" or "/scope_type:scope_name@*"
+
+1st part of the split scope above
+    -> "/scope_type:scope_name@0"
+
+2nd part of the split scope above
+    -> "/scope_type:scope_name@1"
+         or
+       "/scope_type:scope_name@$", as the last scope of such name and type
+
+1st scope in split /scope_type:scope_name
+    -> "/scope_type:scope_name/:scope name"
+
+2nd scope in split /scope_type:scope_name
+    -> "/scope_type:scope_name/type:name", which as a split scope consist of
+       "/scope_type:scope_name/type:name@0"
+        and
+       "/scope_type:scope_name/type:name@1", both with empty bodies.
 
 API specification
 -----------------
@@ -86,19 +125,18 @@ The library provides two types of API:
 The first type of API defines low level, parser specific functionality and is
 not intended to be used unless, for some reason, you need a direct cooperation
 with the parser. The interface defines set of callbacks which allow an
-application to be informed about reducing some specific grammar rules.
+application to be informed about grammar rules reduction.
 
-The second type of API constitutes the proper interface (its implementation
-bases on the low level parser API). The API allows addressing properties inside
-their hosting scopes AND to discover a configuration structure by iterating over
-its content.
+The second type of API constitutes the proper get/set access interface (its
+implementation bases on the low level parser API). The API allows addressing
+properties inside their scopes AND to discover a configuration structure by
+iterating over its content.
 
 NOTE: Basically, the API treats properties values as strings built of arbitrary
-characters which are not interpreted: sp_get_prop(). For the convenience there
-have been provided 3 simple functions (referencing sp_get_prop()) to interpret
-strings as integers, floats and enumerations, namely: sp_get_prop_int(),
-sp_get_prop_float(), sp_get_prop_enum(). Lists may be easily emulated by iterating
-over dedicated scopes content.
+characters which are not interpreted. For the convenience there have been
+provided 3 simple functions to interpret strings as integers, floats and
+enumerations, namely: sp_get_prop_int(), sp_get_prop_float(), sp_get_prop_enum().
+Lists may be easily emulated by iterating over dedicated scopes content.
 
 Refer to the mentioned header files for complete API specification and the unit
 tests located in ut/ directory for an usage example.
@@ -121,14 +159,15 @@ Unit tests are contained in ut/ directory.
 
 Notes
 -----
-
+ - Full support for UNIX (LF), Windows (CR/LF) and Legacy Mac (CR) end-of-line
+   markers.
  - The library uses standard C library interface and shall be ported with a
    little effort for any conforming platforms.
- - Memory allocation is performed ONLY by the generated grammar parser code for
-   reducing read grammar rules. The bison parser allows a flexible way for
-   configuring such allocations (e.g. via stack alloca() or heap malloc())
-   which may be useful for porting to some constrained embedded platforms.
-   See the bison parser generator documentation for more details.
+ - Memory allocation is performed ONLY by the generated grammar parser code
+   for grammar rules reduction. The bison parser allows a flexible way for
+   configuring such allocations (e.g. via stack alloca() or heap malloc()) which
+   may be useful for porting to some constrained embedded platforms. See the
+   bison parser generator documentation for more details.
  - The API is fully re-entrant. No global variables are used during the parsing
    process.
  - The library is thread safe in terms of all library objects except passed
@@ -140,12 +179,6 @@ Notes
    each of the threads may use its own read-only file handle to access the file
    in a thread safe way (such approach is much more effective than a classical
    mutext usage).
-
-TODO
-----
-
- - Current version of the library provides get-access to the configuration.
-   Set-access functionality is intended to be added.
 
 License
 -------
