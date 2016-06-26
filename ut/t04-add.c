@@ -146,7 +146,7 @@ int main(void)
     EXEC_RG(sp_add_scope(
         in, stdout,
         NULL,
-        NULL, "SCOPE",
+        "", "SCOPE",
         SP_ELM_LAST,
         "/2/2", "scope",
         indf|SP_F_EMPCPT|SP_F_SPLBRA|SP_F_EXTEOL));
@@ -173,7 +173,7 @@ int main(void)
     EXEC_RG(sp_add_prop(
         in, stdout,
         NULL,
-        "PROP", NULL,
+        "PROP", "",
         SP_ELM_LAST,
         "/", NULL,
         indf|SP_F_EXTEOL));

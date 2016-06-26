@@ -58,7 +58,7 @@ int main(void)
     printf("\n--- No-val-set/add prop 1, own-scope: /, elm:2\n");
     EXEC_RG(sp_set_prop(in, stdout,
         NULL,
-        "1", NULL,
+        "1", "",
         2,
         "/", NULL,
         0));
@@ -154,7 +154,7 @@ int main(void)
     printf("\n--- No-val-set prop 1, own-scope: /:scope, elm:0\n");
     EXEC_RG(sp_set_prop(in, stdout,
         NULL,
-        "1", NULL,
+        "1", "",
         0,
         "scope", "",
         0));

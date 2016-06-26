@@ -352,6 +352,9 @@ sp_errc_t sp_get_scope_info(
      RATHER THAN
 
    prop = val
+
+   This flag is ignored if not configured with CONFIG_CUT_VAL_LEADING_SPACES,
+   since in this case surrounding spaces for an added value are never placed.
  */
 #define SP_F_NVSRSP     0x0040UL
 
@@ -376,9 +379,9 @@ sp_errc_t sp_get_scope_info(
 #define SP_F_NOADD      0x0200UL
 
 
-/* Add (insert) a property of 'name' with value 'val' in location 'n_elem'
-   (number of elements - scopes/props, before inserted property) in a scope
-   addressed by 'p_parsc', 'path' and 'deftp'.
+/* Add (insert) a property of 'name' with value 'val' (may be NULL for a prop
+   w/o a value) in location 'n_elem' (number of elements - scopes/props, before
+   inserted property) in a scope addressed by 'p_parsc', 'path' and 'deftp'.
 
    If 'n_elem' is SP_ELM_LAST, the property is added as the last one in the
    scope (that is after the last element). If modified scope is empty SP_ELM_LAST
@@ -406,10 +409,10 @@ sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *val, int n_elem, const char *path,
     const char *deftp, unsigned long flags);
 
-/* Add (insert) an empty scope of 'name' and 'type' in location 'n_elem'
-   (number of elements - scopes/props before inserted scope) in a scope
-   addressed by 'p_parsc', 'path' and 'deftp'. The added scope may be later
-   populated by sp_add_prop() and sp_add_scope().
+/* Add (insert) an empty scope of 'name' and 'type' (may be NULL for a scope w/o
+   a type) in location 'n_elem' (number of elements - scopes/props before
+   inserted scope) in a scope addressed by 'p_parsc', 'path' and 'deftp'. The
+   added scope may be later populated by sp_add_prop() and sp_add_scope().
    Additional 'flags' may be used to tune performed formatting (SP_F_SPIND,
    SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
 

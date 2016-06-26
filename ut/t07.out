@@ -1,0 +1,155 @@
+--- Move prop 1 -> PROP, own-scope: /, elm:0
+PROP=x; 2=x;
+scope 3;
+scope 3 {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+1;
+
+--- Move prop 1 -> PROP, own-scope: /, elm:LAST
+1=x; 2=x;
+scope 3;
+scope 3 {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+PROP;
+
+--- Move prop 1 -> PROP, own-scope: /scope:3, elm:ALL
+1=x; 2=x;
+scope 3;
+scope 3 {
+    PROP = x;
+    PROP;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+1;
+
+--- Move prop 1 -> PROP, own-scope: /:4, elm:ALL
+1=x; 2=x;
+scope 3;
+scope 3 {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    PROP;
+}
+1;
+
+--- Move scope /scope:3 -> /:NAME, own-scope: /, elm:0
+1=x; 2=x;
+NAME {}
+scope 3 {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+1;
+
+--- Move scope /scope:3 -> /:NAME, own-scope: /, elm:LAST
+1=x; 2=x;
+scope 3;
+NAME {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+1;
+
+--- Move scope /scope:3 -> /:NAME, own-scope: /, elm:ALL
+1=x; 2=x;
+NAME {}
+NAME {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+1;
+
+--- Move scope /scope:3 -> /TYPE:NAME, own-scope: /, elm:ALL
+1=x; 2=x;
+TYPE NAME;
+TYPE NAME {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+4 {
+    1;
+}
+1;
+
+--- Move scope /:4 -> /TYPE:NAME, own-scope: /, elm:0
+1=x; 2=x;
+scope 3;
+scope 3 {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+TYPE NAME {
+    1;
+}
+1;
+
+--- Move scope /:4 -> /:NAME, own-scope: /, elm:LAST
+1=x; 2=x;
+scope 3;
+scope 3 {
+    1 = x;
+    1;
+    scope 2;
+    3 {}
+}
+NAME {
+    1;
+}
+1;
+
+--- Move prop 1 -> PROP, parsing scope /scope:3, elm:ALL
+PROP = x;
+    PROP;
+    scope 2;
+    3 {}
+--- Move scope /scope:2 -> /:NAME, own-scope: /scope:3, elm:0
+1 = x;
+    1;
+    NAME {}
+    3 {}
+--- Move scope /:3 -> /TYPE:NAME, own-scope: /scope:3, elm:ALL
+1 = x;
+    1;
+    scope 2;
+    TYPE NAME {}

@@ -1271,7 +1271,7 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
     {
         /* element is a property */
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, prop_nm, 0));
-        if (prop_val)
+        if (prop_val && *prop_val)
         {
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
             if (!(p_bu->flags & SP_F_NVSRSP)) {
@@ -1296,7 +1296,7 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
     } else
     {
         /* element is a scope */
-        if (sc_typ) {
+        if (sc_typ && *sc_typ) {
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_typ, 0));
             CHK_FERR(fputc(' ', p_bu->out));
         }
@@ -1306,7 +1306,7 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
             EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));
             CHK_FERR(fputc('{', p_bu->out));
         } else {
-            if (sc_typ && (p_bu->flags & SP_F_EMPCPT)) {
+            if (sc_typ && *sc_typ && (p_bu->flags & SP_F_EMPCPT)) {
                 CHK_FERR(fputc(';', p_bu->out));
                 goto finish;
             } else {
@@ -1851,7 +1851,7 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
     /* value */
     if (p_lval) {
         if (mod_flags & MOD_F_PROP_VAL) {
-            if (new_val) {
+            if (new_val && *new_val) {
                 EXEC_RG(cpy_to_out(p_bu, p_lval->beg));
                 EXEC_RG(
                     sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
@@ -1862,7 +1862,7 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
             }
         }
     } else
-    if ((mod_flags & MOD_F_PROP_VAL) && new_val)
+    if ((mod_flags & MOD_F_PROP_VAL) && new_val && *new_val)
     {
         p_bu->in_off = p_ldef->end+1;
 
@@ -1905,7 +1905,7 @@ static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
         EXEC_RG(cpy_to_out(p_bu, p_ltype->beg));
 
         if (mod_flags & MOD_F_SCOPE_TYPE) {
-            if (new_type) {
+            if (new_type && *new_type) {
                 EXEC_RG(
                     sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
                 p_bu->in_off = p_ltype->end+1;
@@ -1920,7 +1920,7 @@ static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
     } else {
         EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
 
-        if ((mod_flags & MOD_F_SCOPE_TYPE) && new_type) {
+        if ((mod_flags & MOD_F_SCOPE_TYPE) && new_type && *new_type) {
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
             CHK_FERR(fputc(' ', p_bu->out));
         }

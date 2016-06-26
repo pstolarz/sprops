@@ -9,7 +9,8 @@ TESTS= \
     t03-tknstr \
     t04-add \
     t05-rm \
-    t06-set
+    t06-set \
+    t07-mv
 
 all: $(TESTS)
 
@@ -18,6 +19,9 @@ clean:
 
 makelib ../libsprops.a:
 	$(MAKE) -C..
+
+run: all
+	@./ut-run.sh
 
 %: %.c makelib ../libsprops.a
 	@if [ "$?" != "makelib" ]; then \
