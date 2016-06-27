@@ -48,11 +48,25 @@ typedef enum _sp_errc_t
     SPEC_VAL_ERR,       /* incorrect value (e.g. number format) */
     SPEC_CB_RET_ERR,    /* incorrect return provided by a callback */
 
-    /* This is the last error in the enumeration, callbacks may
-       use this error as a base number to define more failures.
+    /* This is the last error threshold used by the library, callbacks
+       may use this threshold as a base number for their own error codes.
      */
-    SPEC_CB_BASE = 20
+    SPEC_CB_BASE = 100
 } sp_errc_t;
+
+/* The following codes specify additional information related to syntax error
+   (SPEC_SYNTAX).
+ */
+typedef enum _sp_errsyn_t
+{
+    SPSYN_GRAMMAR = 0,  /* Grammar error */
+    SPSYN_UNEXP_EOL,    /* Unexpected EOL,
+                           token has not been properly finished */
+    SPSYN_UNEXP_EOF,    /* Unexpected EOF,
+                           token has not been properly finished */
+    SPSYN_EMPTY_TKN,    /* Empty token error */
+    SPSYN_LEV_DEPTH     /* Allowed level depth exceeded */
+} sp_errsyn_t;
 
 /* EOL types */
 typedef enum _sp_eol_t {
@@ -89,11 +103,12 @@ typedef struct _sp_tkn_info_t
 
 /* Check syntax of a properties set read from an input 'in' (the file must be
    opened in the binary mode with read access at least) with a given parsing
-   scope 'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col' will
-   be provided with location of the error.
+   scope 'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col'
+   and 'p_syn_code' will be provided with location of the error and detailed
+   informational code.
  */
-sp_errc_t sp_check_syntax(
-    FILE *in, const sp_loc_t *p_parsc, int *p_line, int *p_col);
+sp_errc_t sp_check_syntax(FILE *in, const sp_loc_t *p_parsc,
+    int *p_line, int *p_col, sp_errsyn_t *p_syn_code);
 
 /* Macro calculating actual length occupied by a given location */
 #define sp_loc_len(loc) (!(loc) ? 0L : ((loc)->end-(loc)->beg+1))

@@ -392,6 +392,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                     /* error: line continuation is not possible for SP_TKN_ID */
                     __MCHAR_TOKEN_END();
                     endloop=1;
+                    p_hndl->err.syn = SPSYN_UNEXP_EOL;
                     token = YYERRCODE;
                 } else {
                     __MCHAR_UPDATE_TAIL();
@@ -408,6 +409,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                    NOTE: line continuation is not possible for SP_TKN_ID */
                 __MCHAR_TOKEN_END();
                 endloop=1;
+                p_hndl->err.syn = SPSYN_UNEXP_EOL;
                 token = YYERRCODE;
             } else {
                 __MCHAR_UPDATE_TAIL();
@@ -499,6 +501,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             /* EOF finishes SP_TKN_ID/SP_TKN_VAL tokens, except quoted
                SP_TKN_ID which need to be finished by quotation mark */
             if (state==LXST_ID_QUOTED) {
+                p_hndl->err.syn = SPSYN_UNEXP_EOF;
                 token = YYERRCODE;
             } else {
                 __MCHAR_TOKEN_END();
@@ -512,6 +515,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         p_hndl->lex.scope_lev++;
 #ifdef CONFIG_MAX_SCOPE_LEVEL_DEPTH
         if (p_hndl->lex.scope_lev > CONFIG_MAX_SCOPE_LEVEL_DEPTH) {
+            p_hndl->err.syn = SPSYN_LEV_DEPTH;
             token = YYERRCODE;
         }
 #endif
@@ -525,12 +529,15 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
     if (p_hndl->lex.ctx==LCTX_VAL) {
         p_hndl->lex.ctx=LCTX_GLOBAL;
     } else
-    if (token=='=')
+    if (token=='=') {
         p_hndl->lex.ctx=LCTX_VAL;
+    }
 
     /* empty SP_TKN_ID tokens are not accepted */
-    if (state==LXST_ID_QUOTED && p_lval->end-p_lval->beg+1<=2)
+    if (state==LXST_ID_QUOTED && p_lval->end-p_lval->beg+1<=2) {
+        p_hndl->err.syn = SPSYN_EMPTY_TKN;
         token = YYERRCODE;
+    }
 
 #ifdef DEBUG
     printf("token 0x%03x: lval 0x%02lx|0x%02lx, lloc %d.%d|%d.%d, scope %d\n",
@@ -552,6 +559,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 {
     p_hndl->err.code = SPEC_SYNTAX;
+    /* err.syn code is already set */
     p_hndl->err.loc.line = p_lloc->first_line;
     p_hndl->err.loc.col = p_lloc->first_column;
 }
@@ -584,6 +592,7 @@ sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     p_hndl->cb.scope = cb_scope;
 
     p_hndl->err.code = SPEC_SUCCESS;
+    p_hndl->err.syn = SPSYN_GRAMMAR;    /* default syntax error code */
     p_hndl->err.loc.line = 0;
     p_hndl->err.loc.col = 0;
 
@@ -604,10 +613,12 @@ sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl)
         break;
     default:
     case 1:
-        if (p_hndl->err.code==SPEC_SUCCESS)
+        if (p_hndl->err.code==SPEC_SUCCESS) {
+            /* probably will not happen */
             ret = p_hndl->err.code = SPEC_SYNTAX;
-        else
+        } else {
             ret = p_hndl->err.code;
+        }
         break;
     case 2:
         ret = p_hndl->err.code = SPEC_NOMEM;

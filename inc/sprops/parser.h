@@ -90,7 +90,9 @@ typedef struct _sp_parser_hndl_t
 
     struct {
         sp_errc_t code;
-        /* syntax error (STEC_SYNTAX) location */
+
+        /* syntax error (SPEC_SYNTAX) detailed code and location */
+        sp_errsyn_t syn;
         struct {
             int line;
             int col;

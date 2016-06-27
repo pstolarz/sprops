@@ -41,8 +41,8 @@
 }
 
 /* exported; see header for details */
-sp_errc_t sp_check_syntax(
-    FILE *in, const sp_loc_t *p_parsc, int *p_line, int *p_col)
+sp_errc_t sp_check_syntax(FILE *in, const sp_loc_t *p_parsc,
+    int *p_line, int *p_col, sp_errsyn_t *p_syn_code)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_parser_hndl_t phndl;
@@ -56,6 +56,7 @@ finish:
     if (ret==SPEC_SYNTAX) {
         if (p_line) *p_line = phndl.err.loc.line;
         if (p_col) *p_col = phndl.err.loc.col;
+        if (p_syn_code) *p_syn_code = phndl.err.syn;
     }
     return ret;
 }
@@ -310,6 +311,14 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
 
             EXEC_RG(sp_parser_hndl_init(&phndl, p_phndl->in, p_lbody,
                 p_phndl->cb.prop, p_phndl->cb.scope, ph_nst));
+
+            /* SPEC_SYNTAX will not occur during this parsing, since in case
+               of such error it'd be detected earlier in the parsing process
+               (before the scope callback call, which in turn calls
+               follow_scope_path()). Therefore, there is no need to copy
+               phndl.err struct into the caller's p_phndl->err after the
+               sp_parse() call.
+             */
             EXEC_RG(sp_parse(&phndl));
         }
 
@@ -416,7 +425,7 @@ finish:
 /* Start parsing basing on already prepared parser handle pointed by 'p_phndl'.
    If occurs, the destination scope has not been reached due to last scope
    addressing usage, start the re-parsing process until the destination will be
-   reached.
+   finally reached.
  */
 static sp_errc_t parse_with_lsc_handling(
     sp_parser_hndl_t *p_phndl, base_hndl_t *p_b, void *hndl)
