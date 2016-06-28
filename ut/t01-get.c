@@ -247,7 +247,7 @@ int main(void)
     print_str_prop("/:scope", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "1/2/3", "", buf1, sizeof(buf1), &pi));
+        in, NULL, "a", 0, "1/2/3", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "a", 0, buf1, &pi);
 
     ret = sp_get_prop(in, NULL, "x", 0, "1@0/2/3", "", buf1, sizeof(buf1), &pi);
@@ -262,7 +262,7 @@ int main(void)
     assert(ret==SPEC_NOTFOUND);
 
     EXEC_RG(sp_get_prop_enum(in, NULL,
-        "c", 0, "/1/2/3", "", evals, 1, buf1, sizeof(buf1), &ival, &pi));
+        "c", 0, "/1/2/3", NULL, evals, 1, buf1, sizeof(buf1), &ival, &pi));
     print_enum_prop("/:1/:2/:3", "c", 0, ival, &pi);
 
     EXEC_RG(sp_get_prop(
@@ -282,7 +282,7 @@ int main(void)
     print_str_prop("/:1/:2/:3", "g", 0, buf1, &pi);
 
     ret = sp_get_prop(
-        in, NULL, "a", 0, "1/2/3/scope:xyz", "", buf1, sizeof(buf1), &pi);
+        in, NULL, "a", 0, "1/2/3/scope:xyz", NULL, buf1, sizeof(buf1), &pi);
     assert(ret==SPEC_NOTFOUND);
 
     EXEC_RG(sp_get_prop(
@@ -306,7 +306,7 @@ int main(void)
     print_str_prop("/scope:3", "a", SP_IND_LAST, buf1, &pi);
 
     EXEC_RG(sp_get_prop(in,
-        NULL, "a", SP_IND_LAST, "scope:3@$/", "", buf1, sizeof(buf1), &pi));
+        NULL, "a", SP_IND_LAST, "scope:3@$/", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3@$", "a", SP_IND_LAST, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
@@ -359,7 +359,7 @@ int main(void)
     EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 1, "/:1", NULL, &si));
     print_scope("/:1", "/:2", 1, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 1, "1/2", "", &si));
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 1, "1/2", NULL, &si));
     print_scope("/:1/:2", "/:3", 1, &si);
 
     EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 2, NULL, NULL, &si));
@@ -385,7 +385,7 @@ int main(void)
         in, NULL, NULL, "4", SP_IND_LAST, "1@2/2@0", "", &si);
     assert(ret==SPEC_NOTFOUND);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 0, "1@2/2@1", "", &si));
+    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 0, "1@2/2@1", NULL, &si));
     print_scope("/:1@2/:2@1", "/:3", 0, &si);
 
     EXEC_RG(sp_get_scope_info(

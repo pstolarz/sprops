@@ -146,48 +146,48 @@ int main(void)
 
 
     printf("\n\n--- Iterating scope /:1\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1@0\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1@0", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1@0", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1@1\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1@1", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1@1", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1@2\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1@2", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1@2", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1@$\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1@$", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1@$", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
 
     printf("\n\n--- Iterating scope /:1/:2\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1/2", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1/2", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1/:2@0\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1/2@0", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1/2@0", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1/:2@1\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1/2@1", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1/2@1", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1/:2@2\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1/2@2", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1/2@2", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1/:2@3\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1/2@3", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1/2@3", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
     printf("\n--- Iterating scope /:1/:2@$\n");
-    EXEC_RG(sp_iterate(in, NULL, "/1/2@$", "", cb_prop, cb_scope, NULL,
+    EXEC_RG(sp_iterate(in, NULL, "/1/2@$", NULL, cb_prop, cb_scope, NULL,
         buf1, sizeof(buf1), buf2, sizeof(buf2)));
 
 

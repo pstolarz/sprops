@@ -63,7 +63,7 @@ int main(void)
         NULL,
         "1", "PROP",
         SP_IND_ALL,
-        "/4", "",
+        "/4", NULL,
         0));
 
     printf("\n--- Move scope /scope:3 -> /:NAME, own-scope: /, elm:0\n");
@@ -83,7 +83,7 @@ int main(void)
         "scope", "3",
         NULL, "NAME",
         SP_IND_LAST,
-        "/", "",
+        "/", NULL,
         0));
 
     printf("\n--- Move scope /scope:3 -> /:NAME, own-scope: /, elm:ALL\n");
@@ -113,7 +113,7 @@ int main(void)
         "", "4",
         "TYPE", "NAME",
         0,
-        "/", "",
+        "/", NULL,
         0));
 
     printf("\n--- Move scope /:4 -> /:NAME, own-scope: /, elm:LAST\n");
@@ -123,7 +123,7 @@ int main(void)
         "", "4",
         "", "NAME",
         SP_IND_LAST,
-        "/", "",
+        "/", NULL,
         0));
 
     EXEC_RG(sp_get_scope_info(in, NULL, "scope", "3", 1, NULL, NULL, &sc3));
@@ -145,7 +145,7 @@ int main(void)
         "scope", "2",
         NULL, "NAME",
         0,
-        "/", "",
+        "/", NULL,
         0));
 
     printf("\n--- Move scope /:3 -> /TYPE:NAME, own-scope: /scope:3, elm:ALL\n");
@@ -155,7 +155,7 @@ int main(void)
         NULL, "3",
         "TYPE", "NAME",
         SP_IND_ALL,
-        "/", "",
+        "/", NULL,
         0));
 
 finish:

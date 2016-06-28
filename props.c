@@ -257,11 +257,10 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
         name = typ+1;
         nm_len = end-name;
     } else
-    if (p_path->deftp)
     {
         /* scope with default type */
         type = p_path->deftp;
-        typ_len = strlen(type);
+        typ_len = (type ? strlen(type) : 0);
         name = beg;
         nm_len = end-beg;
     }

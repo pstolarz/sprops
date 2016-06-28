@@ -156,9 +156,9 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    character as a separator. To address untyped scope /:NAME/ shall be used.
    In case ':' is not provided 'deftp' is used as the default scope type, in
    which case /NAME/ is translated to /deftp:NAME/. As a conclusion: if 'deftp'
-   is "" the /NAME/ is translated to /:NAME/, that is, it provides an alternative
-   way to address untyped scopes. To address global scope (0-level) 'path'
-   shall be set to NULL, "" or "/".
+   is NULL or "", /NAME/ is translated to /:NAME/, that is, it provides an
+   alternative way to address untyped scopes. To address global scope (0-level)
+   'path' shall be set to NULL, "" or "/".
 
    For split scopes there is possible to provide specific split-scope index
    (0-based) where the iteration shall occur, by appending "@n" to the scope

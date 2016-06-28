@@ -140,7 +140,7 @@ int main(void)
         NULL,
         "1", "VAL",
         SP_IND_LAST,
-        "scope", "",
+        "scope", NULL,
         SP_F_NVSRSP));
 
     printf("\n--- Set prop 1, own-scope: /:scope, elm:ALL\n");
@@ -156,7 +156,7 @@ int main(void)
         NULL,
         "1", "",
         0,
-        "scope", "",
+        "scope", NULL,
         0));
 
     printf("\n--- No-val-set prop 1, own-scope: /:scope, elm:ALL\n");
@@ -180,7 +180,7 @@ int main(void)
         NULL,
         "2", NULL,
         SP_IND_ALL,
-        "scope", "",
+        "scope", NULL,
         0));
 
     printf("\n--- No-val-set prop 3, own-scope: /:scope, elm:0\n");
@@ -188,7 +188,7 @@ int main(void)
         NULL,
         "3", NULL,
         0,
-        "scope", "",
+        "scope", NULL,
         0));
 
     printf("\n--- Set/add prop 4, own-scope: /:scope@0, elm:LAST\n");
@@ -196,7 +196,7 @@ int main(void)
         NULL,
         "4", "VAL",
         SP_IND_LAST,
-        "scope@0", "",
+        "scope@0", NULL,
         0));
 
     printf("\n--- Set/add prop 4, own-scope: /:scope@$, elm:ALL\n");

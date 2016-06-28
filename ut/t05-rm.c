@@ -98,7 +98,7 @@ int main(void)
         NULL,
         "1",
         0,
-        "5", "",
+        "5", NULL,
         0));
 
     printf("\n--- Del prop 3, own-scope /:5, elm:0, flags:EXTEOL\n");
