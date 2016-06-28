@@ -19,7 +19,7 @@ access to some limited configuration block inside a larger configuration file.
 
 The library is inspired by:
 
- - Microsoft INI files API: GetPrivateProfileXXX(), WritePrivateProfileXXX()
+ - Microsoft INI files API: `GetPrivateProfileXXX()`, `WritePrivateProfileXXX()`
    family of functions with their simplicity of usage, sections and basic
    iteration functionality.
  - C language grammar as a base for scopes and properties definition syntax.
@@ -123,8 +123,8 @@ API specification
 
 The library provides two sets of API:
 
- - Low level parser API with header: ./inc/sprops/parser.h,
- - High level functional API with header: ./inc/sprops/props.h.
+ - Low level parser API with header: `./inc/sprops/parser.h`,
+ - High level functional API with header: `./inc/sprops/props.h`.
 
 The first set of API defines low level, parser specific functionality and is
 not intended to be used unless, for some reason, there is a need for direct
@@ -148,23 +148,23 @@ enumerations, namely:
 Lists may be easily emulated by iterating over dedicated scopes content.
 
 Refer to the mentioned header files for complete API specification, and the unit
-tests located in ./ut directory for an example of usage.
+tests located in `./ut` directory for an example of usage.
 
 Compilation
 -----------
 
 Prerequisites:
 
- - GNU make,
+ - GNU Make,
  - Bison parser generator of version 3 or higher (only in case of regenerating
-   parser.c grammar definition file).
+   `parser.c` grammar definition file).
 
 Compilation:
 
     make
 
-produces static library "libsprops.a" which may be linked into an application.
-Unit tests are contained in ./ut directory and are launched by
+produces static library `libsprops.a` which may be linked into an application.
+Unit tests are contained in `./ut` directory and are launched by
 
     make -C./ut run
 
@@ -176,10 +176,10 @@ Notes
  - The library uses ONLY standard C library API and shall be ported with a
    little effort for any conforming platforms.
  - Memory allocation is performed ONLY by the generated grammar parser code
-   for grammar reductions. The bison parser allows a flexible way for configuring
-   such allocations e.g. via stack alloca(3) (used by the library) OR heap
-   malloc(3). This may be useful for porting to some constrained embedded
-   platforms. See the bison parser generator documentation for more details.
+   for grammar reductions. Bison parser allows a flexible way for configuring
+   such allocations e.g. via stack `alloca(3)` (used by the library) OR heap
+   `malloc(3)`. This may be useful for porting to some constrained embedded
+   platforms. See the Bison parser generator documentation for more details.
  - The API is fully re-entrant. No global variables are used during the parsing
    process.
  - The library is thread safe in terms of all library objects except API passed
