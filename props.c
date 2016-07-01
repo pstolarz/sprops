@@ -963,7 +963,7 @@ static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
     p_bu->flags = flags;
 
     /* detect EOL */
-    if (fseek(in, 0, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
+    CHK_FSEEK(fseek(in, 0, SEEK_SET));
 
     p_bu->eol_typ=EOL_PLAT;
     while ((c=fgetc(in))!=EOF)
@@ -995,29 +995,42 @@ finish:
     return ret;
 }
 
-/* Copies input bytes (from the offset staring not processed range) to
-   the output up to 'end' offset (exclusive). If end==EOF input is copied
-   up to the end of the stream. In case of success (and there is something to
-   copy) the input offset is set at 'end'.
- */
-static sp_errc_t cpy_to_out(base_updt_hndl_t *p_bu, long end)
+/* exported; see header for details */
+sp_errc_t sp_cpy_to_out(FILE *in, FILE *out, long beg, long end, long *p_n)
 {
-    sp_errc_t ret=SPEC_SUCCESS;
-    long beg = p_bu->in_off;
+    int ret=SPEC_SUCCESS;
+    long off=beg;
 
-    if (beg<end || end==EOF) {
-        CHK_FSEEK(fseek(p_bu->in, beg, SEEK_SET));
-        for (; beg<end || end==EOF; beg++) {
-            int c = fgetc(p_bu->in);
+    if (p_n) *p_n=0;
+
+    if (off<end || end==EOF) {
+        CHK_FSEEK(fseek(in, off, SEEK_SET));
+        for (; off<end || end==EOF; off++) {
+            int c = fgetc(in);
             if (c==EOF && end==EOF) break;
-            if (c==EOF || fputc(c, p_bu->out)==EOF) {
+            if (c==EOF || fputc(c, out)==EOF) {
                 ret=SPEC_ACCS_ERR;
                 goto finish;
             }
         }
-        p_bu->in_off = beg;
     }
+
+    if (p_n) *p_n=off-beg;
 finish:
+    return ret;
+}
+
+/* Copies input bytes (from the offset staring not processed range) to the
+   output up to 'end' offset (exclusive). In case of success (and there is
+   something to copy) the input offset is set at 'end'.
+ */
+static sp_errc_t __cpy_to_out(base_updt_hndl_t *p_bu, long end)
+{
+    sp_errc_t ret;
+    long n=0;
+
+    ret = sp_cpy_to_out(p_bu->in, p_bu->out, p_bu->in_off, end, &n);
+    if (ret==SPEC_SUCCESS && n>0) p_bu->in_off = p_bu->in_off+n;
     return ret;
 }
 
@@ -1033,10 +1046,7 @@ static sp_errc_t skip_sp_to_eol(
     long org_off=off;
     int c, eol_n=0;
 
-    if (fseek(p_bu->in, off, SEEK_SET)) {
-        ret=SPEC_ACCS_ERR;
-        goto finish;
-    }
+    CHK_FSEEK(fseek(p_bu->in, off, SEEK_SET));
 
     for (; !eol_n && isspace(c=fgetc(p_bu->in)) && c!='\v' && c!='\f'; off++)
     {
@@ -1403,7 +1413,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     {
         /* add after n-th elem
          */
-        EXEC_RG(cpy_to_out(&bu, ldef_elem.end+1));
+        EXEC_RG(__cpy_to_out(&bu, ldef_elem.end+1));
         EXEC_RG(put_eol_ind(&bu, &ldef_elem, IND_F_TRIMSP));
 
         EXEC_RG(put_elem(
@@ -1425,7 +1435,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
             if (bdyenc_sz==1)
             {
                 /* body as ; */
-                EXEC_RG(cpy_to_out(&bu, frst_sc.lbdyenc.beg));
+                EXEC_RG(__cpy_to_out(&bu, frst_sc.lbdyenc.beg));
                 if (frst_sc.lbdyenc.beg-frst_sc.lname.end <= 1) {
                     /* put extra space before the opening bracket */
                     CHK_FERR(fputc(' ', out));
@@ -1445,7 +1455,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
             if (bdyenc_sz>=2)
             {
                 /* body as {} or { ... } */
-                EXEC_RG(cpy_to_out(&bu, frst_sc.lbdyenc.beg+1));
+                EXEC_RG(__cpy_to_out(&bu, frst_sc.lbdyenc.beg+1));
                 EXEC_RG(put_eol_ind(
                     &bu, &frst_sc.ldef, IND_F_TRIMSP|IND_F_SCBDY));
 
@@ -1475,7 +1485,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
     /* copy untouched last part of the input */
     lstcpy_n = bu.in_off;
-    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
+    EXEC_RG(__cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
     lstcpy_n = bu.in_off-lstcpy_n;
 
     if (chk_end_eol && !lstcpy_n && !p_parsc && !(flags & SP_F_NLSTEOL))
@@ -1592,7 +1602,7 @@ static sp_errc_t cpy_rm_ldef(base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef)
         }
     }
 
-    EXEC_RG(cpy_to_out(p_bu, beg));
+    EXEC_RG(__cpy_to_out(p_bu, beg));
     p_bu->in_off = end;
 
 finish:
@@ -1738,7 +1748,7 @@ static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     }
 
     /* copy untouched last part of the input */
-    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
+    EXEC_RG(__cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
 
     if (fndstat==ELM_NOT_FND) {
         /* destination scope was not found (nonetheless the output is copied) */
@@ -1838,7 +1848,7 @@ typedef struct _mod_hndl_t
 
    NOTE: The function may leave some (last) part of the property not copied if
    this part need not to be modified. The part will be finally copied by a next
-   call to cpy_to_out().
+   call to __cpy_to_out().
  */
 static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef,
@@ -1847,20 +1857,20 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
     sp_errc_t ret=SPEC_SUCCESS;
 
     /* name */
-    EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+    EXEC_RG(__cpy_to_out(p_bu, p_lname->beg));
 
     if (mod_flags & MOD_F_PROP_NAME) {
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_name, 0));
         p_bu->in_off = p_lname->end+1;
     } else {
-        EXEC_RG(cpy_to_out(p_bu, p_lname->end+1));
+        EXEC_RG(__cpy_to_out(p_bu, p_lname->end+1));
     }
 
     /* value */
     if (p_lval) {
         if (mod_flags & MOD_F_PROP_VAL) {
             if (new_val && *new_val) {
-                EXEC_RG(cpy_to_out(p_bu, p_lval->beg));
+                EXEC_RG(__cpy_to_out(p_bu, p_lval->beg));
                 EXEC_RG(
                     sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
                 p_bu->in_off = p_lval->end+1;
@@ -1910,23 +1920,23 @@ static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
 
     /* type */
     if (p_ltype) {
-        EXEC_RG(cpy_to_out(p_bu, p_ltype->beg));
+        EXEC_RG(__cpy_to_out(p_bu, p_ltype->beg));
 
         if (mod_flags & MOD_F_SCOPE_TYPE) {
             if (new_type && *new_type) {
                 EXEC_RG(
                     sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
                 p_bu->in_off = p_ltype->end+1;
-                EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+                EXEC_RG(__cpy_to_out(p_bu, p_lname->beg));
             } else {
                 p_bu->in_off = p_lname->beg;
                 typ_rmed = 1;
             }
         } else {
-            EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+            EXEC_RG(__cpy_to_out(p_bu, p_lname->beg));
         }
     } else {
-        EXEC_RG(cpy_to_out(p_bu, p_lname->beg));
+        EXEC_RG(__cpy_to_out(p_bu, p_lname->beg));
 
         if ((mod_flags & MOD_F_SCOPE_TYPE) && new_type && *new_type) {
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
@@ -1939,7 +1949,7 @@ static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_name, 0));
         p_bu->in_off = p_lname->end+1;
     } else {
-        EXEC_RG(cpy_to_out(p_bu, p_lname->end+1));
+        EXEC_RG(__cpy_to_out(p_bu, p_lname->end+1));
     }
 
     /* body */
@@ -2143,7 +2153,7 @@ static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
     }
 
     /* copy untouched last part of the input */
-    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
+    EXEC_RG(__cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
 
 finish:
     return ret;
@@ -2231,7 +2241,7 @@ sp_errc_t sp_mv_scope(
     }
 
     /* copy untouched last part of the input */
-    EXEC_RG(cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
+    EXEC_RG(__cpy_to_out(&bu, (p_parsc ? p_parsc->end+1 : EOF)));
 
 finish:
     return ret;

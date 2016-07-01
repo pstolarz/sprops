@@ -25,6 +25,50 @@ The library is inspired by:
  - C language grammar as a base for scopes and properties definition syntax.
  - C++ namespace notion, as a sum of sets identified by the same name.
 
+Notes
+-----
+
+ - Full support for UNIX (LF), Windows (CR/LF) and Legacy Mac (CR) end-of-line
+   markers.
+ - The library uses ONLY standard C library API (mainly `stdio.h`) and shall be
+   ported with a little effort for any conforming platforms.
+ - The library works purely on text stream tokens and doesn't interpret the read
+   data in any way (e.g. no serialization of the read configuration).
+ - Memory allocation is performed ONLY by the generated grammar parser code
+   for grammar reductions. Bison parser allows a flexible way for configuring
+   such allocations e.g. via stack `alloca(3)` (used by the library) or heap
+   `malloc(3)`. This may be useful for porting to some constrained embedded
+   platforms. See the Bison parser generator documentation for more details.
+ - The API is fully re-entrant. No global variables are used during the parsing
+   process.
+ - The library is thread safe in terms of all library objects except API passed
+   file-objects (that is file handles for read access and physical files for
+   write access). Since there is no effective way to ensure such file-objects
+   synchronization on the library level, the application is responsible to handle
+   this issue. This may be done via standard thread synchronization approach or
+   by other means, e.g. if many threads read a single configuration file, each
+   of them may use its own read-only file handle to access the file in a thread
+   safe way (such approach is much more effective than the classical mutext
+   usage).
+
+Compilation
+-----------
+
+Prerequisites:
+
+ - GNU Make,
+ - Bison parser generator of version 3 or higher (only in case of regenerating
+   `parser.c` grammar definition file).
+
+Compilation:
+
+    make
+
+produces static library `libsprops.a` which may be linked into an application.
+Unit tests are contained in `./ut` directory and are launched by
+
+    make ut_run
+
 Configuration file format
 -------------------------
 
@@ -150,47 +194,18 @@ Lists may be easily emulated by iterating over dedicated scopes content.
 Refer to the mentioned header files for complete API specification, and the unit
 tests located in `./ut` directory for an example of usage.
 
-Compilation
------------
+Transactional support
+---------------------
 
-Prerequisites:
+To handle wrong-state of the modified data issue, there has been provided
+a simple transactions support with the header in `./inc/sprops/trans.h`,
+implemented as a wrapper around the write access API.
 
- - GNU Make,
- - Bison parser generator of version 3 or higher (only in case of regenerating
-   `parser.c` grammar definition file).
-
-Compilation:
-
-    make
-
-produces static library `libsprops.a` which may be linked into an application.
-Unit tests are contained in `./ut` directory and are launched by
-
-    make -C./ut run
-
-Notes
------
-
- - Full support for UNIX (LF), Windows (CR/LF) and Legacy Mac (CR) end-of-line
-   markers.
- - The library uses ONLY standard C library API and shall be ported with a
-   little effort for any conforming platforms.
- - Memory allocation is performed ONLY by the generated grammar parser code
-   for grammar reductions. Bison parser allows a flexible way for configuring
-   such allocations e.g. via stack `alloca(3)` (used by the library) OR heap
-   `malloc(3)`. This may be useful for porting to some constrained embedded
-   platforms. See the Bison parser generator documentation for more details.
- - The API is fully re-entrant. No global variables are used during the parsing
-   process.
- - The library is thread safe in terms of all library objects except API passed
-   file-objects (that is file handles for read access and physical files for
-   write access). Since there is no effective way to ensure such file-objects
-   synchronization on the library level, the application is responsible to handle
-   this issue. This may be done via standard thread synchronization approach or
-   by other means, e.g. if many threads read a single configuration file, each
-   of them may use its own read-only file handle to access the file in a thread
-   safe way (such approach is much more effective than the classical mutext
-   usage).
+Apart from the transactions the API provides a handy way for modification of
+a specific scope (block of configuration) inside a larger configuration file.
+This may be useful in terms of performance (in case of really huge files) or
+if a modifying caller is interested only in a specific block of configuration,
+which is managed by it, and didn't care about the rest.
 
 License
 -------

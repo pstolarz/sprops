@@ -7,15 +7,19 @@ CFLAGS+=-DYYSTACK_USE_ALLOCA
 
 OBJS = \
     parser.o \
-    props.o
+    props.o \
+    trans.o
 
-.PHONY: all clean
+.PHONY: all clean ut_run
 
 all: libsprops.a
 
 clean:
 	rm -f libsprops.a $(OBJS)
 	$(MAKE) -C./ut clean
+
+ut_run:
+	make -C./ut run
 
 config.h=config.h
 ./inc/sprops/props.h=./inc/sprops/props.h

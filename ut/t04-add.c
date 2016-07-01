@@ -26,30 +26,6 @@
 /* used indentation */
 static unsigned long indf = SP_F_SPIND(4);
 
-/* Copies 'in' input bytes to 'out' starting from 'beg' up to 'end' (exclusive).
-   If end==EOL copies up to the end of input.
- */
-static sp_errc_t cpy_to_out(FILE *in, FILE *out, long beg, long end)
-{
-    int ret=SPEC_SUCCESS;
-
-    if (fseek(in, beg, SEEK_SET)!=0) {
-        ret=SPEC_ACCS_ERR;
-        goto finish;
-    }
-
-    for (; beg<end || end==EOF; beg++) {
-        int c = fgetc(in);
-        if (c==EOF && end==EOF) break;
-        if (c==EOF || fputc(c, out)==EOF) {
-            ret=SPEC_ACCS_ERR;
-            goto finish;
-        }
-    }
-finish:
-    return ret;
-}
-
 typedef struct _argcb_t
 {
     long in_off;
@@ -69,7 +45,7 @@ static sp_errc_t cb_scope(
     if (p_lbody)
     {
         /* copy up to body start */
-        EXEC_RG(cpy_to_out(in, stdout, p_argcb->in_off, p_lbody->beg));
+        EXEC_RG(sp_cpy_to_out(in, stdout, p_argcb->in_off, p_lbody->beg, NULL));
 
         EXEC_RG(sp_add_scope(
             in, stdout,
@@ -184,7 +160,7 @@ int main(void)
     argcb.flags = (f); \
     EXEC_RG(sp_iterate(in, NULL, "/", NULL, NULL, cb_scope, &argcb, \
         buf1, sizeof(buf1), buf2, sizeof(buf2))); \
-    EXEC_RG(cpy_to_out(in, stdout, argcb.in_off, EOF));
+    EXEC_RG(sp_cpy_to_out(in, stdout, argcb.in_off, EOF, NULL));
 
     printf("\n--- Adding scope to /scope:2 during / scope iteration, "
         "elm:0, flags:EXTEOL\n");
