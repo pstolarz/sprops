@@ -1,0 +1,15 @@
+PROP1 = VAL;
+PROP2 = VAL;
+
+TYPE SCOPE1 {
+    PROP1 = VAL;
+    PROP2 = VAL;
+}
+
+TYPE SCOPE2 {
+    TYPE SCOPE1;
+    TYPE SCOPE2
+    {
+        PROP1 = VAL;
+    }
+}

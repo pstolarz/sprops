@@ -515,17 +515,6 @@ sp_errc_t sp_mv_scope(
     const char *name, const char *new_type, const char *new_name, int ind,
     const char *path, const char *deftp, unsigned long flags);
 
-/* Copies 'in' stream bytes to 'out' stream starting from 'beg' up to 'end'
-   (exclusive). If 'end' is EOF: copies up to the end of input. If 'p_n' is not
-   NULL it will get number of copied bytes.
-
-   NOTE: Although not part of the main set of the library API, this auxiliary
-   function may be useful when playing with parsing scope (p_parsc) in write
-   access API, to restore modified input after the scope modification is
-   finished. See transactional API implementation for an example of usage.
- */
-sp_errc_t sp_cpy_to_out(FILE *in, FILE *out, long beg, long end, long *p_n);
-
 #ifdef __cplusplus
 }
 #endif

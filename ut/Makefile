@@ -10,7 +10,8 @@ TESTS= \
     t04-add \
     t05-rm \
     t06-set \
-    t07-mv
+    t07-mv \
+    t08-scratch
 
 all: $(TESTS)
 

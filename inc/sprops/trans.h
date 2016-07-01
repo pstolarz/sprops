@@ -35,19 +35,27 @@ typedef struct _sp_trans_t
 } sp_trans_t;
 
 /* Initialize handle and start a transaction.
+
+   If 'in' is NULL it is treated as an empty stream (first read char will be
+   EOF). This enables from scratch output creation.
    A parsing scope may be specified (p_parsc) to define a modified scope for
-   the transaction (of NULL for the global scope).
+   the transaction (or NULL for the global scope). It must be NULL if 'in' is
+   NULL.
  */
 sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc);
 
 /* Finish a transaction and close its handle.
-   The resulting output will be written to 'out'.
+
+   The resulting output will be written to 'out'. If 'out' is NULL the function
+   simply discards the transaction and frees the 'p_trans' handle.
  */
 sp_errc_t sp_commit_tr(sp_trans_t *p_trans, FILE *out);
 
 /* Finish a transaction and close its handle.
-   The resulting output will be written to newly created file with 'new_file'
-   name (if exists will be overwritten).
+
+   The resulting output will be written to a newly created file with 'new_file'
+   name (if exists will be overwritten). If 'new_file' is NULL the function
+   simply discards the transaction and frees the 'p_trans' handle.
  */
 sp_errc_t sp_commit2_tr(sp_trans_t *p_trans, const char *new_file);
 

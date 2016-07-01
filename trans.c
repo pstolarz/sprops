@@ -11,11 +11,10 @@
  */
 
 #include <string.h>
-#include "config.h"
 #include "sprops/trans.h"
+#include "sprops/utils.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
-#define CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
 
 #define IN(t)    ((t)->tfs[(t)->ind])
 #define OUT(t)   ((t)->tfs[(t)->ind^1])
@@ -28,7 +27,7 @@
 
 #define PREP_STREAMS(t) \
     if (!(t)) { ret=SPEC_INV_ARG; goto finish; } \
-    CHK_FSEEK(fseek(IN(t), 0, SEEK_SET)); \
+    if (fseek(IN(t), 0, SEEK_SET)!=0) { ret=SPEC_ACCS_ERR; goto finish; } \
     if (OUT(t)!=NULL && OUT(t)!=(t)->in) fclose(OUT(t)); \
     if (!(OUT(t)=tmpfile())) { ret=SPEC_FOPEN_ERR; goto finish; }
 
@@ -40,7 +39,7 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
-    if (!p_trans || !in) {
+    if (!p_trans || (!in && p_parsc)) {
         ret=SPEC_INV_ARG;
         goto finish;
     }
@@ -49,7 +48,23 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
 
     p_trans->in = in;
     if (p_parsc) p_trans->parsc = *p_parsc;
-    p_trans->tfs[0] = in;
+
+    if (!in) {
+        /* in==NULL means an empty input */
+        if (!(p_trans->tfs[0] = fopen(
+#if defined(_WIN32) || defined(_WIN64)
+            "nul"
+#else
+            "/dev/null"
+#endif
+            , "wb")))
+        {
+            ret=SPEC_FOPEN_ERR;
+            goto finish;
+        }
+    } else {
+        p_trans->tfs[0] = in;
+    }
 finish:
     return ret;
 }
@@ -59,20 +74,26 @@ sp_errc_t sp_commit_tr(sp_trans_t *p_trans, FILE *out)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
-    if (!p_trans || !IN(p_trans) || !p_trans->in || !out) {
+    if (!p_trans || !IN(p_trans)) {
         ret=SPEC_INV_ARG;
         goto finish;
     }
 
-    if (!p_trans->parsc.first_column) {
-        EXEC_RG(sp_cpy_to_out(IN(p_trans), out, 0, EOF, NULL));
-    } else
-    if (p_trans->in)
-    {
-        /* copy original input with the modified scope */
-        EXEC_RG(sp_cpy_to_out(p_trans->in, out, 0, p_trans->parsc.beg, NULL));
-        EXEC_RG(sp_cpy_to_out(IN(p_trans), out, 0, EOF, NULL));
-        EXEC_RG(sp_cpy_to_out(p_trans->in, out, p_trans->parsc.end+1, EOF, NULL));
+    if (out) {
+        if (!p_trans->parsc.first_column) {
+            EXEC_RG(sp_util_cpy_to_out(IN(p_trans), out, 0, EOF, NULL));
+        } else
+        if (p_trans->in)
+        {
+            /* copy original input with the modified scope */
+            EXEC_RG(sp_util_cpy_to_out(
+                p_trans->in, out, 0, p_trans->parsc.beg, NULL));
+
+            EXEC_RG(sp_util_cpy_to_out(IN(p_trans), out, 0, EOF, NULL));
+
+            EXEC_RG(sp_util_cpy_to_out(
+                p_trans->in, out, p_trans->parsc.end+1, EOF, NULL));
+        }
     }
 
     if (IN(p_trans)!=p_trans->in)
@@ -94,9 +115,9 @@ sp_errc_t sp_commit2_tr(sp_trans_t *p_trans, const char *new_file)
     if (new_file) {
         FILE *out = fopen(new_file, "wb+");
         ret = (out ? sp_commit_tr(p_trans, out) : SPEC_FOPEN_ERR);
-    } else
-        ret=SPEC_INV_ARG;
-
+    } else {
+        ret = sp_commit_tr(p_trans, NULL);
+    }
     return ret;
 }
 

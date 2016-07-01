@@ -17,6 +17,7 @@
 #include <string.h>
 #include "config.h"
 #include "sprops/parser.h"
+#include "sprops/utils.h"
 
 /* path separators markers */
 #define C_SEP_SCP    '/'
@@ -995,31 +996,6 @@ finish:
     return ret;
 }
 
-/* exported; see header for details */
-sp_errc_t sp_cpy_to_out(FILE *in, FILE *out, long beg, long end, long *p_n)
-{
-    int ret=SPEC_SUCCESS;
-    long off=beg;
-
-    if (p_n) *p_n=0;
-
-    if (off<end || end==EOF) {
-        CHK_FSEEK(fseek(in, off, SEEK_SET));
-        for (; off<end || end==EOF; off++) {
-            int c = fgetc(in);
-            if (c==EOF && end==EOF) break;
-            if (c==EOF || fputc(c, out)==EOF) {
-                ret=SPEC_ACCS_ERR;
-                goto finish;
-            }
-        }
-    }
-
-    if (p_n) *p_n=off-beg;
-finish:
-    return ret;
-}
-
 /* Copies input bytes (from the offset staring not processed range) to the
    output up to 'end' offset (exclusive). In case of success (and there is
    something to copy) the input offset is set at 'end'.
@@ -1029,7 +1005,7 @@ static sp_errc_t __cpy_to_out(base_updt_hndl_t *p_bu, long end)
     sp_errc_t ret;
     long n=0;
 
-    ret = sp_cpy_to_out(p_bu->in, p_bu->out, p_bu->in_off, end, &n);
+    ret = sp_util_cpy_to_out(p_bu->in, p_bu->out, p_bu->in_off, end, &n);
     if (ret==SPEC_SUCCESS && n>0) p_bu->in_off = p_bu->in_off+n;
     return ret;
 }

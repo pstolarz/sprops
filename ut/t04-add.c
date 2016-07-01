@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "../config.h"
-#include "sprops/props.h"
+#include "sprops/utils.h"
 
 #if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
     !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
@@ -45,7 +45,8 @@ static sp_errc_t cb_scope(
     if (p_lbody)
     {
         /* copy up to body start */
-        EXEC_RG(sp_cpy_to_out(in, stdout, p_argcb->in_off, p_lbody->beg, NULL));
+        EXEC_RG(sp_util_cpy_to_out(
+            in, stdout, p_argcb->in_off, p_lbody->beg, NULL));
 
         EXEC_RG(sp_add_scope(
             in, stdout,
@@ -160,7 +161,7 @@ int main(void)
     argcb.flags = (f); \
     EXEC_RG(sp_iterate(in, NULL, "/", NULL, NULL, cb_scope, &argcb, \
         buf1, sizeof(buf1), buf2, sizeof(buf2))); \
-    EXEC_RG(sp_cpy_to_out(in, stdout, argcb.in_off, EOF, NULL));
+    EXEC_RG(sp_util_cpy_to_out(in, stdout, argcb.in_off, EOF, NULL));
 
     printf("\n--- Adding scope to /scope:2 during / scope iteration, "
         "elm:0, flags:EXTEOL\n");

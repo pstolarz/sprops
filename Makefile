@@ -6,6 +6,7 @@ CFLAGS=-Wall -I./inc
 CFLAGS+=-DYYSTACK_USE_ALLOCA
 
 OBJS = \
+    utils.o \
     parser.o \
     props.o \
     trans.o
@@ -23,10 +24,14 @@ ut_run:
 
 config.h=config.h
 ./inc/sprops/props.h=./inc/sprops/props.h
+./inc/sprops/utils.h=./inc/sprops/utils.h $(./inc/sprops/props.h)
 ./inc/sprops/parser.h=./inc/sprops/parser.h $(./inc/sprops/props.h)
+./inc/sprops/trans.h=./inc/sprops/trans.h $(./inc/sprops/props.h)
 
+utils.o: $(./inc/sprops/utils.h)
 parser.o: $(./inc/sprops/parser.h)
-props.o: $(./inc/sprops/props.h)
+props.o: $(./inc/sprops/parser.h) $(./inc/sprops/utils.h)
+trans.o: $(./inc/sprops/trans.h) $(./inc/sprops/utils.h)
 
 parser.c: parser.y
 	$(YACC) $< -o $@
