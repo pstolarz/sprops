@@ -23,52 +23,13 @@
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
-/* used indentation */
+/* indentation */
 static unsigned long indf = SP_F_SPIND(4);
-
-typedef struct _argcb_t
-{
-    long in_off;
-    int elem_n;
-    unsigned long flags;
-} argcb_t;
-
-/* sp_iterate() scope callback */
-static sp_errc_t cb_scope(
-    void *arg, FILE *in, const char *type, const sp_tkn_info_t *p_tktype,
-    const char *name, const sp_tkn_info_t *p_tkname, const sp_loc_t *p_lbody,
-    const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef)
-{
-    sp_errc_t ret=SPEC_SUCCESS;
-    argcb_t *p_argcb = (argcb_t*)arg;
-
-    if (p_lbody)
-    {
-        /* copy up to body start */
-        EXEC_RG(sp_util_cpy_to_out(
-            in, stdout, p_argcb->in_off, p_lbody->beg, NULL));
-
-        EXEC_RG(sp_add_scope(
-            in, stdout,
-            p_lbody,
-            "TYPE", "SCOPE",
-            p_argcb->elem_n,
-            "/", NULL,
-            indf|p_argcb->flags));
-
-        /* set copy offset behind already modified body */
-        p_argcb->in_off = p_lbody->end+1;
-    }
-
-finish:
-    return ret;
-}
 
 int main(void)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    char buf1[32], buf2[32];
-    argcb_t argcb;
+    sp_scope_info_ex_t sc2;
 
     FILE *in = fopen("c04.conf", "rb");
     if (!in) goto finish;
@@ -155,27 +116,36 @@ int main(void)
         "/", NULL,
         indf|SP_F_EXTEOL));
 
-#define __ITER_ADD(e, f) \
-    argcb.in_off = 0; \
-    argcb.elem_n = (e); \
-    argcb.flags = (f); \
-    EXEC_RG(sp_iterate(in, NULL, "/", NULL, NULL, cb_scope, &argcb, \
-        buf1, sizeof(buf1), buf2, sizeof(buf2))); \
-    EXEC_RG(sp_util_cpy_to_out(in, stdout, argcb.in_off, EOF, NULL));
+    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "2", 1, NULL, NULL, &sc2));
+    assert(sc2.body_pres!=0);
 
-    printf("\n--- Adding scope to /scope:2 during / scope iteration, "
-        "elm:0, flags:EXTEOL\n");
-    __ITER_ADD(0, SP_F_EXTEOL);
+    printf("\n--- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL\n");
+    EXEC_RG(sp_add_scope(
+        in, stdout,
+        &sc2.lbody,
+        "TYPE", "SCOPE",
+        0,
+        "/", NULL,
+        indf|SP_F_EXTEOL));
 
-    printf("\n--- Adding scope to /scope:2 during / scope iteration, "
-        "elm:1, flags:EMPCPT\n");
-    __ITER_ADD(1, SP_F_EMPCPT);
+    printf("\n--- Scope added, parsing scope /scope:2, elm:1, flags:EMPCPT\n");
+    EXEC_RG(sp_add_scope(
+        in, stdout,
+        &sc2.lbody,
+        "TYPE", "SCOPE",
+        1,
+        "/", NULL,
+        indf|SP_F_EMPCPT));
 
-    printf("\n--- Adding scope to /scope:2 during / scope iteration, "
-        "elm:LAST, flags:SPLBRA|EXTEOL\n");
-    __ITER_ADD(SP_ELM_LAST, SP_F_SPLBRA|SP_F_EXTEOL);
-
-#undef __ITER_ADD
+    printf("\n--- Scope added, "
+        "parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL\n");
+    EXEC_RG(sp_add_scope(
+        in, stdout,
+        &sc2.lbody,
+        "TYPE", "SCOPE",
+        SP_ELM_LAST,
+        "/", NULL,
+        indf|SP_F_SPLBRA|SP_F_EXTEOL));
 
     /* not existing elements */
 

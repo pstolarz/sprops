@@ -409,12 +409,9 @@ sp_errc_t sp_get_scope_info(
    SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
 
    NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
-   output is confined only to the location specified by the argument. Usage of
-   this argument is reserved for special purposes like modification of many
-   scopes performed during single-shot iteration of their containing scope OR
-   a performance efficient, small block updates inside a large input file (for
-   this case transactional API is recommended to be used). For the global scope
-   (most typical use case) 'p_parsc' shall be NULL.
+   output is confined only to the location specified by the argument. For the
+   global scope 'p_parsc' shall be NULL (most typical use case). Basically,
+   usage of this argument is reserved for the transactional API.
    NOTE 2: There is possible to use usual @-addressing in the 'path'
    specification to reach a specific component scope inside its split scope.
    NOTE 3: Contrary to 'in' which is a random access stream for every API of

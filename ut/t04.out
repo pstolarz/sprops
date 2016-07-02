@@ -118,43 +118,25 @@ scope 2 {}
 PROP;
 
 
---- Adding scope to /scope:2 during / scope iteration, elm:0, flags:EXTEOL
-1;
-scope 2;
-scope 2 {
-    TYPE SCOPE {
+--- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL
+TYPE SCOPE {
     }
 
     1;
     scope 2
     {
     }
-}
-scope 2 {}
-
---- Adding scope to /scope:2 during / scope iteration, elm:1, flags:EMPCPT
+--- Scope added, parsing scope /scope:2, elm:1, flags:EMPCPT
 1;
-scope 2;
-scope 2 {
-    1;
     TYPE SCOPE;
     scope 2
     {
     }
-}
-scope 2 {}
-
---- Adding scope to /scope:2 during / scope iteration, elm:LAST, flags:SPLBRA|EXTEOL
+--- Scope added, parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL
 1;
-scope 2;
-scope 2 {
-    1;
     scope 2
     {
     }
     TYPE SCOPE
     {
     }
-
-}
-scope 2 {}

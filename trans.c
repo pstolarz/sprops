@@ -80,7 +80,8 @@ sp_errc_t sp_commit_tr(sp_trans_t *p_trans, FILE *out)
     }
 
     if (out) {
-        if (!p_trans->parsc.first_column) {
+        if (!p_trans->parsc.first_column || IN(p_trans)==p_trans->in)
+        {
             EXEC_RG(sp_util_cpy_to_out(IN(p_trans), out, 0, EOF, NULL));
         } else
         if (p_trans->in)
@@ -99,7 +100,7 @@ sp_errc_t sp_commit_tr(sp_trans_t *p_trans, FILE *out)
     if (IN(p_trans)!=p_trans->in)
         fclose(IN(p_trans));
 
-    if (OUT(p_trans)!=NULL)
+    if (OUT(p_trans)!=NULL && OUT(p_trans)!=p_trans->in)
         fclose(OUT(p_trans));
 
     memset(p_trans, 0, sizeof(*p_trans));

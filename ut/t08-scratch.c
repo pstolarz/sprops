@@ -10,11 +10,18 @@
    See the License for more information.
  */
 
+#include "../config.h"
 #include "sprops/trans.h"
+
+#if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
+    !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
+    (CONFIG_MAX_SCOPE_LEVEL_DEPTH>0 && CONFIG_MAX_SCOPE_LEVEL_DEPTH<2)
+# error Bad configuration
+#endif
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
 
-/* used indentation */
+/* indentation */
 static unsigned long indf = SP_F_SPIND(4);
 
 int main(void)
@@ -54,13 +61,13 @@ int main(void)
 
     EXEC_RG(sp_add_prop_tr(&trans,
         "PROP1", "VAL",
-        SP_IND_LAST,
+        SP_ELM_LAST,
         "/SCOPE1", "TYPE",
         indf));
 
     EXEC_RG(sp_add_prop_tr(&trans,
         "PROP2", "VAL",
-        SP_IND_LAST,
+        SP_ELM_LAST,
         "/SCOPE1", "TYPE",
         indf));
 

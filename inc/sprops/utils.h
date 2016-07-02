@@ -29,8 +29,8 @@ extern "C" {
 
    NOTE: Usage of this function may be helpful when playing with a parsing scope
    ('p_parsc' argument) in write access API, to restore modified input after
-   the scope modification is finished. See transactional API implementation for
-   an example of usage.
+   the scope modification is finished. See the transactional API implementation
+   for an example of usage.
  */
 sp_errc_t sp_util_cpy_to_out(FILE *in, FILE *out, long beg, long end, long *p_n);
 
