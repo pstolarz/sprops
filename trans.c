@@ -10,11 +10,13 @@
    See the License for more information.
  */
 
+#include <ctype.h>
 #include <string.h>
 #include "sprops/trans.h"
 #include "sprops/utils.h"
 
 #define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
+#define CHK_FSEEK(c) if ((c)!=0) { ret=SPEC_ACCS_ERR; goto finish; }
 
 #define IN(t)    ((t)->tfs[(t)->ind])
 #define OUT(t)   ((t)->tfs[(t)->ind^1])
@@ -27,12 +29,34 @@
 
 #define PREP_STREAMS(t) \
     if (!(t)) { ret=SPEC_INV_ARG; goto finish; } \
-    if (fseek(IN(t), 0, SEEK_SET)!=0) { ret=SPEC_ACCS_ERR; goto finish; } \
+    CHK_FSEEK(fseek(IN(t), 0, SEEK_SET)); \
     if (OUT(t)!=NULL && OUT(t)!=(t)->in) fclose(OUT(t)); \
     if (!(OUT(t)=tmpfile())) { ret=SPEC_FOPEN_ERR; goto finish; }
 
 /* IN <-> OUT */
 #define PART_COMMIT(t) (t)->ind ^= 1;
+
+/* Due to indentation issues, observed for transactions consisting of more
+   than one modification, this functions extends a parsing scope by indentation
+   white spaces preceding the scope.
+ */
+static sp_errc_t parsc_extind(FILE *in, sp_loc_t *p_parsc)
+{
+    sp_errc_t ret=SPEC_SUCCESS;
+    int n=p_parsc->first_column-1;
+
+    if (n<=0) goto finish;
+
+    CHK_FSEEK(fseek(in, p_parsc->beg-n, SEEK_SET));
+    for (; n>0 && isspace(fgetc(in)); n--);
+
+    if (!n) {
+        p_parsc->beg -= p_parsc->first_column-1;
+        p_parsc->first_column = 1;
+    }
+finish:
+    return ret;
+}
 
 /* exported; see header for details */
 sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
@@ -47,7 +71,10 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
     memset(p_trans, 0, sizeof(*p_trans));
 
     p_trans->in = in;
-    if (p_parsc) p_trans->parsc = *p_parsc;
+    if (p_parsc) {
+        p_trans->parsc = *p_parsc;
+        EXEC_RG(parsc_extind(in, &p_trans->parsc));
+    }
 
     if (!in) {
         /* in==NULL means an empty input */

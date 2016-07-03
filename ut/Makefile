@@ -11,7 +11,8 @@ TESTS= \
     t05-rm \
     t06-set \
     t07-mv \
-    t08-scratch
+    t08-scratch \
+    t09-trans
 
 all: $(TESTS)
 

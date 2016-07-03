@@ -1,0 +1,20 @@
+--- Global scope modification
+PROP=VAL;
+SCOPE 3 {
+    1 = x;
+}
+PROP2 = VAL;
+
+--- Modification constrained to /scope:3
+1=x; 2;
+
+scope 3;
+scope 3 {
+    1 = VAL;
+    PROP = VAL;
+    TYPE SCOPE;
+    SCOPE {
+        PROP = VAL;
+    }
+}
+2=x;

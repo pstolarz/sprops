@@ -27,3 +27,4 @@ chk_diff t05-rm t05.out;
 chk_diff t06-set t06.out;
 chk_diff t07-mv t07.out;
 chk_diff t08-scratch t08.out;
+chk_diff t09-trans t09.out;
