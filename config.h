@@ -2,10 +2,10 @@
 #define __CONFIG_H__
 
 /* If defined: forbid a semicolon (';') as the property ending marker.
-   End-of-line is the only allowed marker. A property value may contain a
-   semicolon in its content, which not need to be escaped.
-   If not defined: End-of-line and a semicolon mark the property ending. If a
-   property value needs to contain a semicolon, it must be escaped.
+   End-of-line is the only allowed marker. A property value may contain
+   a semicolon in its content, which not need to be escaped.
+   If not defined: End-of-line and a semicolon mark the property ending.
+   If a property value needs to contain a semicolon, it must be escaped.
  */
 #undef CONFIG_NO_SEMICOL_ENDS_VAL
 
@@ -26,9 +26,11 @@
 #define PARSC_EXTIND    1
 #define PARSC_AS_INPUT  2
 
-/* Due to indentation issues observed for transactions on non-NULL parsing
-   scope and consisting of more than one modification, this option specifies
-   type of the parsing scope modification to avoid the problem.
+/* Due to indentation issues observed (under some circumstances) for transactions
+   on not a NULL parsing scopes and consisting of more than one modification,
+   this option specifies a type of the parsing scope initial modification to
+   avoid the problem. The following PARSC_EXTIND value shall be sufficient for
+   most use cases, guaranteeing no additional performance overhead.
    If not specified, not modified parsing scope is used.
  */
 #define CONFIG_TRANS_PARSC_MOD  PARSC_EXTIND

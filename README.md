@@ -10,7 +10,7 @@ optional type. Scopes may constitute hierarchical nesting tree of an arbitrary
 The library API consists of small but powerful set of C functions for read/write
 access of configuration file elements (properties/scopes). There is possible to
 access an element located inside a specific scope when its location (expressed
-by path) is known OR to discover a configuration file structure by iterating
+by a path) is known, or to discover a configuration file structure by iterating
 over its elements located in some scope (or the global scope).
 
 The library provides unique functionality to parse only a specific scope (block
@@ -33,7 +33,7 @@ Notes
  - The library uses ONLY standard C library API (mainly `stdio.h`) and shall be
    ported with a little effort for any conforming platforms.
  - The library works purely on text stream tokens and doesn't interpret the read
-   data in any way (e.g. no serialization of the read configuration).
+   information in any way (e.g. no serialization of the read configuration).
  - Memory allocation is performed ONLY by the generated grammar parser code
    for grammar reductions. Bison parser allows a flexible way for configuring
    such allocations e.g. via stack `alloca(3)` (used by the library) or heap
@@ -177,8 +177,8 @@ an application to be informed about grammar reductions.
 
 The second set of API constitutes the proper read/write access interface (its
 implementation bases on the low level parser API). The API allows addressing
-elements inside their scopes AND to discover a configuration structure by
-iterating over its content.
+elements inside their scopes as well as discovering a configuration structure
+by iterating over its content.
 
 NOTE: Basically, the API treats properties values as strings built of arbitrary
 characters which are not interpreted. For user convenience there have been
@@ -191,7 +191,7 @@ enumerations, namely:
 
 Lists may be easily emulated by iterating over dedicated scopes content.
 
-Refer to the mentioned header files for complete API specification, and the unit
+Refer to the mentioned header files for complete API specification and the unit
 tests located in `./ut` directory for an example of usage.
 
 Transactional support
@@ -201,11 +201,11 @@ To handle wrong-state of the modified data issue, there has been provided
 a simple transactions support with the header in `./inc/sprops/trans.h`,
 implemented as a wrapper around the write access API.
 
-Apart from the transactions the API provides a handy way for modification of
+Apart from the transactions, the API provides a handy way for modification of
 a specific scope (block of configuration) inside a larger configuration file.
 This may be useful in terms of performance (in case of really huge files) or
 if a modifying caller is interested only in a specific block of configuration,
-which is managed by it, and didn't care about the rest.
+which is managed by it, and doesn't care about the rest.
 
 License
 -------
