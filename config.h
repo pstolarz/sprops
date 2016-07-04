@@ -17,9 +17,20 @@
  */
 #define CONFIG_TRIM_VAL_TRAILING_SPACES
 
-/* Maximum nesting level of scopes. If 0 - only global scope is allowed, if
-   undefined - no restriction provided.
+/* Maximum nesting level of scopes. If 0 - only the global scope is allowed,
+   if undefined - no restriction provided.
  */
 #undef CONFIG_MAX_SCOPE_LEVEL_DEPTH
+
+/* CONFIG_TRANS_PARSC_MOD variants */
+#define PARSC_EXTIND    1
+#define PARSC_AS_INPUT  2
+
+/* Due to indentation issues observed for transactions on non-NULL parsing
+   scope and consisting of more than one modification, this option specifies
+   type of the parsing scope modification to avoid the problem.
+   If not specified, not modified parsing scope is used.
+ */
+#define CONFIG_TRANS_PARSC_MOD  PARSC_EXTIND
 
 #endif  /* __CONFIG_H__ */

@@ -25,13 +25,20 @@ typedef struct _sp_trans_t
 {
     /* modified stream */
     FILE *in;
-    /* modified parsing scope; zeroed for global scope */
+    /* modified parsing scope; zeroed for the global scope */
     sp_loc_t parsc;
 
     /* current index in 'tfs' */
-    int ind;
+    int tfs_i;
     /* temporary FILE* handles */
     FILE *tfs[2];
+
+    /* number of bytes to skip from a partial
+       commit while copying the final result */
+    int skip_in;
+
+    /* number of successful partial commits for the transaction */
+    unsigned n_commits;
 } sp_trans_t;
 
 /* Initialize handle and start a transaction.
