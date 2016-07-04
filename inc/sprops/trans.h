@@ -28,6 +28,9 @@ typedef struct _sp_trans_t
     /* modified parsing scope; zeroed for the global scope */
     sp_loc_t parsc;
 
+    /* EOL type detected on the input */
+    sp_eol_t eol_typ;
+
     /* current index in 'tfs' */
     int tfs_i;
     /* temporary FILE* handles */

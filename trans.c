@@ -24,8 +24,8 @@
 #define IN(t)    ((t)->tfs[(t)->tfs_i])
 #define OUT(t)   ((t)->tfs[(t)->tfs_i^1])
 
-#define FLAGS(t, f) \
-    (!(t)->parsc.first_column || (IN(t)==(t)->in) ? (f) : (f)|SP_F_NLSTEOL)
+#define FLAGS(t, f) (SP_F_USEEOL((t)->eol_typ) | \
+    (!(t)->parsc.first_column || (IN(t)==(t)->in) ? (f) : (f)|SP_F_NLSTEOL))
 
 #define PARSC(t) \
     (!(t)->parsc.first_column || (IN(t)!=(t)->in) ? NULL : &(t)->parsc)
@@ -114,6 +114,7 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
 
     memset(p_trans, 0, sizeof(*p_trans));
     p_trans->in = in;
+    p_trans->eol_typ = EOL_PLAT;
 
     if (p_parsc)
     {
@@ -139,8 +140,8 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
             goto finish;
         }
     } else {
-        if (!p_trans->tfs[0])
-            p_trans->tfs[0]=in;
+        EXEC_RG(sp_util_detect_eol(in, &p_trans->eol_typ));
+        if (!p_trans->tfs[0]) p_trans->tfs[0]=in;
     }
 
 finish:

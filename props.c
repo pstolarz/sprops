@@ -954,7 +954,6 @@ typedef struct _base_updt_hndl_t
 static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
     FILE *in, FILE *out, const sp_loc_t *p_parsc, unsigned long flags)
 {
-    int c;
     sp_errc_t ret=SPEC_SUCCESS;
 
     p_bu->in = in;
@@ -963,36 +962,10 @@ static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
     p_bu->p_parsc = p_parsc;
     p_bu->flags = flags;
 
-    /* detect EOL */
-    CHK_FSEEK(fseek(in, 0, SEEK_SET));
+    p_bu->eol_typ = SP_F_GET_USEEOL(p_bu->flags);
+    if (p_bu->eol_typ==(sp_eol_t)-1)
+        ret = sp_util_detect_eol(in, &p_bu->eol_typ);
 
-    p_bu->eol_typ=EOL_PLAT;
-    while ((c=fgetc(in))!=EOF)
-    {
-        if (c=='\n') {
-            p_bu->eol_typ=EOL_LF;
-            break;
-        } else
-        if (c=='\r') {
-            p_bu->eol_typ=EOL_CR;
-            if (fgetc(in)=='\n') p_bu->eol_typ=EOL_CRLF;
-            break;
-        }
-    }
-
-    /* compilation platform specific */
-    if (p_bu->eol_typ==EOL_PLAT)
-    {
-        p_bu->eol_typ =
-#if defined(_WIN32) || defined(_WIN64)
-            EOL_CRLF
-#else
-            EOL_LF
-#endif
-            ;
-    }
-
-finish:
     return ret;
 }
 
@@ -1049,8 +1022,15 @@ finish:
 static sp_errc_t put_eol(const base_updt_hndl_t *p_bu)
 {
     sp_errc_t ret=SPEC_SUCCESS;
+    sp_eol_t eol_typ = (p_bu->eol_typ!=EOL_PLAT ? p_bu->eol_typ :
+#if defined(_WIN32) || defined(_WIN64)
+        EOL_CRLF
+#else
+        EOL_LF
+#endif
+        );
 
-    switch (p_bu->eol_typ) {
+    switch (eol_typ) {
         default:
         case EOL_LF:
             CHK_FERR(fputc('\n', p_bu->out));
