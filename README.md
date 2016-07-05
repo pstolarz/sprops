@@ -76,11 +76,11 @@ Configuration file format
 
 The same is true with a good example:
 
-    # A comment starts with '#' up to the end of line.
+    # A comment starts with '#' up to the end of a line.
     # This property is located in the global scope.
     prop1 = value
 
-    # Quotation marks required in the property name to avoid parsing problem.
+    # Quotation marks required in the property name to avoid parsing problems.
     # A property value finishes at the end of a line or at a semicolon (unless
     # the library is configured with CONFIG_NO_SEMICOL_ENDS_VAL).
     "property 2" = some other value;
@@ -106,7 +106,7 @@ The same is true with a good example:
 
         # Property names may contain arbitrary characters. In this example
         # quotation marks are required since '{', '}' are parser's reserved
-        # tokens. Additionally tab characters were escaped by \t.
+        # tokens. Additionally tab characters are escaped by \t.
         "{\tprop name w/o a value\t}";
     }
 
@@ -116,7 +116,7 @@ The same is true with a good example:
     # functionality is similar to the C++ namespaces.
     scope_type scope_name
     {
-        # These 2 properties duplicate ones defined above.
+        # These 2 properties duplicate the ones defined above.
         a=val;
         b=val;
 
@@ -148,16 +148,18 @@ Basing on the previous example:
     1st part of the split scope above
         -> "/scope_type:scope_name@0"
 
-    2nd part of the split scope above
+    2nd (and the last) part of the split scope above
         -> "/scope_type:scope_name@1"
              or
-           "/scope_type:scope_name@$", as the last scope of such name and type
+           "/scope_type:scope_name@$"
 
     1st scope in split /scope_type:scope_name
         -> "/scope_type:scope_name/:scope name"
 
     2nd scope in split /scope_type:scope_name
-        -> "/scope_type:scope_name/type:name", which as a split scope consist of:
+        -> "/scope_type:scope_name/type:name"
+            which as a split scope consisting of:
+
            "/scope_type:scope_name/type:name@0"
             and
            "/scope_type:scope_name/type:name@1", both with empty bodies.
@@ -198,14 +200,14 @@ Transactional support
 ---------------------
 
 To handle wrong-state of the modified data issue, there has been provided
-a simple transactions support with the header in `./inc/sprops/trans.h`,
-implemented as a wrapper around the write access API.
+a simple transactional support with an API specified in the header
+`./inc/sprops/trans.h`, implemented as a wrapper around the write access API.
 
 Apart from the transactions, the API provides a handy way for modification of
 a specific scope (block of configuration) inside a larger configuration file.
 This may be useful in terms of performance (in case of really huge files) or
-if a modifying caller is interested only in a specific block of configuration,
-which is managed by it, and doesn't care about the rest.
+if a modifying caller is interested only in a specific block of configuration
+(which is managed by it) and doesn't care about the rest.
 
 License
 -------
