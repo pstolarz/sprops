@@ -38,7 +38,7 @@ int main(void)
     FILE *in = fopen("c09.conf", "rb");
     if (!in) goto finish;
 
-    EXEC_RG(sp_init_tr(&trans, in, NULL));
+    EXEC_RG(sp_init_tr(&trans, in, NULL, NULL));
     tr_init++;
 
     printf("--- Global scope modification\n");
@@ -88,7 +88,7 @@ int main(void)
         in, NULL, "scope", "3", SP_IND_LAST, NULL, NULL, &sc3));
     assert(sc3.body_pres!=0);
 
-    EXEC_RG(sp_init_tr(&trans, in, &sc3.lbody));
+    EXEC_RG(sp_init_tr(&trans, in, &sc3.lbody, NULL));
     tr_init++;
 
     EXEC_RG(sp_set_prop_tr(&trans,

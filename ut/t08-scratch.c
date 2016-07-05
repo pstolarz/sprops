@@ -32,7 +32,7 @@ int main(void)
     sp_trans_t trans;
 
     /* initialize with an empty input*/
-    EXEC_RG(sp_init_tr(&trans, NULL, NULL));
+    EXEC_RG(sp_init_tr(&trans, NULL, NULL, NULL));
     tr_init++;
 
     EXEC_RG(sp_add_scope_tr(&trans,

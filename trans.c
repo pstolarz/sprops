@@ -33,8 +33,8 @@
 #define PREP_STREAMS(t) \
     if (!(t) || !IN(t)) { ret=SPEC_INV_ARG; goto finish; } \
     CHK_FSEEK(fseek(IN(t), 0, SEEK_SET)); \
-    if (OUT(t)!=NULL && OUT(t)!=(t)->in) fclose(OUT(t)); \
-    CHK_FOPEN(OUT(t)=tmpfile());
+    if (OUT(t)!=NULL && OUT(t)!=(t)->in) (t)->tmpf.close((t)->tmpf.arg, OUT(t)); \
+    CHK_FOPEN(OUT(t)=(t)->tmpf.open((t)->tmpf.arg));
 
 /* IN <-> OUT */
 #define PART_COMMIT(t) \
@@ -72,8 +72,8 @@ finish:
    used as part of the input stream in an ordinary way, the function returns
    SPEC_SUCCESS with 'p_tmp', 'p_ind_sz' zeroed.
  */
-static sp_errc_t cpy_ind_parsc(
-    FILE *in, const sp_loc_t *p_parsc, FILE **p_tmp, int *p_ind_sz)
+static sp_errc_t cpy_ind_parsc(FILE *in, const sp_loc_t *p_parsc,
+        const sp_trans_tmpf_t *p_tmpf, FILE **p_tmp, int *p_ind_sz)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     int c, n=p_parsc->first_column-1;
@@ -83,7 +83,7 @@ static sp_errc_t cpy_ind_parsc(
 
     if (n<=0) goto finish;
 
-    CHK_FOPEN(*p_tmp=tmpfile());
+    CHK_FOPEN(*p_tmp=p_tmpf->open(p_tmpf->arg));
 
     CHK_FSEEK(fseek(in, p_parsc->beg-n, SEEK_SET));
     for (; n>0 && isspace(c=fgetc(in)); n--) {
@@ -95,15 +95,20 @@ static sp_errc_t cpy_ind_parsc(
 
 finish:
     if (ret!=SPEC_SUCCESS && *p_tmp) {
-        fclose(*p_tmp);
+        p_tmpf->close(p_tmpf->arg, *p_tmp);
         *p_tmp = NULL;
     }
     return ret;
 }
 #endif
 
+/* default handlers */
+static FILE* def_tmpf_open(void *arg) { return tmpfile(); }
+static void def_tmpf_close(void *arg, FILE *f) { fclose(f); }
+
 /* exported; see header for details */
-sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
+sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in,
+    const sp_loc_t *p_parsc, const sp_trans_tmpf_t *p_tmpf)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
@@ -116,11 +121,18 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc)
     p_trans->in = in;
     p_trans->eol_typ = EOL_PLAT;
 
+    if (!p_tmpf) {
+        p_trans->tmpf.open = def_tmpf_open;
+        p_trans->tmpf.close = def_tmpf_close;
+    } else
+        p_trans->tmpf = *p_tmpf;
+
     if (p_parsc)
     {
         p_trans->parsc = *p_parsc;
 #if CONFIG_TRANS_PARSC_MOD==PARSC_AS_INPUT
-        EXEC_RG(cpy_ind_parsc(in, p_parsc, &p_trans->tfs[0], &p_trans->skip_in));
+        EXEC_RG(cpy_ind_parsc(
+            in, p_parsc, &p_trans->tmpf, &p_trans->tfs[0], &p_trans->skip_in));
 #elif CONFIG_TRANS_PARSC_MOD==PARSC_EXTIND
         EXEC_RG(parsc_extind(in, &p_trans->parsc));
 #endif
@@ -189,10 +201,10 @@ sp_errc_t sp_commit_tr(sp_trans_t *p_trans, FILE *out)
     }
 
     if (IN(p_trans)!=p_trans->in)
-        fclose(IN(p_trans));
+        p_trans->tmpf.close(p_trans->tmpf.arg, IN(p_trans));
 
     if (OUT(p_trans)!=NULL && OUT(p_trans)!=p_trans->in)
-        fclose(OUT(p_trans));
+        p_trans->tmpf.close(p_trans->tmpf.arg, OUT(p_trans));
 
     memset(p_trans, 0, sizeof(*p_trans));
 finish:

@@ -19,6 +19,23 @@
 extern "C" {
 #endif
 
+/* Temporary stream open/close handlers.
+ */
+typedef struct _sp_trans_tmpf_t
+{
+    /* Open a temporary stream and return its handle.
+       In case of error the handler must return NULL. */
+    FILE* (*open)(void *arg);
+
+    /* Close a temporary stream.
+       NOTE: If the temporary stream is represented by a permanent,
+       one-time-use file, the handler should remove it. */
+    void (*close)(void *arg, FILE *f);
+
+    /* User defined argument passed untouched by the API to the handlers */
+    void *arg;
+} sp_trans_tmpf_t;
+
 /* Transaction handle struct.
  */
 typedef struct _sp_trans_t
@@ -42,17 +59,29 @@ typedef struct _sp_trans_t
 
     /* number of successful partial commits for the transaction */
     unsigned n_commits;
+
+    sp_trans_tmpf_t tmpf;
 } sp_trans_t;
 
 /* Initialize handle and start a transaction.
 
    If 'in' is NULL it is treated as an empty stream (first read char will be
    EOF). This enables from scratch output creation.
+
    A parsing scope may be specified by 'p_parsc' to define a modified scope for
    the transaction (or NULL for the global scope). It must be NULL if 'in' is
-   NULL (no sense of a parsing scope for an empty input).
+   NULL (there is no sense of a parsing scope for an empty input).
+
+   A caller may specify its own temporary stream open/close handlers by passing
+   'p_tmpf' argument. It could be especially useful for MS Windows platform
+   where C-standard implementation of the temporary files is particularly lame.
+   If 'p_tmpf' is NULL, C-standard tmpfile(3), fclose(3) are used.
+   NOTE: The API guarantees not to maintain more than 2 unclosed temporary
+   streams during the transaction processing. After the final commit all opened
+   handles are closed.
  */
-sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in, const sp_loc_t *p_parsc);
+sp_errc_t sp_init_tr(sp_trans_t *p_trans, FILE *in,
+    const sp_loc_t *p_parsc, const sp_trans_tmpf_t *p_tmpf);
 
 /* Commit the transaction to a specified output and close its handle.
 
