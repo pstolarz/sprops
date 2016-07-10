@@ -60,7 +60,7 @@ typedef enum _sp_errc_t
  */
 typedef enum _sp_errsyn_t
 {
-    SPSYN_GRAMMAR = 0,  /* Grammar error */
+    SPSYN_GRAMMAR = 1,  /* Grammar error */
     SPSYN_UNEXP_EOL,    /* Unexpected EOL,
                            token has not been properly finished */
     SPSYN_UNEXP_EOF,    /* Unexpected EOF,
