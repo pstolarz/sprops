@@ -13,8 +13,8 @@
 #ifndef __SP_PROPS_H__
 #define __SP_PROPS_H__
 
-#include <stdio.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,13 +102,70 @@ typedef struct _sp_tkn_info_t
     sp_loc_t loc;
 } sp_tkn_info_t;
 
-/* Check syntax of a properties set read from an input 'in' (the file must be
-   opened in the binary mode with read access at least) with a given parsing
+#define SP_FILE_C   0   /* ANSI C stream */
+#define SP_FILE_MEM 1   /* memory buffer */
+
+/* stream */
+typedef struct _SP_FILE
+{
+    int typ;    /* stream type (SP_FILE_XXX) */
+
+    union {
+        /* SP_FILE_C */
+        FILE *f;
+
+        /* SP_FILE_MEM */
+        struct {
+            char *b;    /* pointer to the buffer */
+            size_t l;   /* buffer length */
+            size_t i;   /* current position in the buffer */
+        } m;
+    };
+} SP_FILE;
+
+/* Open a file with 'filename' and fopen(3) 'mode'. Populate SP_FILE handle
+   pointed by 'f' appropriately. The handle may be closed by sp_fclose().
+
+   NOTE: A file must be always opened in the binary mode with at least read
+   access for input, and read/write access for output.
+ */
+sp_errc_t sp_fopen(SP_FILE *f, const char *filename, const char *mode);
+
+/* Use already opened ANSI C stream (with a handle 'cf') to populate SP_FILE
+   handle pointed by 'f'. The handle may be closed by sp_fclose().
+   Always success if valid arguments are passed.
+
+   NOTE: The file corresponding to 'cf' must be opened in the binary mode with
+   at least read access for input, and read/write access for output.
+ */
+sp_errc_t sp_fopen2(SP_FILE *f, FILE *cf);
+
+/* Open SP_FILE memory stream handle with a buffer 'buf' and length 'len'.
+   Always success if valid arguments are passed. The opened handle need not
+   to be closed.
+
+   NOTE 1: The memory stream is constrained by the 'len' argument not a content
+   of the passed buffer (e.g. NULL termination char). As a consequence a caller
+   must properly set 'len' for the input stream as containing exact number of
+   chars constituting the parsed input.
+   NOTE 2: The function may be called multiple times for the same buffer to
+   reinitialize the handle with a new buffer length or to reset the stream
+   position to the buffer start.
+ */
+sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t len);
+
+/* If SP_FILE was opened as an ANSI C stream (by sp_fopen() or sp_fopen2()),
+   this function merely calls fclose(3) to close it. In case of other stream
+   type SPEC_INV_ARG is returned.
+ */
+sp_errc_t sp_fclose(SP_FILE *f);
+
+/* Check syntax of a properties set read from an input 'in' with a given parsing
    scope 'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col'
    and 'p_syn_code' will be provided with location of the error and detailed
    informational code.
  */
-sp_errc_t sp_check_syntax(FILE *in, const sp_loc_t *p_parsc,
+sp_errc_t sp_check_syntax(SP_FILE *in, const sp_loc_t *p_parsc,
     int *p_line, int *p_col, sp_errsyn_t *p_syn_code);
 
 /* Macro calculating actual length occupied by a given location */
@@ -125,7 +182,7 @@ sp_errc_t sp_check_syntax(FILE *in, const sp_loc_t *p_parsc,
        SPEC_SUCCESS: success; continue parsing
        >0 error codes: failure with code as returned; abort parsing
  */
-typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
+typedef sp_errc_t (*sp_cb_prop_t)(void *arg, SP_FILE *in, const char *name,
     const sp_tkn_info_t *p_tkname, const char *val, const sp_tkn_info_t *p_tkval,
     const sp_loc_t *p_ldef);
 
@@ -142,7 +199,7 @@ typedef sp_errc_t (*sp_cb_prop_t)(void *arg, FILE *in, const char *name,
        SPEC_SUCCESS: success; continue parsing
        >0 error codes: failure with code as returned; abort parsing
  */
-typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
+typedef sp_errc_t (*sp_cb_scope_t)(void *arg, SP_FILE *in, const char *type,
     const sp_tkn_info_t *p_tktype, const char *name, const sp_tkn_info_t *p_tkname,
     const sp_loc_t *p_lbody, const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef);
 
@@ -172,16 +229,15 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, FILE *in, const char *type,
    is escaping ':', '/'  and '@' in the 'path' string to avoid ambiguity with
    the path specific characters.
 
-   'in' and 'p_parsc' provide input (the file must be opened in the binary mode
-   with read access at least) to parse with a given parsing scope. The parsing
-   scope may be used only inside a scope callback handler to retrieve inner
-   scope body content.
+   'in' and 'p_parsc' provide input to parse with a given parsing scope. The
+   parsing scope may be used only inside a scope callback handler to retrieve
+   inner scope body content.
 
    'cb_prop' and 'cb_scope' specify property and scope callbacks. The callbacks
    are provided with strings (property name/vale, scope type/name) written under
    buffers 'buf1' (of 'b1len') and 'buf2' (of 'b2len').
  */
-sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
+sp_errc_t sp_iterate(SP_FILE *in, const sp_loc_t *p_parsc, const char *path,
     const char *deftp, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
     void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len);
 
@@ -238,11 +294,8 @@ typedef struct _sp_scope_info_ex_t
    exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
    SP_IND_LAST - the last one. If 'p_info' is not NULL it will be filled with
    property extra information.
-
-   NOTE: The input file must be opened in the binary mode with read access at
-   least.
  */
-sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
+sp_errc_t sp_get_prop(SP_FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *deftp, char *val, size_t len,
     sp_prop_info_ex_t *p_info);
 
@@ -252,8 +305,8 @@ sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
    property's value as integer.
  */
-sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *deftp, long *p_val,
+sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
+    const char *name, int ind, const char *path, const char *deftp, long *p_val,
     sp_prop_info_ex_t *p_info);
 
 /* Find float property with 'name' and write its under 'p_val'. In case of
@@ -262,9 +315,9 @@ sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
    property's value as float.
  */
-sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *deftp, double *p_val,
-    sp_prop_info_ex_t *p_info);
+sp_errc_t sp_get_prop_float(SP_FILE *in, const sp_loc_t *p_parsc,
+    const char *name, int ind, const char *path, const char *deftp,
+    double *p_val, sp_prop_info_ex_t *p_info);
 
 typedef struct _sp_enumval_t
 {
@@ -289,7 +342,7 @@ typedef struct _sp_enumval_t
    property's value as enum.
  */
 sp_errc_t sp_get_prop_enum(
-    FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
+    SP_FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
     const char *path, const char *deftp, const sp_enumval_t *p_evals,
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
 
@@ -302,7 +355,7 @@ sp_errc_t sp_get_prop_enum(
    its further usage as a parsing scope in other functions of the API.
  */
 sp_errc_t sp_get_scope_info(
-    FILE *in, const sp_loc_t *p_parsc, const char *type, const char *name,
+    SP_FILE *in, const sp_loc_t *p_parsc, const char *type, const char *name,
     int ind, const char *path, const char *deftp, sp_scope_info_ex_t *p_info);
 
 /*
@@ -433,7 +486,7 @@ sp_errc_t sp_get_scope_info(
    by any updating function, w/o changing stream's position indicator (fseek())
    during the writing process. This enables 'stdout' to be used as 'out'.
  */
-sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_add_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *val, int n_elem, const char *path,
     const char *deftp, unsigned long flags);
 
@@ -446,7 +499,7 @@ sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
    See sp_add_prop() for more details.
  */
-sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_add_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int n_elem, const char *path,
     const char *deftp, unsigned long flags);
 
@@ -464,7 +517,7 @@ sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
    See also sp_add_prop() notes.
  */
-sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_rm_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp,
     unsigned long flags);
 
@@ -476,7 +529,7 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
    See sp_rm_prop() for more details.
  */
-sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_rm_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
@@ -497,7 +550,7 @@ sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
    See also sp_add_prop() notes.
  */
-sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_set_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *val, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
@@ -511,7 +564,7 @@ sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
    See also sp_add_prop() notes.
  */
-sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_mv_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *new_name, int ind, const char *path,
     const char *deftp, unsigned long flags);
 
@@ -522,7 +575,7 @@ sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
    See sp_mv_prop() for more details.
  */
 sp_errc_t sp_mv_scope(
-    FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *type,
+    SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc, const char *type,
     const char *name, const char *new_type, const char *new_name, int ind,
     const char *path, const char *deftp, unsigned long flags);
 

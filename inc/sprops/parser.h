@@ -58,7 +58,7 @@ struct _unc_cache_t
 typedef struct _sp_parser_hndl_t
 {
     /* parsed input */
-    FILE *in;
+    SP_FILE *in;
 
     struct {
         /* next char to read */
@@ -107,7 +107,7 @@ typedef struct _sp_parser_hndl_t
    with caller specific argument passed untouched to these functions ('cb_arg').
  */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
-    FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
+    SP_FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
     sp_parser_cb_scope_t cb_scope, void *cb_arg);
 
 /* Parser method */
@@ -156,7 +156,7 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
    if its length exceeds some threshold.
  */
 sp_errc_t sp_parser_tokenize_str(
-    FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags);
+    SP_FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags);
 
 #ifdef __cplusplus
 }

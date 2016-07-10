@@ -11,7 +11,6 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
 #include "../config.h"
 #include "sprops/utils.h"
 
@@ -31,12 +30,17 @@ int main(void)
     sp_errc_t ret=SPEC_SUCCESS;
     sp_scope_info_ex_t sc2;
 
-    FILE *in = fopen("c04.conf", "rb");
-    if (!in) goto finish;
+    SP_FILE in, out;
+    int in_opn=0;
+
+    EXEC_RG(sp_fopen(&in, "c04.conf", "rb"));
+    in_opn++;
+
+    sp_fopen2(&out, stdout);
 
     printf("--- Prop added to: /, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", "VAL",
         0,
@@ -45,7 +49,7 @@ int main(void)
 
     printf("\n--- Prop w/o value added to: /, elm:1\n");
     EXEC_RG(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", NULL,
         1,
@@ -54,7 +58,7 @@ int main(void)
 
     printf("\n--- Scope added to: /scope:2, elm:0\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         "TYPE", "SCOPE",
         0,
@@ -63,7 +67,7 @@ int main(void)
 
     printf("\n--- Scope added to: /scope:2@0, elm:LAST, flags:EMPCPT|EXTEOL\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         "TYPE", "SCOPE",
         SP_ELM_LAST,
@@ -72,7 +76,7 @@ int main(void)
 
     printf("\n--- Scope w/o type added to: /scope:2@1, elm:0, flags:EMPCPT\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         NULL, "SCOPE",
         0,
@@ -82,7 +86,7 @@ int main(void)
     printf("\n--- Scope w/o type added to: "
         "/scope:2/scope:2, elm:LAST, flags:EMPCPT|SPLBRA|EXTEOL\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         "", "SCOPE",
         SP_ELM_LAST,
@@ -91,7 +95,7 @@ int main(void)
 
     printf("\n--- Scope added to: /scope:2, elm:LAST, flags:SPLBRA\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         "TYPE", "SCOPE",
         SP_ELM_LAST,
@@ -100,7 +104,7 @@ int main(void)
 
     printf("\n--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL|NVSRSP\n");
     EXEC_RG(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", "VAL",
         0,
@@ -109,19 +113,19 @@ int main(void)
 
     printf("\n--- Prop w/o value added to: /, elm:LAST, flags:EXTEOL\n");
     EXEC_RG(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", "",
         SP_ELM_LAST,
         "/", NULL,
         indf|SP_F_EXTEOL));
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "2", 1, NULL, NULL, &sc2));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "2", 1, NULL, NULL, &sc2));
     assert(sc2.body_pres!=0);
 
     printf("\n--- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         &sc2.lbody,
         "TYPE", "SCOPE",
         0,
@@ -130,7 +134,7 @@ int main(void)
 
     printf("\n--- Scope added, parsing scope /scope:2, elm:1, flags:EMPCPT\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         &sc2.lbody,
         "TYPE", "SCOPE",
         1,
@@ -140,7 +144,7 @@ int main(void)
     printf("\n--- Scope added, "
         "parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL\n");
     EXEC_RG(sp_add_scope(
-        in, stdout,
+        &in, &out,
         &sc2.lbody,
         "TYPE", "SCOPE",
         SP_ELM_LAST,
@@ -150,7 +154,7 @@ int main(void)
     /* not existing elements */
 
     assert(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", NULL,
         5,
@@ -158,7 +162,7 @@ int main(void)
         indf)==SPEC_NOTFOUND);
 
     assert(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", NULL,
         3,
@@ -166,7 +170,7 @@ int main(void)
         indf)==SPEC_NOTFOUND);
 
     assert(sp_add_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "PROP", NULL,
         1,
@@ -175,6 +179,6 @@ int main(void)
 
 finish:
     if (ret) printf("Error: %d\n", ret);
-    if (in) fclose(in);
+    if (in_opn) sp_fclose(&in);
     return 0;
 }

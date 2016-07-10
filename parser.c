@@ -62,9 +62,10 @@
 #line 14 "parser.y" /* yacc.c:316  */
 
 #include <ctype.h>
-#include <errno.h>
 #include <string.h>
+
 #include "config.h"
+#include "io.h"
 #include "sprops/parser.h"
 
 /* EOL char code (platform independent) */
@@ -99,13 +100,13 @@ typedef struct _lexval_t {
 typedef sp_parser_token_t yytokentype;
 
 
-#line 103 "parser.c" /* yacc.c:316  */
+#line 104 "parser.c" /* yacc.c:316  */
 
 
 
 /* Copy the first part of user declarations.  */
 
-#line 109 "parser.c" /* yacc.c:339  */
+#line 110 "parser.c" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -167,7 +168,7 @@ struct YYLTYPE
 
 int yyparse (sp_parser_hndl_t *p_hndl);
 /* "%code provides" blocks.  */
-#line 55 "parser.y" /* yacc.c:355  */
+#line 56 "parser.y" /* yacc.c:355  */
 
 static int yylex(YYSTYPE*, YYLTYPE*, sp_parser_hndl_t*);
 static void yyerror(YYLTYPE*, sp_parser_hndl_t*, char const*);
@@ -186,20 +187,20 @@ static void set_loc(
 /* temporary macros indented for use in actions
  */
 #define __CALL_CB_PROP(nm, val, def) { \
-    long pos = ftell(p_hndl->in); \
+    long pos = sp_ftell(p_hndl->in); \
     sp_errc_t res = p_hndl->cb.prop(p_hndl, (nm), (val), (def)); \
     if (res==SPEC_SUCCESS && \
-        (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
+        (pos==-1L || sp_fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
     else if ((int)res<0) { YYACCEPT; } \
 }
 
 #define __CALL_CB_SCOPE(typ, nm, bdy, bdyenc, def) { \
-    long pos = ftell(p_hndl->in); \
+    long pos = sp_ftell(p_hndl->in); \
     sp_errc_t res = \
         p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (bdyenc), (def)); \
     if (res==SPEC_SUCCESS && \
-        (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
+        (pos==-1L || sp_fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
     else if ((int)res<0) { YYACCEPT; } \
 }
@@ -208,13 +209,13 @@ static void set_loc(
 #define __PREP_LOC_PTR(loc) (__IS_EMPTY(loc) ? (sp_loc_t*)NULL : &(loc))
 
 
-#line 212 "parser.c" /* yacc.c:355  */
+#line 213 "parser.c" /* yacc.c:355  */
 
 
 
 /* Copy the second part of user declarations.  */
 
-#line 218 "parser.c" /* yacc.c:358  */
+#line 219 "parser.c" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -513,8 +514,8 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,   107,   107,   113,   117,   118,   130,   158,   173,   187,
-     212,   241
+       0,   108,   108,   114,   118,   119,   131,   159,   174,   188,
+     213,   242
 };
 #endif
 
@@ -1388,28 +1389,28 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 107 "parser.y" /* yacc.c:1646  */
+#line 108 "parser.y" /* yacc.c:1646  */
     {
         /* set to empty scope */
         (yyval).end = 0;
         (yyval).beg = (yyval).end+1;
         (yyval).scope_lev = 0;
     }
-#line 1399 "parser.c" /* yacc.c:1646  */
+#line 1400 "parser.c" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 119 "parser.y" /* yacc.c:1646  */
+#line 120 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-1]).beg;
         (yyval).end = (yyvsp[0]).end;
         (yyval).scope_lev = (yyvsp[-1]).scope_lev;
     }
-#line 1409 "parser.c" /* yacc.c:1646  */
+#line 1410 "parser.c" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 131 "parser.y" /* yacc.c:1646  */
+#line 132 "parser.y" /* yacc.c:1646  */
     {
         sp_loc_t lval;
         set_loc(&lval, &(yyvsp[0]), &(yylsp[0]));
@@ -1433,11 +1434,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
-#line 1437 "parser.c" /* yacc.c:1646  */
+#line 1438 "parser.c" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 159 "parser.y" /* yacc.c:1646  */
+#line 160 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-3]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1451,11 +1452,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, __PREP_LOC_PTR(lval), &ldef);
         }
     }
-#line 1455 "parser.c" /* yacc.c:1646  */
+#line 1456 "parser.c" /* yacc.c:1646  */
     break;
 
   case 8:
-#line 174 "parser.y" /* yacc.c:1646  */
+#line 175 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-1]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1468,11 +1469,11 @@ yyreduce:
             __CALL_CB_PROP(&lname, (sp_loc_t*)NULL, &ldef);
         }
     }
-#line 1472 "parser.c" /* yacc.c:1646  */
+#line 1473 "parser.c" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 188 "parser.y" /* yacc.c:1646  */
+#line 189 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-3]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1496,11 +1497,11 @@ yyreduce:
                 (sp_loc_t*)NULL, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
-#line 1500 "parser.c" /* yacc.c:1646  */
+#line 1501 "parser.c" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 213 "parser.y" /* yacc.c:1646  */
+#line 214 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-4]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1525,11 +1526,11 @@ yyreduce:
                 &ltype, &lname, __PREP_LOC_PTR(lbody), &lbdyenc, &ldef);
         }
     }
-#line 1529 "parser.c" /* yacc.c:1646  */
+#line 1530 "parser.c" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 242 "parser.y" /* yacc.c:1646  */
+#line 243 "parser.y" /* yacc.c:1646  */
     {
         (yyval).beg = (yyvsp[-2]).beg;
         (yyval).end = (yyvsp[0]).end;
@@ -1548,11 +1549,11 @@ yyreduce:
                 &ltype, &lname, (sp_loc_t*)NULL, &lbdyenc, &ldef);
         }
     }
-#line 1552 "parser.c" /* yacc.c:1646  */
+#line 1553 "parser.c" /* yacc.c:1646  */
     break;
 
 
-#line 1556 "parser.c" /* yacc.c:1646  */
+#line 1557 "parser.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -1787,7 +1788,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 262 "parser.y" /* yacc.c:1906  */
+#line 263 "parser.y" /* yacc.c:1906  */
 
 
 #undef __PREP_LOC_PTR
@@ -1802,12 +1803,13 @@ static int lex_getc(sp_parser_hndl_t *p_hndl)
 
     if (p_hndl->lex.end==-1L || p_hndl->lex.off<=p_hndl->lex.end)
     {
-        c = unc_getc(&p_hndl->lex.unc, fgetc(p_hndl->in));
+        c = unc_getc(&p_hndl->lex.unc, sp_fgetc(p_hndl->in));
         if (c=='\r' || c=='\n')
         {
             /* EOL conversion */
             if (c=='\r') {
-                if ((c=unc_getc(&p_hndl->lex.unc, fgetc(p_hndl->in)))=='\n') {
+                if ((c=unc_getc(&p_hndl->lex.unc, sp_fgetc(p_hndl->in)))=='\n')
+                {
                     p_hndl->lex.off++;
                 } else {
                     unc_ungetc(&p_hndl->lex.unc, c);
@@ -2095,16 +2097,22 @@ static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 
 /* exported; see header for details */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
-    FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
+    SP_FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
     sp_parser_cb_scope_t cb_scope, void *cb_arg)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_loc_t globsc = {0, -1L, 1, 1, -1, -1};
     if (!p_parsc) p_parsc=&globsc;
 
-    if (!p_hndl || !in) { ret=SPEC_INV_ARG; goto finish; }
+    if (!p_hndl || !in) {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
 
-    if (fseek(in, p_parsc->beg, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
+    if (sp_fseek(in, p_parsc->beg, SEEK_SET)) {
+        ret=SPEC_ACCS_ERR;
+        goto finish;
+    }
 
     p_hndl->in = in;
 
@@ -2133,7 +2141,11 @@ finish:
 sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    if (!p_hndl) { ret=SPEC_INV_ARG; goto finish; }
+
+    if (!p_hndl) {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
 
     switch (yyparse(p_hndl))
     {
@@ -2162,14 +2174,14 @@ typedef struct _hndl_eschr_t
     struct {
         int is_str;
         union {
-            /* stream; is_str==0 */
-            FILE *f;
+            /* SP_FILE stream (is_str == 0) */
+            SP_FILE *f;
 
             /* string; is_str!=0 */
             struct {
-                const char *buf;    /* string buffer of chars */
-                size_t max_num;     /* max number of chars to be read */
-                size_t idx;         /* currently read char index */
+                const char *b;  /* string buffer */
+                size_t max_num; /* max number of chars to be read */
+                size_t i;       /* currently read char index */
             } str;
         };
         unc_cache_t unc;    /* ungetc cache buffer */
@@ -2198,7 +2210,7 @@ static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
     p_hndl->escaped = 0;
 
     if (tkn==SP_TKN_ID) {
-        int c=fgetc(p_phndl->in);
+        int c = sp_fgetc(p_phndl->in);
         if (c=='"' || c=='\'') {
             p_hndl->quot_chr = c;
             p_hndl->n_rdc++;
@@ -2213,9 +2225,9 @@ static void init_hndl_eschr_string(hndl_eschr_t *p_hndl, const char *str,
     size_t max_num, sp_parser_token_t tkn)
 {
     p_hndl->input.is_str = 1;
-    p_hndl->input.str.buf = str;
+    p_hndl->input.str.b = str;
     p_hndl->input.str.max_num = max_num;
-    p_hndl->input.str.idx = 0;
+    p_hndl->input.str.i = 0;
     unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
@@ -2232,17 +2244,17 @@ static int noesc_getc(hndl_eschr_t *p_hndl)
     if (p_hndl->input.is_str)
     {
         int str_c;
-        if (p_hndl->input.str.idx < p_hndl->input.str.max_num)
+        if (p_hndl->input.str.i < p_hndl->input.str.max_num)
         {
-            str_c = (int)p_hndl->input.str.buf[p_hndl->input.str.idx] & 0xff;
+            str_c = (int)p_hndl->input.str.b[p_hndl->input.str.i] & 0xff;
             if (!str_c) str_c=EOF;
         } else
             str_c=EOF;
 
         c = unc_getc(&p_hndl->input.unc,
-            (str_c!=EOF ? (p_hndl->input.str.idx++, str_c) : str_c));
+            (str_c!=EOF ? (p_hndl->input.str.i++, str_c) : str_c));
     } else {
-        c = unc_getc(&p_hndl->input.unc, fgetc(p_hndl->input.f));
+        c = unc_getc(&p_hndl->input.unc, sp_fgetc(p_hndl->input.f));
     }
     return c;
 }
@@ -2376,7 +2388,7 @@ sp_errc_t sp_parser_tkn_cpy(
         goto finish;
     }
 
-    if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+    if (sp_fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
 
     init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
 
@@ -2415,6 +2427,7 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
 #define __CHK_STREAM() \
     if (eh_tkn.n_rdc<=(size_t)llen) { if (c_tkn==EOF) goto finish; } \
     else c_tkn=EOF;
+
 #define __EH_STR_GETC() \
     (stresc ? esc_getc(&eh_str) : noesc_getc(&eh_str))
 
@@ -2425,7 +2438,7 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
     }
 
     if (llen) {
-        if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+        if (sp_fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
         init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
         c_tkn = esc_reqout_getc(&eh_tkn);
         __CHK_STREAM();
@@ -2458,7 +2471,7 @@ finish:
 
 /* exported; see header for details */
 sp_errc_t sp_parser_tokenize_str(
-    FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags)
+    SP_FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int quot_chr=-1, c;
@@ -2528,12 +2541,12 @@ sp_errc_t sp_parser_tokenize_str(
 
         in = str;
         if (quot_chr>=0) {
-            __CHK_FERR(fputc(quot_chr, out));
+            __CHK_FERR(sp_fputc(quot_chr, out));
         } else {
             /* if the first char is a quotation mark - escape it */
             if (*str=='"' || *str=='\'') {
-                __CHK_FERR(fputc('\\', out));
-                __CHK_FERR(fputc(*in++, out));
+                __CHK_FERR(sp_fputc('\\', out));
+                __CHK_FERR(sp_fputc(*in++, out));
             }
         }
     }
@@ -2602,10 +2615,10 @@ sp_errc_t sp_parser_tokenize_str(
 
         /* check if a SP_TKN_VAL token cut is needed */
         if (tkn==SP_TKN_VAL && cvlen>0 && (cvi+i-bfs)>cvlen) {
-            __CHK_FERR(fputs(&bf[0], out));
+            __CHK_FERR(sp_fputs(&bf[0], out));
             cvi = 0;
         } else {
-            __CHK_FERR(fputs(&bf[bfs], out));
+            __CHK_FERR(sp_fputs(&bf[bfs], out));
         }
 
         cvi += i-bfs;
@@ -2613,7 +2626,7 @@ sp_errc_t sp_parser_tokenize_str(
     }
 
     if (quot_chr>=0) {
-        __CHK_FERR(fputc(quot_chr, out));
+        __CHK_FERR(sp_fputc(quot_chr, out));
     }
     ret=SPEC_SUCCESS;
 

@@ -158,11 +158,12 @@ Basing on the previous example:
 
     2nd scope in split /scope_type:scope_name
         -> "/scope_type:scope_name/type:name"
-            which as a split scope consisting of:
+            which as a split scope consists of:
 
            "/scope_type:scope_name/type:name@0"
             and
-           "/scope_type:scope_name/type:name@1", both with empty bodies.
+           "/scope_type:scope_name/type:name@1"
+            both with empty bodies.
 
 API specification
 -----------------

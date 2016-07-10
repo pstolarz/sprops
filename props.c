@@ -15,7 +15,9 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "config.h"
+#include "io.h"
 #include "sprops/parser.h"
 #include "sprops/utils.h"
 
@@ -42,7 +44,7 @@
 }
 
 /* exported; see header for details */
-sp_errc_t sp_check_syntax(FILE *in, const sp_loc_t *p_parsc,
+sp_errc_t sp_check_syntax(SP_FILE *in, const sp_loc_t *p_parsc,
     int *p_line, int *p_col, sp_errsyn_t *p_syn_code)
 {
     sp_errc_t ret=SPEC_SUCCESS;
@@ -469,7 +471,7 @@ finish:
     int sind;
 
 /* exported; see header for details */
-sp_errc_t sp_iterate(FILE *in, const sp_loc_t *p_parsc, const char *path,
+sp_errc_t sp_iterate(SP_FILE *in, const sp_loc_t *p_parsc, const char *path,
     const char *deftp, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
     void *arg, char *buf1, size_t b1len, char *buf2, size_t b2len)
 {
@@ -628,7 +630,7 @@ static sp_errc_t getprp_cb_scope(const sp_parser_hndl_t *p_phndl,
     int neind = 0;
 
 /* exported; see header for details */
-sp_errc_t sp_get_prop(FILE *in, const sp_loc_t *p_parsc, const char *name,
+sp_errc_t sp_get_prop(SP_FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *deftp, char *val, size_t len,
     sp_prop_info_ex_t *p_info)
 {
@@ -686,8 +688,8 @@ static size_t strtrim(char *str)
 }
 
 /* exported; see header for details */
-sp_errc_t sp_get_prop_int(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *deftp, long *p_val,
+sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
+    const char *name, int ind, const char *path, const char *deftp, long *p_val,
     sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
@@ -715,9 +717,9 @@ finish:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_get_prop_float(FILE *in, const sp_loc_t *p_parsc, const char *name,
-    int ind, const char *path, const char *deftp, double *p_val,
-    sp_prop_info_ex_t *p_info)
+sp_errc_t sp_get_prop_float(SP_FILE *in, const sp_loc_t *p_parsc,
+    const char *name, int ind, const char *path, const char *deftp,
+    double *p_val, sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_prop_info_ex_t info;
@@ -755,7 +757,7 @@ static int __stricmp(const char *str1, const char *str2)
 
 /* exported; see header for details */
 sp_errc_t sp_get_prop_enum(
-    FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
+    SP_FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,
     const char *path, const char *deftp, const sp_enumval_t *p_evals,
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info)
 {
@@ -888,7 +890,7 @@ finish:
 
 /* exported; see header for details */
 sp_errc_t sp_get_scope_info(
-    FILE *in, const sp_loc_t *p_parsc, const char *type, const char *name,
+    SP_FILE *in, const sp_loc_t *p_parsc, const char *type, const char *name,
     int ind, const char *path, const char *deftp, sp_scope_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
@@ -933,8 +935,8 @@ finish:
 typedef struct _base_updt_hndl_t
 {
     /* input/output streams */
-    FILE *in;
-    FILE *out;
+    SP_FILE *in;
+    SP_FILE *out;
 
     /* offset staring not processed range of the input */
     long in_off;
@@ -952,7 +954,7 @@ typedef struct _base_updt_hndl_t
 /* Initialize base_updt_hndl_t struct.
  */
 static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
-    FILE *in, FILE *out, const sp_loc_t *p_parsc, unsigned long flags)
+    SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc, unsigned long flags)
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
@@ -995,15 +997,15 @@ static sp_errc_t skip_sp_to_eol(
     long org_off=off;
     int c, eol_n=0;
 
-    CHK_FSEEK(fseek(p_bu->in, off, SEEK_SET));
+    CHK_FSEEK(sp_fseek(p_bu->in, off, SEEK_SET));
 
-    for (; !eol_n && isspace(c=fgetc(p_bu->in)) && c!='\v' && c!='\f'; off++)
+    for (; !eol_n && isspace(c=sp_fgetc(p_bu->in)) && c!='\v' && c!='\f'; off++)
     {
         if (c!='\r' && c!='\n') continue;
 
         eol_n++;
         if (c=='\r') {
-            if ((c=fgetc(p_bu->in))=='\n') {
+            if ((c=sp_fgetc(p_bu->in))=='\n') {
                 off++;
                 eol_n++;
             }
@@ -1033,13 +1035,13 @@ static sp_errc_t put_eol(const base_updt_hndl_t *p_bu)
     switch (eol_typ) {
         default:
         case EOL_LF:
-            CHK_FERR(fputc('\n', p_bu->out));
+            CHK_FERR(sp_fputc('\n', p_bu->out));
             break;
         case EOL_CR:
-            CHK_FERR(fputc('\r', p_bu->out));
+            CHK_FERR(sp_fputc('\r', p_bu->out));
             break;
         case EOL_CRLF:
-            CHK_FERR(fputs("\r\n", p_bu->out));
+            CHK_FERR(sp_fputs("\r\n", p_bu->out));
             break;
     }
 finish:
@@ -1065,17 +1067,17 @@ static sp_errc_t put_ind(
     int c, n=p_ldef->first_column-1;
 
     if (n>0 || (!n && (flgs & IND_F_SCBDY))) {
-        CHK_FSEEK(fseek(p_bu->in, p_ldef->beg-n, SEEK_SET));
+        CHK_FSEEK(sp_fseek(p_bu->in, p_ldef->beg-n, SEEK_SET));
     }
 
-    for (; n>0 && isspace(c=fgetc(p_bu->in)); n--) {
-        CHK_FERR(fputc(c, p_bu->out));
+    for (; n>0 && isspace(c=sp_fgetc(p_bu->in)); n--) {
+        CHK_FERR(sp_fputc(c, p_bu->out));
     }
 
     if (flgs & IND_F_SCBDY) {
         n = (int)SP_F_GET_SPIND(p_bu->flags);
         c = (!n ? (n++, '\t') : ' ');
-        for (; n; n--) { CHK_FERR(fputc(c, p_bu->out)); }
+        for (; n; n--) { CHK_FERR(sp_fputc(c, p_bu->out)); }
     }
 
 finish:
@@ -1249,22 +1251,22 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
         {
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
             if (!(p_bu->flags & SP_F_NVSRSP)) {
-                CHK_FERR(fputs(" = ", p_bu->out));
+                CHK_FERR(sp_fputs(" = ", p_bu->out));
             } else {
 #endif
-                CHK_FERR(fputc('=', p_bu->out));
+                CHK_FERR(sp_fputc('=', p_bu->out));
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
             }
 #endif
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val, 0));
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
-            CHK_FERR(fputc(';', p_bu->out));
+            CHK_FERR(sp_fputc(';', p_bu->out));
 #else
             /* added value need to be finished by EOL */
             *p_traileol = 1;
 #endif
         } else {
-            CHK_FERR(fputc(';', p_bu->out));
+            CHK_FERR(sp_fputc(';', p_bu->out));
         }
 
     } else
@@ -1272,26 +1274,26 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
         /* element is a scope */
         if (sc_typ && *sc_typ) {
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_typ, 0));
-            CHK_FERR(fputc(' ', p_bu->out));
+            CHK_FERR(sp_fputc(' ', p_bu->out));
         }
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, sc_nm, 0));
 
         if (p_bu->flags & SP_F_SPLBRA) {
             EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));
-            CHK_FERR(fputc('{', p_bu->out));
+            CHK_FERR(sp_fputc('{', p_bu->out));
         } else {
             if (sc_typ && *sc_typ && (p_bu->flags & SP_F_EMPCPT)) {
-                CHK_FERR(fputc(';', p_bu->out));
+                CHK_FERR(sp_fputc(';', p_bu->out));
                 goto finish;
             } else {
-                CHK_FERR(fputs(" {", p_bu->out));
+                CHK_FERR(sp_fputs(" {", p_bu->out));
             }
         }
 
         if (!(p_bu->flags & SP_F_EMPCPT)) {
             EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));
         }
-        CHK_FERR(fputc('}', p_bu->out));
+        CHK_FERR(sp_fputc('}', p_bu->out));
     }
 
 finish:
@@ -1304,7 +1306,7 @@ finish:
 
 /* Add prop/scope element.
  */
-static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *prop_nm, const char *prop_val, const char *sc_typ,
     const char *sc_nm, int n_elem, const char *path, const char *deftp,
     unsigned long flags)
@@ -1394,9 +1396,9 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
                 EXEC_RG(__cpy_to_out(&bu, frst_sc.lbdyenc.beg));
                 if (frst_sc.lbdyenc.beg-frst_sc.lname.end <= 1) {
                     /* put extra space before the opening bracket */
-                    CHK_FERR(fputc(' ', out));
+                    CHK_FERR(sp_fputc(' ', out));
                 }
-                CHK_FERR(fputc('{', out));
+                CHK_FERR(sp_fputc('{', out));
 
                 bu.in_off = frst_sc.ldef.end+1;
                 EXEC_RG(put_eol_ind(
@@ -1406,7 +1408,7 @@ static sp_errc_t add_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
                     sc_typ, sc_nm, &frst_sc.ldef, IND_F_SCBDY, &traileol));
 
                 EXEC_RG(put_eol_ind(&bu, &frst_sc.ldef, IND_F_EXTEOL));
-                CHK_FERR(fputc('}', out));
+                CHK_FERR(sp_fputc('}', out));
             } else
             if (bdyenc_sz>=2)
             {
@@ -1455,7 +1457,7 @@ finish:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_add_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *val, int n_elem, const char *path,
     const char *deftp, unsigned long flags)
 {
@@ -1464,7 +1466,7 @@ sp_errc_t sp_add_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 }
 
 /* exported; see header for details */
-sp_errc_t sp_add_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_add_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int n_elem, const char *path,
     const char *deftp, unsigned long flags)
 {
@@ -1532,8 +1534,8 @@ static sp_errc_t cpy_rm_ldef(base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef)
         int n=p_ldef->first_column-1;
 
         if (n>0) {
-            CHK_FSEEK(fseek(p_bu->in, p_ldef->beg-n, SEEK_SET));
-            for (; n>0 && isspace(fgetc(p_bu->in)); n--);
+            CHK_FSEEK(sp_fseek(p_bu->in, p_ldef->beg-n, SEEK_SET));
+            for (; n>0 && isspace(sp_fgetc(p_bu->in)); n--);
         }
 
         if (!n) {
@@ -1548,7 +1550,7 @@ static sp_errc_t cpy_rm_ldef(base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef)
             int lns=n, eol2_n;
 
             /* cut spaces before ldef */
-            for (n--; n>0; n--) if (!isspace(fgetc(p_bu->in))) lns=n;
+            for (n--; n>0; n--) if (!isspace(sp_fgetc(p_bu->in))) lns=n;
             beg -= lns-1;
 
             if (p_bu->flags & SP_F_EXTEOL) {
@@ -1648,7 +1650,7 @@ finish:
 
 /* Remove prop/scope element.
  */
-static sp_errc_t rm_elem(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+static sp_errc_t rm_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *prop_nm, const char *sc_typ, const char *sc_nm, int ind,
     const char *path, const char *deftp, unsigned long flags)
 {
@@ -1716,7 +1718,7 @@ finish:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_rm_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp,
     unsigned long flags)
 {
@@ -1724,7 +1726,7 @@ sp_errc_t sp_rm_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 }
 
 /* exported; see header for details */
-sp_errc_t sp_rm_scope(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_rm_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *type, const char *name, int ind, const char *path,
     const char *deftp, unsigned long flags)
 {
@@ -1831,7 +1833,7 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
                     sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
                 p_bu->in_off = p_lval->end+1;
             } else {
-                CHK_FERR(fputc(';', p_bu->out));
+                CHK_FERR(sp_fputc(';', p_bu->out));
                 p_bu->in_off = p_ldef->end+1;
             }
         }
@@ -1842,16 +1844,16 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
 
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
         if (!(p_bu->flags & SP_F_NVSRSP)) {
-            CHK_FERR(fputs(" = ", p_bu->out));
+            CHK_FERR(sp_fputs(" = ", p_bu->out));
         } else {
 #endif
-            CHK_FERR(fputc('=', p_bu->out));
+            CHK_FERR(sp_fputc('=', p_bu->out));
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
         }
 #endif
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
-        CHK_FERR(fputc(';', p_bu->out));
+        CHK_FERR(sp_fputc(';', p_bu->out));
 #else
         /* added value need to be finished by EOL */
         EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
@@ -1896,7 +1898,7 @@ static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
 
         if ((mod_flags & MOD_F_SCOPE_TYPE) && new_type && *new_type) {
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, new_type, 0));
-            CHK_FERR(fputc(' ', p_bu->out));
+            CHK_FERR(sp_fputc(' ', p_bu->out));
         }
     }
 
@@ -1910,7 +1912,7 @@ static sp_errc_t cpy_mod_scope(base_updt_hndl_t *p_bu,
 
     /* body */
     if (sp_loc_len(p_lbdyenc)==1 && typ_rmed) {
-        CHK_FERR(fputs(" {}", p_bu->out));
+        CHK_FERR(sp_fputs(" {}", p_bu->out));
         p_bu->in_off = p_lbdyenc->end+1;
     }
 
@@ -2031,7 +2033,7 @@ finish:
 
 /* Property modification; support funct. for sp_set_prop() and sp_mv_prop().
  */
-static sp_errc_t mod_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+static sp_errc_t mod_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *new_name, const char *new_val, int ind,
     const char *path, const char *deftp, unsigned mod_flags, unsigned long flags)
 {
@@ -2116,7 +2118,7 @@ finish:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_set_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *val, int ind, const char *path,
     const char *deftp, unsigned long flags)
 {
@@ -2125,7 +2127,7 @@ sp_errc_t sp_set_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 }
 
 /* exported; see header for details */
-sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
+sp_errc_t sp_mv_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *name, const char *new_name, int ind, const char *path,
     const char *deftp, unsigned long flags)
 {
@@ -2135,7 +2137,7 @@ sp_errc_t sp_mv_prop(FILE *in, FILE *out, const sp_loc_t *p_parsc,
 
 /* exported; see header for details */
 sp_errc_t sp_mv_scope(
-    FILE *in, FILE *out, const sp_loc_t *p_parsc, const char *type,
+    SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc, const char *type,
     const char *name, const char *new_type, const char *new_name, int ind,
     const char *path, const char *deftp, unsigned long flags)
 {

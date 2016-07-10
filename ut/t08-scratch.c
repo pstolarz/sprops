@@ -31,6 +31,8 @@ int main(void)
     int tr_init=0;
     sp_trans_t trans;
 
+    SP_FILE out;
+
     /* initialize with an empty input*/
     EXEC_RG(sp_init_tr(&trans, NULL, NULL, NULL));
     tr_init++;
@@ -89,11 +91,13 @@ int main(void)
         "/SCOPE2/SCOPE2", "TYPE",
         indf));
 
+    sp_fopen2(&out, stdout);
+
+    EXEC_RG(sp_commit_tr(&trans, &out));
     tr_init=0;
-    EXEC_RG(sp_commit_tr(&trans, stdout));
 
 finish:
-    if (tr_init) sp_commit_tr(&trans, NULL);
+    if (tr_init) sp_discard_tr(&trans);
     if (ret) printf("Error: %d\n", ret);
     return 0;
 }

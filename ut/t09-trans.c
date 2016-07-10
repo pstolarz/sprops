@@ -35,10 +35,15 @@ int main(void)
     int tr_init=0;
     sp_trans_t trans;
 
-    FILE *in = fopen("c09.conf", "rb");
-    if (!in) goto finish;
+    SP_FILE in, out;
+    int in_opn=0;
 
-    EXEC_RG(sp_init_tr(&trans, in, NULL, NULL));
+    EXEC_RG(sp_fopen(&in, "c09.conf", "rb"));
+    in_opn++;
+
+    sp_fopen2(&out, stdout);
+
+    EXEC_RG(sp_init_tr(&trans, &in, NULL, NULL));
     tr_init++;
 
     printf("--- Global scope modification\n");
@@ -79,16 +84,16 @@ int main(void)
         "/", NULL,
         indf));
 
+    EXEC_RG(sp_commit_tr(&trans, &out));
     tr_init=0;
-    EXEC_RG(sp_commit_tr(&trans, stdout));
 
 
     printf("\n--- Modification constrained to /scope:3\n");
     EXEC_RG(sp_get_scope_info(
-        in, NULL, "scope", "3", SP_IND_LAST, NULL, NULL, &sc3));
+        &in, NULL, "scope", "3", SP_IND_LAST, NULL, NULL, &sc3));
     assert(sc3.body_pres!=0);
 
-    EXEC_RG(sp_init_tr(&trans, in, &sc3.lbody, NULL));
+    EXEC_RG(sp_init_tr(&trans, &in, &sc3.lbody, NULL));
     tr_init++;
 
     EXEC_RG(sp_set_prop_tr(&trans,
@@ -128,12 +133,12 @@ int main(void)
         "SCOPE", NULL,
         indf));
 
+    EXEC_RG(sp_commit_tr(&trans, &out));
     tr_init=0;
-    EXEC_RG(sp_commit_tr(&trans, stdout));
 
 finish:
-    if (tr_init) sp_commit_tr(&trans, NULL);
-    if (in) fclose(in);
+    if (tr_init) sp_discard_tr(&trans);
+    if (in_opn) sp_fclose(&in);
     if (ret) printf("Error: %d\n", ret);
     return 0;
 }

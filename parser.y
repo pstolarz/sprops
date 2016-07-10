@@ -13,9 +13,10 @@
 %code top
 {
 #include <ctype.h>
-#include <errno.h>
 #include <string.h>
+
 #include "config.h"
+#include "io.h"
 #include "sprops/parser.h"
 
 /* EOL char code (platform independent) */
@@ -70,20 +71,20 @@ static void set_loc(
 /* temporary macros indented for use in actions
  */
 #define __CALL_CB_PROP(nm, val, def) { \
-    long pos = ftell(p_hndl->in); \
+    long pos = sp_ftell(p_hndl->in); \
     sp_errc_t res = p_hndl->cb.prop(p_hndl, (nm), (val), (def)); \
     if (res==SPEC_SUCCESS && \
-        (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
+        (pos==-1L || sp_fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
     else if ((int)res<0) { YYACCEPT; } \
 }
 
 #define __CALL_CB_SCOPE(typ, nm, bdy, bdyenc, def) { \
-    long pos = ftell(p_hndl->in); \
+    long pos = sp_ftell(p_hndl->in); \
     sp_errc_t res = \
         p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (bdyenc), (def)); \
     if (res==SPEC_SUCCESS && \
-        (pos==-1L || fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
+        (pos==-1L || sp_fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
     else if ((int)res<0) { YYACCEPT; } \
 }
@@ -273,12 +274,13 @@ static int lex_getc(sp_parser_hndl_t *p_hndl)
 
     if (p_hndl->lex.end==-1L || p_hndl->lex.off<=p_hndl->lex.end)
     {
-        c = unc_getc(&p_hndl->lex.unc, fgetc(p_hndl->in));
+        c = unc_getc(&p_hndl->lex.unc, sp_fgetc(p_hndl->in));
         if (c=='\r' || c=='\n')
         {
             /* EOL conversion */
             if (c=='\r') {
-                if ((c=unc_getc(&p_hndl->lex.unc, fgetc(p_hndl->in)))=='\n') {
+                if ((c=unc_getc(&p_hndl->lex.unc, sp_fgetc(p_hndl->in)))=='\n')
+                {
                     p_hndl->lex.off++;
                 } else {
                     unc_ungetc(&p_hndl->lex.unc, c);
@@ -566,16 +568,22 @@ static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 
 /* exported; see header for details */
 sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
-    FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
+    SP_FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
     sp_parser_cb_scope_t cb_scope, void *cb_arg)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_loc_t globsc = {0, -1L, 1, 1, -1, -1};
     if (!p_parsc) p_parsc=&globsc;
 
-    if (!p_hndl || !in) { ret=SPEC_INV_ARG; goto finish; }
+    if (!p_hndl || !in) {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
 
-    if (fseek(in, p_parsc->beg, SEEK_SET)) { ret=SPEC_ACCS_ERR; goto finish; }
+    if (sp_fseek(in, p_parsc->beg, SEEK_SET)) {
+        ret=SPEC_ACCS_ERR;
+        goto finish;
+    }
 
     p_hndl->in = in;
 
@@ -604,7 +612,11 @@ finish:
 sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    if (!p_hndl) { ret=SPEC_INV_ARG; goto finish; }
+
+    if (!p_hndl) {
+        ret=SPEC_INV_ARG;
+        goto finish;
+    }
 
     switch (yyparse(p_hndl))
     {
@@ -633,14 +645,14 @@ typedef struct _hndl_eschr_t
     struct {
         int is_str;
         union {
-            /* stream; is_str==0 */
-            FILE *f;
+            /* SP_FILE stream (is_str == 0) */
+            SP_FILE *f;
 
             /* string; is_str!=0 */
             struct {
-                const char *buf;    /* string buffer of chars */
-                size_t max_num;     /* max number of chars to be read */
-                size_t idx;         /* currently read char index */
+                const char *b;  /* string buffer */
+                size_t max_num; /* max number of chars to be read */
+                size_t i;       /* currently read char index */
             } str;
         };
         unc_cache_t unc;    /* ungetc cache buffer */
@@ -669,7 +681,7 @@ static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
     p_hndl->escaped = 0;
 
     if (tkn==SP_TKN_ID) {
-        int c=fgetc(p_phndl->in);
+        int c = sp_fgetc(p_phndl->in);
         if (c=='"' || c=='\'') {
             p_hndl->quot_chr = c;
             p_hndl->n_rdc++;
@@ -684,9 +696,9 @@ static void init_hndl_eschr_string(hndl_eschr_t *p_hndl, const char *str,
     size_t max_num, sp_parser_token_t tkn)
 {
     p_hndl->input.is_str = 1;
-    p_hndl->input.str.buf = str;
+    p_hndl->input.str.b = str;
     p_hndl->input.str.max_num = max_num;
-    p_hndl->input.str.idx = 0;
+    p_hndl->input.str.i = 0;
     unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
@@ -703,17 +715,17 @@ static int noesc_getc(hndl_eschr_t *p_hndl)
     if (p_hndl->input.is_str)
     {
         int str_c;
-        if (p_hndl->input.str.idx < p_hndl->input.str.max_num)
+        if (p_hndl->input.str.i < p_hndl->input.str.max_num)
         {
-            str_c = (int)p_hndl->input.str.buf[p_hndl->input.str.idx] & 0xff;
+            str_c = (int)p_hndl->input.str.b[p_hndl->input.str.i] & 0xff;
             if (!str_c) str_c=EOF;
         } else
             str_c=EOF;
 
         c = unc_getc(&p_hndl->input.unc,
-            (str_c!=EOF ? (p_hndl->input.str.idx++, str_c) : str_c));
+            (str_c!=EOF ? (p_hndl->input.str.i++, str_c) : str_c));
     } else {
-        c = unc_getc(&p_hndl->input.unc, fgetc(p_hndl->input.f));
+        c = unc_getc(&p_hndl->input.unc, sp_fgetc(p_hndl->input.f));
     }
     return c;
 }
@@ -847,7 +859,7 @@ sp_errc_t sp_parser_tkn_cpy(
         goto finish;
     }
 
-    if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+    if (sp_fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
 
     init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
 
@@ -886,6 +898,7 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
 #define __CHK_STREAM() \
     if (eh_tkn.n_rdc<=(size_t)llen) { if (c_tkn==EOF) goto finish; } \
     else c_tkn=EOF;
+
 #define __EH_STR_GETC() \
     (stresc ? esc_getc(&eh_str) : noesc_getc(&eh_str))
 
@@ -896,7 +909,7 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
     }
 
     if (llen) {
-        if (fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+        if (sp_fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
         init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
         c_tkn = esc_reqout_getc(&eh_tkn);
         __CHK_STREAM();
@@ -929,7 +942,7 @@ finish:
 
 /* exported; see header for details */
 sp_errc_t sp_parser_tokenize_str(
-    FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags)
+    SP_FILE *out, sp_parser_token_t tkn, const char *str, unsigned cv_flags)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int quot_chr=-1, c;
@@ -999,12 +1012,12 @@ sp_errc_t sp_parser_tokenize_str(
 
         in = str;
         if (quot_chr>=0) {
-            __CHK_FERR(fputc(quot_chr, out));
+            __CHK_FERR(sp_fputc(quot_chr, out));
         } else {
             /* if the first char is a quotation mark - escape it */
             if (*str=='"' || *str=='\'') {
-                __CHK_FERR(fputc('\\', out));
-                __CHK_FERR(fputc(*in++, out));
+                __CHK_FERR(sp_fputc('\\', out));
+                __CHK_FERR(sp_fputc(*in++, out));
             }
         }
     }
@@ -1073,10 +1086,10 @@ sp_errc_t sp_parser_tokenize_str(
 
         /* check if a SP_TKN_VAL token cut is needed */
         if (tkn==SP_TKN_VAL && cvlen>0 && (cvi+i-bfs)>cvlen) {
-            __CHK_FERR(fputs(&bf[0], out));
+            __CHK_FERR(sp_fputs(&bf[0], out));
             cvi = 0;
         } else {
-            __CHK_FERR(fputs(&bf[bfs], out));
+            __CHK_FERR(sp_fputs(&bf[bfs], out));
         }
 
         cvi += i-bfs;
@@ -1084,7 +1097,7 @@ sp_errc_t sp_parser_tokenize_str(
     }
 
     if (quot_chr>=0) {
-        __CHK_FERR(fputc(quot_chr, out));
+        __CHK_FERR(sp_fputc(quot_chr, out));
     }
     ret=SPEC_SUCCESS;
 

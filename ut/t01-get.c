@@ -11,8 +11,6 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
-#include <string.h>
 #include "../config.h"
 #include "sprops/props.h"
 
@@ -168,238 +166,242 @@ static void print_scope(const char *ownscp,
 
 int main(void)
 {
+    sp_errc_t ret=SPEC_SUCCESS;
+
     int ival;
     long lval;
     double dval;
     char buf1[8];
+
     sp_prop_info_ex_t pi;
     sp_scope_info_ex_t si;
-    sp_errc_t ret=SPEC_SUCCESS;
-    FILE *in;
+
+    SP_FILE in;
+    int in_opn=0;
 
     sp_enumval_t evals[] =
         {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
 
-    in = fopen("c01-2.conf", "rb");
+    EXEC_RG(sp_fopen(&in, "c01-2.conf", "rb"));
 #if 0
-    in = fopen("c01-2_win.conf", "rb");
-    in = fopen("c01-2_1line.conf", "rb");
+    EXEC_RG(sp_fopen(&in, "c01-2_win.conf", "rb"));
+    EXEC_RG(sp_fopen(&in, "c01-2_1line.conf", "rb"));
 #endif
-    if (!in) goto finish;
+    in_opn++;
 
     printf("--- Properties info\n");
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "b", 0, "/", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "b", 0, "/", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/", "b", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "}'\"{", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "}'\"{", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/", "}'\"{", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, ";\"'#", SP_IND_LAST, NULL, NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, ";\"'#", SP_IND_LAST, NULL, NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/", ";\"'#", SP_IND_LAST, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "/:\\'\\:\\x20\\/", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "/:\\'\\:\\x20\\/", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("untyped scope ': /", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "/\\x31", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "/\\x31", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:1", "a", 0, buf1, &pi);
 
     /* truncated to the buffer size */
-    EXEC_RG(sp_get_prop(in, NULL,
+    EXEC_RG(sp_get_prop(&in, NULL,
         "a", 0, "\\1/\\x73cope:\\2", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:1/scope:2", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "b", 0, "/1/2/", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "b", 0, "/1/2/", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:1/scope:2", "b", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop_int(
-        in, NULL, "a", 0, "1/2/:xxx/", "scope", &lval, &pi));
+        &in, NULL, "a", 0, "1/2/:xxx/", "scope", &lval, &pi));
     print_long_prop("/scope:1/scope:2/:xxx", "a", 0, lval, &pi);
 
     EXEC_RG(sp_get_prop_float(
-        in, NULL, "b", 0, "1/2/:xxx", "scope", &dval, &pi));
+        &in, NULL, "b", 0, "1/2/:xxx", "scope", &dval, &pi));
     print_double_prop("/scope:1/scope:2/:xxx", "b", 0, dval, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "1/2/:xxx/d:d", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "1/2/:xxx/d:d", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:1/scope:2/:xxx/d:d", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "/2", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "/2", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:2", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "b", 0, "/2", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "b", 0, "/2", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:2", "b", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "/:scope", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "/:scope", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/:scope", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "1/2/3", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "1/2/3", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "a", 0, buf1, &pi);
 
-    ret = sp_get_prop(in, NULL, "x", 0, "1@0/2/3", "", buf1, sizeof(buf1), &pi);
+    ret = sp_get_prop(&in, NULL, "x", 0, "1@0/2/3", "", buf1, sizeof(buf1), &pi);
     assert(ret==SPEC_NOTFOUND);
 
     /* truncated to the buffer size */
     EXEC_RG(sp_get_prop(
-        in, NULL, "b", 0, "/1/:2/3", "", buf1, sizeof(buf1), &pi));
+        &in, NULL, "b", 0, "/1/:2/3", "", buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "b", 0, buf1, &pi);
 
-    ret = sp_get_prop(in, NULL, "x", 0, "1/2/3@0", "", buf1, sizeof(buf1), &pi);
+    ret = sp_get_prop(&in, NULL, "x", 0, "1/2/3@0", "", buf1, sizeof(buf1), &pi);
     assert(ret==SPEC_NOTFOUND);
 
-    EXEC_RG(sp_get_prop_enum(in, NULL,
+    EXEC_RG(sp_get_prop_enum(&in, NULL,
         "c", 0, "/1/2/3", NULL, evals, 1, buf1, sizeof(buf1), &ival, &pi));
     print_enum_prop("/:1/:2/:3", "c", 0, ival, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "d", 0, ":1/:2/:3", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "d", 0, ":1/:2/:3", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "d", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "e", 0, ":1/:2/:3", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "e", 0, ":1/:2/:3", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "e", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "f", 0, ":1/:2/:3", "", buf1, sizeof(buf1), &pi));
+        &in, NULL, "f", 0, ":1/:2/:3", "", buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "f", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "g", 0, ":1/:2/:3", "/", buf1, sizeof(buf1), &pi));
+        &in, NULL, "g", 0, ":1/:2/:3", "/", buf1, sizeof(buf1), &pi));
     print_str_prop("/:1/:2/:3", "g", 0, buf1, &pi);
 
     ret = sp_get_prop(
-        in, NULL, "a", 0, "1/2/3/scope:xyz", NULL, buf1, sizeof(buf1), &pi);
+        &in, NULL, "a", 0, "1/2/3/scope:xyz", NULL, buf1, sizeof(buf1), &pi);
     assert(ret==SPEC_NOTFOUND);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 0, "3", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 0, "3", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3", "a", 0, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 1, "/scope:3", NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 1, "/scope:3", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3", "a", 1, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-            in, NULL, "a", 2, "/scope:3", NULL, buf1, sizeof(buf1), &pi));
+            &in, NULL, "a", 2, "/scope:3", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3", "a", 2, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", 3, "/3", "scope", buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", 3, "/3", "scope", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3", "a", 3, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "a", SP_IND_LAST, "scope:3", "", buf1, sizeof(buf1), &pi));
+        &in, NULL, "a", SP_IND_LAST, "scope:3", "", buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3", "a", SP_IND_LAST, buf1, &pi);
 
-    EXEC_RG(sp_get_prop(in,
+    EXEC_RG(sp_get_prop(&in,
         NULL, "a", SP_IND_LAST, "scope:3@$/", NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/scope:3@$", "a", SP_IND_LAST, buf1, &pi);
 
     EXEC_RG(sp_get_prop(
-        in, NULL, "c", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
+        &in, NULL, "c", 0, NULL, NULL, buf1, sizeof(buf1), &pi));
     print_str_prop("/", "c", 0, buf1, &pi);
 
 
     printf("\n--- Scopes info\n");
 
     EXEC_RG(sp_get_scope_info(
-        in, NULL, NULL, "': /", SP_IND_LAST, NULL, NULL, &si));
+        &in, NULL, NULL, "': /", SP_IND_LAST, NULL, NULL, &si));
     print_scope("/", "': /", SP_IND_LAST, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "1", 0, "/", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "1", 0, "/", NULL, &si));
     print_scope("/", "/scope:1", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "2", 0, "/scope:1", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "2", 0, "/scope:1", NULL, &si));
     print_scope("/scope:1", "/scope:2", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "xxx", 0, "1/2", "scope", &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "xxx", 0, "1/2", "scope", &si));
     print_scope("/scope:1/scope:2", "/:xxx", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "d", "d", 0, "/1/2/:xxx", "scope", &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "d", "d", 0, "/1/2/:xxx", "scope", &si));
     print_scope("/scope:1/scope:2/:xxx", "/d:d", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "2", 0, "", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "2", 0, "", NULL, &si));
     print_scope("/", "/scope:2", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "2", 0, "/2", "scope", &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "2", 0, "/2", "scope", &si));
     print_scope("/scope:2", "/scope:2", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "3", 0, "/scope:2", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "3", 0, "/scope:2", NULL, &si));
     print_scope("/scope:2", "/scope:3", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "scope", 0, NULL, NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "scope", 0, NULL, NULL, &si));
     print_scope("/", "/:scope", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 0, NULL, NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "1", 0, NULL, NULL, &si));
     print_scope("/", "/:1", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 0, "/:1", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "2", 0, "/:1", NULL, &si));
     print_scope("/:1", "/:2", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 0, "1/2", "", &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "3", 0, "1/2", "", &si));
     print_scope("/:1/:2", "/:3", 0, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 1, NULL, NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "1", 1, NULL, NULL, &si));
     print_scope("/", "/:1", 1, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 1, "/:1", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "2", 1, "/:1", NULL, &si));
     print_scope("/:1", "/:2", 1, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 1, "1/2", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "3", 1, "1/2", NULL, &si));
     print_scope("/:1/:2", "/:3", 1, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "1", 2, NULL, NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "1", 2, NULL, NULL, &si));
     print_scope("/", "/:1", 2, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 2, "/:1", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "2", 2, "/:1", NULL, &si));
     print_scope("/:1", "/:2", 2, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 2, "1/2", "", &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "3", 2, "1/2", "", &si));
     print_scope("/:1/:2", "/:3", 2, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "xyz", 0, "1/2/3", "", &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "xyz", 0, "1/2/3", "", &si));
     print_scope("/:1/:2/:3", "/scope:xyz", 0, &si);
 
     EXEC_RG(sp_get_scope_info(
-        in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@0", "", &si));
+        &in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@0", "", &si));
     print_scope("/:1@2/:2@0", "/:3", SP_IND_LAST, &si);
 
-    ret = sp_get_scope_info(in, NULL, NULL, "4", SP_IND_LAST, "1@0/2", "", &si);
+    ret = sp_get_scope_info(&in, NULL, NULL, "4", SP_IND_LAST, "1@0/2", "", &si);
     assert(ret==SPEC_NOTFOUND);
 
     ret = sp_get_scope_info(
-        in, NULL, NULL, "4", SP_IND_LAST, "1@2/2@0", "", &si);
+        &in, NULL, NULL, "4", SP_IND_LAST, "1@2/2@0", "", &si);
     assert(ret==SPEC_NOTFOUND);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "3", 0, "1@2/2@1", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "3", 0, "1@2/2@1", NULL, &si));
     print_scope("/:1@2/:2@1", "/:3", 0, &si);
 
     EXEC_RG(sp_get_scope_info(
-        in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@1", "", &si));
+        &in, NULL, NULL, "3", SP_IND_LAST, "1@2/2@1", "", &si));
     print_scope("/:1@2/:2@1", "/:3", SP_IND_LAST, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "2", 3, "/:1", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "2", 3, "/:1", NULL, &si));
     print_scope("/:1", "/:2", 3, &si);
 
-    EXEC_RG(sp_get_scope_info(in, NULL, "scope", "3", 0, "/", NULL, &si));
+    EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "3", 0, "/", NULL, &si));
     print_scope("/", "/scope:3", 0, &si);
 
     EXEC_RG(sp_get_scope_info(
-        in, NULL, "scope", "3", SP_IND_LAST, "/", NULL, &si));
+        &in, NULL, "scope", "3", SP_IND_LAST, "/", NULL, &si));
     print_scope("/", "/scope:3", SP_IND_LAST, &si);
 
 finish:
@@ -407,13 +409,13 @@ finish:
         if (ret==SPEC_SYNTAX) {
             int line, col;
             sp_errsyn_t syn_code;
-            sp_check_syntax(in, NULL, &line, &col, &syn_code);
+            sp_check_syntax(&in, NULL, &line, &col, &syn_code);
             printf("Syntax error: line:%d, col:%d\n", line, col);
         } else {
             printf("Error: %d\n", ret);
         }
     }
-    if (in) fclose(in);
+    if (in_opn) sp_fclose(&in);
 
     return 0;
 }

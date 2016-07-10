@@ -27,7 +27,7 @@
 #define PARSC_AS_INPUT  2
 
 /* Due to indentation issues observed (under some circumstances) for transactions
-   on not a NULL parsing scopes and consisting of more than one modification,
+   with not a NULL parsing scopes and consisting of more than one modification,
    this option specifies a type of the parsing scope initial modification to
    avoid the problem. The following PARSC_EXTIND value shall be sufficient for
    most use cases, guaranteeing no additional performance overhead.

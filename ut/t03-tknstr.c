@@ -11,7 +11,6 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 #include "../config.h"
 #include "sprops/parser.h"
@@ -35,27 +34,15 @@ int main(void)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     
-    char fbuf[64];
-    FILE *f=NULL;
+    char buf[64];
+    SP_FILE out;
 
 #define __TEST(tkn, in, exp, flgs) \
-    fflush(f); memset(fbuf, 0, sizeof(fbuf)); \
-    EXEC_RG(sp_parser_tokenize_str(f, (tkn), (in), (flgs))); \
-    printf("IN<%s> OUT<%s>\n", (in), fbuf); \
-    assert(!strcmp(fbuf, (exp)));
-
-    if (!(f=fopen(
-#if defined(_WIN32) || defined(_WIN64)
-        "nul"
-#else
-        "/dev/null"
-#endif
-        , "wb")))
-    {
-        printf("Can't open NULL output\n");
-        goto finish;
-    }
-    setbuf(f, fbuf);
+    memset(buf, 0, sizeof(buf)); \
+    sp_mopen(&out, buf, sizeof(buf)); \
+    EXEC_RG(sp_parser_tokenize_str(&out, (tkn), (in), (flgs))); \
+    printf("IN<%s> OUT<%s>\n", (in), buf); \
+    assert(!strcmp(buf, (exp)));
 
     printf("\n--- SP_TKN_ID tokenizing\n");
 
@@ -126,7 +113,6 @@ int main(void)
 
 finish:
     if (ret) printf("Error: %d\n", ret);
-    if (f) fclose(f);
     return 0;
 
 #undef __TEST

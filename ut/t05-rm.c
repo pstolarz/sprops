@@ -11,7 +11,6 @@
  */
 
 #include <assert.h>
-#include <stdio.h>
 #include "../config.h"
 #include "sprops/props.h"
 
@@ -26,12 +25,17 @@ int main(void)
     sp_errc_t ret=SPEC_SUCCESS;
     sp_scope_info_ex_t sc5;
 
-    FILE *in = fopen("c05.conf", "rb");
-    if (!in) goto finish;
+    SP_FILE in, out;
+    int in_opn=0;
+
+    EXEC_RG(sp_fopen(&in, "c05.conf", "rb"));
+    in_opn++;
+
+    sp_fopen2(&out, stdout);
 
     printf("--- Del prop 1, own-scope: /, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "1",
         0,
@@ -40,7 +44,7 @@ int main(void)
 
     printf("\n--- Del prop 2, own-scope /, elm:ALL\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "2",
         SP_IND_ALL,
@@ -49,7 +53,7 @@ int main(void)
 
     printf("\n--- Del scope:3, own-scope /, elm:LAST\n");
     EXEC_RG(sp_rm_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         "scope", "3",
         SP_IND_LAST,
@@ -58,7 +62,7 @@ int main(void)
 
     printf("\n--- Del prop 4, own-scope /, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "4",
         0,
@@ -67,7 +71,7 @@ int main(void)
 
     printf("\n--- Del prop 4, own-scope /, elm:LAST\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "4",
         SP_IND_LAST,
@@ -76,7 +80,7 @@ int main(void)
 
     printf("\n--- Del scope :5, own-scope /, elm:LAST, flags:EXTEOL\n");
     EXEC_RG(sp_rm_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         NULL, "5",
         SP_IND_LAST,
@@ -85,7 +89,7 @@ int main(void)
 
     printf("\n--- Del scope :5, own-scope /, elm:ALL\n");
     EXEC_RG(sp_rm_scope(
-        in, stdout,
+        &in, &out,
         NULL,
         NULL, "5",
         SP_IND_ALL,
@@ -94,7 +98,7 @@ int main(void)
 
     printf("\n--- Del prop 1, own-scope /:5, elm:0\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "1",
         0,
@@ -103,19 +107,19 @@ int main(void)
 
     printf("\n--- Del prop 3, own-scope /:5, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "3",
         0,
         "/:5", NULL,
         SP_F_EXTEOL));
 
-    EXEC_RG(sp_get_scope_info(in, NULL, NULL, "5", 0, NULL, NULL, &sc5));
+    EXEC_RG(sp_get_scope_info(&in, NULL, NULL, "5", 0, NULL, NULL, &sc5));
     assert(sc5.body_pres!=0);
 
     printf("\n--- Del prop 1, parsing scope /:5, elm:0\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         &sc5.lbody,
         "1",
         0,
@@ -124,7 +128,7 @@ int main(void)
 
     printf("\n--- Del prop 3, parsing scope /:5, elm:0, flags:EXTEOL\n");
     EXEC_RG(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         &sc5.lbody,
         "3",
         0,
@@ -135,7 +139,7 @@ int main(void)
 
     printf("\n--- Del absent prop 3, own-scope /\n");
     assert(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "3",
         0,
@@ -144,7 +148,7 @@ int main(void)
 
     printf("\n--- Del prop 1 in absent own-scope /:1\n");
     assert(sp_rm_prop(
-        in, stdout,
+        &in, &out,
         NULL,
         "1",
         0,
@@ -153,6 +157,6 @@ int main(void)
 
 finish:
     if (ret) printf("Error: %d\n", ret);
-    if (in) fclose(in);
+    if (in_opn) sp_fclose(&in);
     return 0;
 }

@@ -32,14 +32,15 @@ extern "C" {
    the scope modification is finished. See the transactional API implementation
    for an example of usage.
  */
-sp_errc_t sp_util_cpy_to_out(FILE *in, FILE *out, long beg, long end, long *p_n);
+sp_errc_t
+    sp_util_cpy_to_out(SP_FILE *in, SP_FILE *out, long beg, long end, long *p_n);
 
 #define EOL_NDETECT EOL_PLAT
 
 /* Detects type of EOL used on the input. If no EOL marker is present, the
    function writes EOL_NDETECT under 'p_eol_typ' (which is an alias to EOL_PLAT).
  */
-sp_errc_t sp_util_detect_eol(FILE *in, sp_eol_t *p_eol_typ);
+sp_errc_t sp_util_detect_eol(SP_FILE *in, sp_eol_t *p_eol_typ);
 
 #ifdef __cplusplus
 }
