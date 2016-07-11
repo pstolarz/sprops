@@ -773,8 +773,6 @@ static int esc_getc(hndl_eschr_t *p_hndl)
         case 'v':
             c='\v';
             break;
-        case '\\':
-            break;
 
         /* hex encoded char */
         case 'x':
@@ -1065,9 +1063,6 @@ sp_errc_t sp_parser_tokenize_str(
                 break;
             case '\v':
                 bf[i++] = 'v';
-                break;
-            case '\\':
-                bf[i++] = '\\';
                 break;
             default:
                 if (!isprint(c) || (isspace(c) && !*in)) {
