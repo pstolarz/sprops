@@ -34,13 +34,13 @@ sp_errc_t sp_fopen2(SP_FILE *f, FILE *cf)
 }
 
 /* exported; see props.h header for details */
-sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t len)
+sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num)
 {
-    if (!f || (!buf && len>0)) return SPEC_INV_ARG;
+    if (!f || (!buf && num>0)) return SPEC_INV_ARG;
 
     f->typ = SP_FILE_MEM;
     f->m.b = buf;
-    f->m.l = len;
+    f->m.num = num;
     f->m.i = 0;
     return SPEC_SUCCESS;
 }
@@ -64,7 +64,7 @@ int sp_fgetc(SP_FILE *f)
     if (f->typ==SP_FILE_C) {
         return fgetc(f->f);
     } else {
-        if (f->m.i < f->m.l) {
+        if (f->m.i < f->m.num) {
             return (f->m.b[f->m.i++] & 0xff);
         } else {
             return EOF;
@@ -78,7 +78,7 @@ int sp_fputc(int c, SP_FILE *f)
     if (f->typ==SP_FILE_C) {
         return fputc(c, f->f);
     } else {
-        if (f->m.i < f->m.l) {
+        if (f->m.i < f->m.num) {
             return ((f->m.b[f->m.i++]=(char)c) & 0xff);
         } else {
             return EOF;
@@ -92,7 +92,7 @@ int sp_fputs(const char *str, SP_FILE *f)
     if (f->typ==SP_FILE_C) {
         return fputs(str, f->f);
     } else {
-        size_t i = f->m.l-f->m.i;
+        size_t i = f->m.num-f->m.i;
         for (; *str && i; i--, str++)
             f->m.b[f->m.i++] = *str;
         return (*str ? EOF : 0);
@@ -115,8 +115,8 @@ int sp_fseek(SP_FILE *f, long int offset, int origin)
             if (offset < 0) {
                 offset = 0;
             } else
-            if (offset > f->m.l) {
-                offset = f->m.l;
+            if (offset > f->m.num) {
+                offset = f->m.num;
             }
             f->m.i = offset;
             return 0;

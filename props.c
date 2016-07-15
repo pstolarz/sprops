@@ -64,8 +64,9 @@ finish:
     return ret;
 }
 
-/* Search for first/last non-escaped occurrence of char 'c' in string 'str' on
-   length 'len'.  If len==-1 searching is performed up to NULL-terminating char.
+/* Search for the first/last non-escaped occurrence of char 'c' in string 'str'
+   on length 'len'. If len==-1 searching is performed up to the NULL-terminating
+   char.
 
    NOTE: The escaping of char C is defined as \C.
  */
@@ -100,8 +101,8 @@ typedef struct _path_t
 typedef struct _lastsc_t
 {
     int present;        /* if !=0: the struct describes last scope */
-    const char *beg;    /* points to part of original path spec.  related to
-                           the scope content (beginning of its path; end of
+    const char *beg;    /* points to a part of the original path spec. related
+                           to the scope content (beginning of its path; end of
                            the path as in the original path) */
     sp_loc_t lbody;     /* scope body; zeroed for scopes w/o a body */
     sp_loc_t ldef;      /* scope definition */
@@ -110,7 +111,7 @@ typedef struct _lastsc_t
 /* Base struct for all (read-only/update) handles.
 
    NOTE: Along with its deriving structs, the struct is copied during
-   upward-downward process of following a destination scope path.
+   upward-downward process of following the destination scope path.
  */
 typedef struct _base_hndl_t
 {
@@ -150,7 +151,7 @@ static void init_base_hndl(base_hndl_t *p_b, int *p_finish,
 /* sp_iterate() handle
 
    NOTE: This struct is copied during upward-downward process of following
-   a destination scope path, so any changes made on it are not propagated to
+   the destination scope path, so any changes made on it are not propagated to
    scopes on higher or the same scope level. Therefore, if such propagation is
    required a struct's field must be an immutable pointer to an object
    containing propagated information.
@@ -184,7 +185,7 @@ typedef struct _iter_hndl_t
 /* Extract index value from prop/scope name and write the result under 'p_ind'.
    Number of chars read and constituting the index specification is written
    under 'p_ind_len' (0 if such spec. is absent). If the spec. is present but
-   erroneous SPEC_INV_PATH is returned.
+   erroneous then SPEC_INV_PATH is returned.
  */
 static sp_errc_t get_ind_from_name(
     const char *name, size_t nm_len, int *p_ind, size_t *p_ind_len)
@@ -201,7 +202,7 @@ static sp_errc_t get_ind_from_name(
 
      *p_ind_len = nm_len-(ind_nm-name);
      if (*p_ind_len <= 1) {
-        /* no chars after marker */
+        /* no chars after the marker */
         ret=SPEC_INV_PATH;
         goto finish;
     }
@@ -211,7 +212,7 @@ static sp_errc_t get_ind_from_name(
     if (*p_ind_len==2 && (*ind_nm==C_IND_ALL || *ind_nm==C_IND_LAST)) {
         *p_ind = (*ind_nm==C_IND_LAST ? SP_IND_LAST : SP_IND_ALL);
     } else {
-        /* parse decimal number after marker */
+        /* parse decimal number after the marker */
         for (i=1; i<*p_ind_len; i++, ind_nm++) {
             if (*ind_nm>='0' && *ind_nm<='9') {
                 *p_ind = *p_ind*10 + (*ind_nm-'0');
@@ -230,10 +231,10 @@ finish:
 
 /* Follow requested path up to the destination scope.
 
-   The function accepts a clone of enclosing scope handle pointed by 'ph_nst'
-   which is next updated (actually its base part pointed by 'ph_nstb'), to
-   represent nesting scope. The nesting scope is followed if its characteristic
-   meets scope criteria provided in the path).
+   The function accepts a clone of the enclosing scope handle pointed by
+   'ph_nst' which is then updated (actually its base part pointed by 'ph_nstb'),
+   to represent the nesting scope. The nesting scope is followed if its
+   characteristic meets scope criteria provided in the path).
  */
 static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
     base_hndl_t *ph_nstb, void *ph_nst, const sp_loc_t *p_ltype,
@@ -326,15 +327,15 @@ static sp_errc_t follow_scope_path(const sp_parser_hndl_t *p_phndl,
 
         if (ind!=SP_IND_ALL && ph_nstb->path.beg>=ph_nstb->path.end)
         {
-            /* the path finishes with a scope addressed by explicit index;
-               the scope has been already handled, therefore no further path
-               following is needed */
+            /* the path finishes with a scope addressed by the explicit index
+               specification; the scope has been already handled, therefore no
+               further path following is needed */
             *ph_nstb->p_finish = 1;
         }
     } else
     if (*p_sind>ind)
     {
-        /* there is no sense to further path following, since
+        /* there is no sense to further following the path, since
            the destination scope has been already passed by */
         *ph_nstb->p_finish = 1;
     }
@@ -425,9 +426,9 @@ finish:
 #undef __CHK_USER_CB_RET
 
 /* Start parsing basing on already prepared parser handle pointed by 'p_phndl'.
-   If occurs, the destination scope has not been reached due to last scope
-   addressing usage, start the re-parsing process until the destination will be
-   finally reached.
+   If the destination scope has not been reached due to the last scope addressing
+   usage, start the re-parsing process until the destination will be finally
+   reached.
  */
 static sp_errc_t parse_with_lsc_handling(
     sp_parser_hndl_t *p_phndl, base_hndl_t *p_b, void *hndl)
@@ -529,7 +530,7 @@ typedef struct _scope_dsc_t
 /* sp_get_prop() handle
 
    NOTE: This struct is copied during upward-downward process of following
-   a destination scope path.
+   the destination scope path.
  */
 typedef struct _getprp_hndl_t
 {
@@ -593,7 +594,7 @@ static sp_errc_t getprp_cb_prop(const sp_parser_hndl_t *p_phndl,
             p_gphndl->p_info->ind = *p_gphndl->p_eind;
             p_gphndl->p_info->n_elem = *p_gphndl->p_neind-1;
 
-            /* done if there is no need to track last property */
+            /* done if there is no need to track the last property */
             if (p_gphndl->prop.ind!=SP_IND_LAST) {
                 ret = SPEC_CB_FINISH;
                 *p_gphndl->b.p_finish = 1;
@@ -795,7 +796,7 @@ finish:
 /* sp_get_scope_info() handle
 
    NOTE: This struct is copied during upward-downward process of following
-   a destination scope path.
+   the destination scope path.
  */
 typedef struct _getscp_hndl_t
 {
@@ -877,7 +878,7 @@ static sp_errc_t getscp_cb_scope(const sp_parser_hndl_t *p_phndl,
             p_gshndl->p_info->ind = *p_gshndl->p_eind;
             p_gshndl->p_info->n_elem = *p_gshndl->p_neind-1;
 
-            /* done if there is no need to track last scope */
+            /* done if there is no need to track the last scope */
             if (p_gshndl->scp.ind!=SP_IND_LAST) {
                 ret = SPEC_CB_FINISH;
                 *p_gshndl->b.p_finish = 1;
@@ -930,7 +931,7 @@ finish:
 
 }
 
-/* Base struct for update handles.
+/* Base struct for update-handles.
  */
 typedef struct _base_updt_hndl_t
 {
@@ -938,7 +939,7 @@ typedef struct _base_updt_hndl_t
     SP_FILE *in;
     SP_FILE *out;
 
-    /* offset staring not processed range of the input */
+    /* offset staring the not processed range of the input */
     long in_off;
 
     /* parsing scope */
@@ -971,9 +972,9 @@ static sp_errc_t init_base_updt_hndl(base_updt_hndl_t *p_bu,
     return ret;
 }
 
-/* Copies input bytes (from the offset staring not processed range) to the
-   output up to 'end' offset (exclusive). In case of success (and there is
-   something to copy) the input offset is set at 'end'.
+/* Copies input bytes (from the offset staring the not processed range) to
+   the output up to 'end' offset (exclusive). In case of success (and there
+   is something to copy) the input offset is set at 'end'.
  */
 static sp_errc_t __cpy_to_out(base_updt_hndl_t *p_bu, long end)
 {
@@ -1057,8 +1058,8 @@ finish:
 /* Put indent chars to the output.
 
    'p_ldef' points to a def-loc used to retrieve proper indent.
-   IND_F_SCBDY - the indentation should consider additional indent inside scope
-   (as its body).
+   IND_F_SCBDY - the indentation should consider additional indent insider
+   a scope (as its body).
  */
 static sp_errc_t put_ind(
     const base_updt_hndl_t *p_bu, const sp_loc_t *p_ldef, unsigned flgs)
@@ -1084,7 +1085,7 @@ finish:
     return ret;
 }
 
-/* Put EOL and indent chars (according to passed def-loc) to the output.
+/* Put EOL and indent chars (according to the passed def-loc) to the output.
    The function assumes the EOL will be placed at the input offset starting not
    processed range (the in-off).
 
@@ -1138,12 +1139,12 @@ typedef struct _addh_frst_sc_t
 /* add_elem() handle
 
    NOTE: This struct is copied during upward-downward process of following
-   a destination scope path.
+   the destination scope path.
  */
 typedef struct _add_hndl_t
 {
     base_hndl_t b;
-    /* base class for update part (shared) */
+    /* base class for the update part (shared) */
     base_updt_hndl_t *p_bu;
 
     /* element position number (const) */
@@ -1156,7 +1157,7 @@ typedef struct _add_hndl_t
     addh_frst_sc_t *p_frst_sc;
 
     /* definition's location of an element associated with
-       requested position; zeroed if not found (shared) */
+       the requested position; zeroed if not found (shared) */
     sp_loc_t *p_ldef_elem;
 } add_hndl_t;
 
@@ -1171,10 +1172,10 @@ static sp_errc_t track_add_elem(add_hndl_t *p_ahndl, const sp_loc_t *p_ldef)
 
     if (p_ahndl->n_elem==*p_ahndl->p_neind || p_ahndl->n_elem==SP_ELM_LAST)
     {
-        /* save element's ldef associated with requested position */
+        /* save element's ldef associated with the requested position */
         *p_ahndl->p_ldef_elem = *p_ldef;
 
-        /* done if there is no need to track last position */
+        /* done if there is no need to track the last position */
         if (p_ahndl->n_elem!=SP_ELM_LAST) {
             ret = SPEC_CB_FINISH;
             *p_ahndl->b.p_finish = 1;
@@ -1214,7 +1215,7 @@ static sp_errc_t add_cb_scope(const sp_parser_hndl_t *p_phndl,
             ahndl.b.p_lsc->ldef.beg==p_ldef->beg &&
             ahndl.b.p_lsc->ldef.end==p_ldef->end)
         {
-            /* track last scope and write under 'p_frst_sc'
+            /* track the last scope and write under 'p_frst_sc'
                if the scope finishes the path */
             p_ahndl->p_frst_sc->lname = *p_lname;
             p_ahndl->p_frst_sc->lbdyenc = *p_lbdyenc;
@@ -1301,7 +1302,7 @@ finish:
 }
 
 #define __BASEUPD_DEF \
-    /* base class for update part */ \
+    /* base class for the update part */ \
     base_updt_hndl_t bu;
 
 /* Add prop/scope element.
@@ -1324,7 +1325,7 @@ static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
 
     /* first scope matching the path */
     addh_frst_sc_t frst_sc;
-    /* ldef of an element associated with requested position */
+    /* ldef of an element associated with the requested position */
     sp_loc_t ldef_elem;
 
     if (!in || !out ||
@@ -1355,7 +1356,7 @@ static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
 
     if ((ahndl.b.path.beg < ahndl.b.path.end) && !frst_sc.ldef.first_column)
     {
-        /* the destination scope was not found in the specified path */
+        /* destination scope was not found in the specified path */
         ret=SPEC_NOTFOUND;
         goto finish;
     }
@@ -1386,7 +1387,7 @@ static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     } else {
         if (frst_sc.ldef.first_column)
         {
-            /* add at scope beginning
+            /* add at the scope beginning
              */
             long bdyenc_sz = sp_loc_len(&frst_sc.lbdyenc);
 
@@ -1430,7 +1431,7 @@ static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
             }
         } else
         {
-            /* add at stream beginning
+            /* add at the stream beginning
              */
             const sp_loc_t *p_ind_ldef = (bu.p_parsc ? bu.p_parsc : NULL);
 
@@ -1477,19 +1478,19 @@ sp_errc_t sp_add_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
 typedef enum _fndstat_t
 {
     ELM_NOT_FND=0,  /* element and its destination scope was not found */
-    ELM_DEST_FND,   /* destination scope found but not an element in it */
+    ELM_DEST_FND,   /* destination scope found but not the element in it */
     ELM_FND         /* element was found */
 } fndstat_t;
 
 /* rm_elem() handle
 
    NOTE: This struct is copied during upward-downward process of following
-   a destination scope path.
+   the destination scope path.
  */
 typedef struct _rm_hndl_t
 {
     base_hndl_t b;
-    /* base class for update part (shared) */
+    /* base class for the update part (shared) */
     base_updt_hndl_t *p_bu;
 
     /* element desc. (const) */
@@ -1513,7 +1514,7 @@ typedef struct _rm_hndl_t
 
 /* Element removal support function.
 
-   Copies input bytes (from the offset staring not processed range) to
+   Copies input bytes (from the offset staring the not processed range) to
    the ldef pointed by 'p_ldef' but excluding it. In case of success the input
    offset is set behind ldef.
  */
@@ -1751,12 +1752,12 @@ typedef union _mod_lst_t
 /* Element modification handle
 
    NOTE: This struct is copied during upward-downward process of following
-   a destination scope path.
+   the destination scope path.
  */
 typedef struct _mod_hndl_t
 {
     base_hndl_t b;
-    /* base class for update part (shared) */
+    /* base class for the update part (shared) */
     base_updt_hndl_t *p_bu;
 
     /* element desc. (const) */
@@ -1800,13 +1801,13 @@ typedef struct _mod_hndl_t
 
 /* Element modification support function.
 
-   Copies input bytes (from the offset staring not processed range) to a property
-   (whose parts are described by appropriate sp_loc_t structs) which is modified
-   by the function.
+   Copies input bytes (from the offset staring the not processed range) for
+   a property (whose parts are described by appropriate sp_loc_t structs) which
+   is modified by the function.
 
    NOTE: The function may leave some (last) part of the property not copied if
-   this part need not to be modified. The part will be finally copied by a next
-   call to __cpy_to_out().
+   this part need not to be modified. The part will be finally copied by the
+   next call to __cpy_to_out().
  */
 static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef,
@@ -1825,8 +1826,9 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
     }
 
     /* value */
-    if (p_lval) {
-        if (mod_flags & MOD_F_PROP_VAL) {
+    if (mod_flags & MOD_F_PROP_VAL)
+    {
+        if (p_lval) {
             if (new_val && *new_val) {
                 EXEC_RG(__cpy_to_out(p_bu, p_lval->beg));
                 EXEC_RG(
@@ -1836,28 +1838,27 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
                 CHK_FERR(sp_fputc(';', p_bu->out));
                 p_bu->in_off = p_ldef->end+1;
             }
-        }
-    } else
-    if ((mod_flags & MOD_F_PROP_VAL) && new_val && *new_val)
-    {
-        p_bu->in_off = p_ldef->end+1;
+        } else
+        if (new_val && *new_val) {
+            p_bu->in_off = p_ldef->end+1;
 
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
-        if (!(p_bu->flags & SP_F_NVSRSP)) {
-            CHK_FERR(sp_fputs(" = ", p_bu->out));
-        } else {
+            if (!(p_bu->flags & SP_F_NVSRSP)) {
+                CHK_FERR(sp_fputs(" = ", p_bu->out));
+            } else {
 #endif
-            CHK_FERR(sp_fputc('=', p_bu->out));
+                CHK_FERR(sp_fputc('=', p_bu->out));
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
-        }
+            }
 #endif
-        EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
+            EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
 #ifndef CONFIG_NO_SEMICOL_ENDS_VAL
-        CHK_FERR(sp_fputc(';', p_bu->out));
+            CHK_FERR(sp_fputc(';', p_bu->out));
 #else
-        /* added value need to be finished by EOL */
-        EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
+            /* added value need to be finished by EOL */
+            EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
 #endif
+        }
     }
 
 finish:

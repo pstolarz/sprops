@@ -131,7 +131,9 @@ sp_errc_t sp_init_tr(sp_trans_t *p_trans, SP_FILE *in,
 {
     sp_errc_t ret=SPEC_SUCCESS;
 
-    if (!p_trans || (!in && p_parsc)) {
+    if (!p_trans || (!in && p_parsc) ||
+        (p_ths && (!p_ths->open || !p_ths->close)))
+    {
         ret=SPEC_INV_ARG;
         goto finish;
     }
@@ -202,7 +204,7 @@ sp_errc_t sp_commit_tr(sp_trans_t *p_trans, SP_FILE *out)
         } else
         if (p_trans->in)
         {
-            /* modification inside a parsing scope;
+            /* modification inside the parsing scope;
                copy original input with the modified scope */
             EXEC_RG(sp_util_cpy_to_out(
                 p_trans->in, out, 0, p_trans->parsc.beg, NULL));

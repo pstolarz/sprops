@@ -27,10 +27,11 @@ extern "C" {
 /* Error codes */
 typedef enum _sp_errc_t
 {
-    /* Negative codes are reserved for callbacks to inform the library how to
-       further proceed with the handling process; the codes don't name failures.
+    /* Negative codes are reserved for callbacks to inform the library
+       how to further proceed with the handling process. The codes don't
+       mean failures.
      */
-    SPEC_CB_FINISH = -1,
+    SPEC_CB_FINISH = -1,    /* done, stop further processing (successfully) */
 
     /* Success (always 0)
      */
@@ -49,14 +50,14 @@ typedef enum _sp_errc_t
     SPEC_VAL_ERR,       /* incorrect value (e.g. number format) */
     SPEC_CB_RET_ERR,    /* incorrect return provided by a callback */
 
-    /* This is the last error threshold used by the library, callbacks
-       may use this threshold as a base number for their own error codes.
+    /* This is the last library error threshold. Callbacks may use
+       this threshold as a base number for their own error codes.
      */
     SPEC_CB_BASE = 100
 } sp_errc_t;
 
-/* The following codes specify additional information related to syntax error
-   (SPEC_SYNTAX).
+/* The following codes specify additional information related to
+   the syntax error (SPEC_SYNTAX).
  */
 typedef enum _sp_errsyn_t
 {
@@ -72,9 +73,9 @@ typedef enum _sp_errsyn_t
 /* EOL types */
 typedef enum _sp_eol_t {
     EOL_PLAT=0,     /* compilation platform specific */
-    EOL_LF,         /* unix */
-    EOL_CRLF,       /* win */
-    EOL_CR          /* legacy mac */
+    EOL_LF,         /* Unix */
+    EOL_CRLF,       /* Win */
+    EOL_CR          /* legacy MAC */
 } sp_eol_t;
 
 /* parsing location */
@@ -92,9 +93,9 @@ typedef struct _sp_loc_t {
 typedef struct _sp_tkn_info_t
 {
     /* token content length in the stream (de-escaped)
-       NOTE: This length may be lower than the actual length of the token
-       occupied in the stream as returned by sp_loc_len() due to escaping chars
-       sequences.
+
+       NOTE: This length may be lower than the length of the token occupied in
+       the stream as returned by sp_loc_len() due to escaping chars sequences.
      */
     long len;
 
@@ -117,7 +118,7 @@ typedef struct _SP_FILE
         /* SP_FILE_MEM */
         struct {
             char *b;    /* pointer to the buffer */
-            size_t l;   /* buffer length */
+            size_t num; /* number of chars in the buffer */
             size_t i;   /* current position in the buffer */
         } m;
     };
@@ -140,19 +141,19 @@ sp_errc_t sp_fopen(SP_FILE *f, const char *filename, const char *mode);
  */
 sp_errc_t sp_fopen2(SP_FILE *f, FILE *cf);
 
-/* Open SP_FILE memory stream handle with a buffer 'buf' and length 'len'.
-   Always success if valid arguments are passed. The opened handle need not
-   to be closed.
+/* Open SP_FILE memory stream handle with a buffer 'buf' and available number
+   of chars 'num'. Always success if valid arguments are passed. The opened
+   handle need not to be closed.
 
-   NOTE 1: The memory stream is constrained by the 'len' argument not a content
+   NOTE 1: The memory stream is constrained by the 'num' argument not a content
    of the passed buffer (e.g. NULL termination char). As a consequence a caller
-   must properly set 'len' for the input stream as containing exact number of
+   must properly set 'num' for the input stream as containing exact number of
    chars constituting the parsed input.
    NOTE 2: The function may be called multiple times for the same buffer to
    reinitialize the handle with a new buffer length or to reset the stream
    position to the buffer start.
  */
-sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t len);
+sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num);
 
 /* If SP_FILE was opened as an ANSI C stream (by sp_fopen() or sp_fopen2()),
    this function merely calls fclose(3) to close it. In case of other stream
@@ -161,21 +162,21 @@ sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t len);
 sp_errc_t sp_fclose(SP_FILE *f);
 
 /* Check syntax of a properties set read from an input 'in' with a given parsing
-   scope 'p_parsc'. In case of syntax error (SPEC_SYNTAX) 'p_line', 'p_col'
-   and 'p_syn_code' will be provided with location of the error and detailed
+   scope 'p_parsc'. In case of the syntax error (SPEC_SYNTAX) 'p_line', 'p_col'
+   and 'p_syn_code' will be provided with a location of the error and detailed
    informational code.
  */
 sp_errc_t sp_check_syntax(SP_FILE *in, const sp_loc_t *p_parsc,
     int *p_line, int *p_col, sp_errsyn_t *p_syn_code);
 
-/* Macro calculating actual length occupied by a given location */
+/* Macro calculating length occupied by a given location */
 #define sp_loc_len(loc) (!(loc) ? 0L : ((loc)->end-(loc)->beg+1))
 
 /* Property iteration callback provides name and value of an iterated property
-   (NULL terminated strings under 'name', 'val') with their token specific info
-   located under 'p_tkname' and 'p_tkval' (may be NULL for property w/o a value).
-   'p_ldef' locates overall property definition. 'arg' is passed untouched as
-   provided in sp_iterate(). 'in' is the parsed input handle.
+   (strings under 'name', 'val') with their token specific info located under
+   'p_tkname' and 'p_tkval' (may be NULL for property w/o a value). 'p_ldef'
+   locates overall property definition. 'arg' is passed untouched as provided
+   in sp_iterate(). 'in' is the parsed input handle.
 
    Return codes:
        SPEC_CB_FINISH: success; finish parsing
@@ -192,7 +193,7 @@ typedef sp_errc_t (*sp_cb_prop_t)(void *arg, SP_FILE *in, const char *name,
    'p_tktype' and 'p_lbody' may be NULL for untyped scope OR scope w/o a body).
    'p_lbdyenc' points to the scope body content with enclosing brackets location
    (therefore always !=NULL); external chars of the location are '{','}' OR
-   consist of single ';'. 'in' is the parsed input handle.
+   consist of a single ';'. 'in' is the parsed input handle.
 
    Return codes:
        SPEC_CB_FINISH: success; finish parsing
@@ -204,15 +205,15 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, SP_FILE *in, const char *type,
     const sp_loc_t *p_lbody, const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef);
 
 /* Iterate elements (properties/scopes) under 'path'. This functions acts
-   similarly to low level grammar parser's sp_parse() function, informing the
-   caller about property's/scope's grammar tokens location and content. The
-   principal difference is sp_iterate() allows to address specific location the
-   iteration should take place.
+   similarly to the low level grammar parser's sp_parse() function, informing
+   the caller about property's/scope's grammar tokens location and content. The
+   principal difference is sp_iterate() allows to address a specific location
+   the iteration should take place.
 
    The path is defined as: [/][TYPE][:]NAME/[TYPE][:]NAME/...
-   where TYPE and NAME specify scope type and name on a given path level with ':'
-   character as a separator. To address untyped scope /:NAME/ shall be used.
-   In case ':' is not provided 'deftp' is used as the default scope type, in
+   where TYPE and NAME specify scope type and name on a given path level with
+   ':' character as a separator. To address untyped scope /:NAME/ shall be used.
+   In case ':' is not provided, 'deftp' is used as the default scope type, in
    which case /NAME/ is translated to /deftp:NAME/. As a conclusion: if 'deftp'
    is NULL or "", /NAME/ is translated to /:NAME/, that is, it provides an
    alternative way to address untyped scopes. To address the global scope
@@ -220,8 +221,8 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, SP_FILE *in, const char *type,
 
    For split scopes there is possible to provide specific split-scope index
    (0-based) where the iteration shall occur, by appending "@n" to the scope
-   name in the NAME token. "@*" names overall (combined) scope and is assumed if
-   no @-addressing is provided in NAME. "@$" denotes last split-scope index
+   name in the NAME token. "@*" names overall (combined) scope and is assumed
+   if no @-addressing is provided in NAME. "@$" denotes last split-scope index
    (usage of this construct shall be avoided due to additional overhead needed
    for tracking the scope in question).
 
@@ -229,13 +230,11 @@ typedef sp_errc_t (*sp_cb_scope_t)(void *arg, SP_FILE *in, const char *type,
    is escaping ':', '/'  and '@' in the 'path' string to avoid ambiguity with
    the path specific characters.
 
-   'in' and 'p_parsc' provide input to parse with a given parsing scope. The
-   parsing scope may be used only inside a scope callback handler to retrieve
-   inner scope body content.
+   'in' and 'p_parsc' provide input to parse with a given parsing scope.
 
    'cb_prop' and 'cb_scope' specify property and scope callbacks. The callbacks
-   are provided with strings (property name/vale, scope type/name) written under
-   buffers 'buf1' (of 'b1len') and 'buf2' (of 'b2len').
+   are provided with strings (property name/value, scope type/name) written
+   under buffers 'buf1' (of 'b1len') and 'buf2' (of 'b2len').
  */
 sp_errc_t sp_iterate(SP_FILE *in, const sp_loc_t *p_parsc, const char *path,
     const char *deftp, sp_cb_prop_t cb_prop, sp_cb_scope_t cb_scope,
@@ -252,8 +251,8 @@ typedef struct _sp_prop_info_ex_t
     sp_loc_t ldef;              /* property definition location */
 
     /* values of the members below depend on
-       a type of containing scope used in the
-       query (e.g. split scope vs its component)
+       a type of the containing scope used in the
+       query (split scope vs its component)
      */
     int ind;                    /* property index */
     int n_elem;                 /* number of elements before the element */
@@ -275,8 +274,8 @@ typedef struct _sp_scope_info_ex_t
     sp_loc_t ldef;              /* scope definition location */
 
     /* values of the members below depend on
-       a type of containing scope used in the
-       query (e.g. split scope vs its component)
+       a type of the containing scope used in the
+       query (split scope vs its component)
      */
     int ind;                    /* split-scope index */
     int n_elem;                 /* number of elements before the element */
@@ -288,7 +287,7 @@ typedef struct _sp_scope_info_ex_t
 #define SP_ELM_LAST     SP_IND_LAST
 
 /* Find property with 'name' and write its value to a buffer 'val' of length
-   'len'. 'path' and 'deftp' specify owning scope of the property. If no
+   'len'. 'path' and 'deftp' specify the containing scope of the property. If no
    property is found SPEC_NOTFOUND error is returned. 'ind' specifies a property
    index used to avoid ambiguity in case many properties with the same name
    exist: 0 is the 1st occurrence of a prop with specified name, 1 - 2nd...,
@@ -299,21 +298,21 @@ sp_errc_t sp_get_prop(SP_FILE *in, const sp_loc_t *p_parsc, const char *name,
     int ind, const char *path, const char *deftp, char *val, size_t len,
     sp_prop_info_ex_t *p_info);
 
-/* Find integer property with 'name' and write its under 'p_val'. In case of
-   integer format error SPEC_VAL_ERR is returned.
+/* Find integer property with 'name' and write its value under 'p_val'. In case
+   of integer format SPEC_VAL_ERR error is returned.
 
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
-   property's value as integer.
+   property's value as an integer.
  */
 sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp, long *p_val,
     sp_prop_info_ex_t *p_info);
 
-/* Find float property with 'name' and write its under 'p_val'. In case of
-   float format error SPEC_VAL_ERR is returned.
+/* Find float property with 'name' and write its value under 'p_val'. In case
+   of float format SPEC_VAL_ERR error is returned.
 
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
-   property's value as float.
+   property's value as a float.
  */
 sp_errc_t sp_get_prop_float(SP_FILE *in, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp,
@@ -328,15 +327,15 @@ typedef struct _sp_enumval_t
     int val;
 } sp_enumval_t;
 
-/* Find enumeration property with 'name' and write its under 'p_val'. Matching
-   enumeration names to their values is done via 'p_evals' table with last
-   element filled with zeros. The matching is case insensitive if 'igncase' is
-   !=0. To avoid memory allocation the caller must provide working buffer 'buf'
-   of length 'blen' to store enum names read from the stream. Length of the
-   buffer must be at least as long as the longest enum name + 1; in other case
-   SPEC_SIZE error is returned. If read property value doesn't match any of the
-   names in 'p_evals' OR the working buffer is to small to read a checked
-   property, SPEC_VAL_ERR error is returned.
+/* Find enumeration property with 'name' and write its value under 'p_val'.
+   Matching enumeration names to their values is done via 'p_evals' table with
+   the last element filled with zeros. The matching is case insensitive if
+   'igncase' is !=0. To avoid memory allocation the caller must provide a
+   working buffer 'buf' of length 'blen' to store enum names read from the
+   stream. Length of the buffer must be at least as long as the longest enum
+   name + 1; in other case SPEC_SIZE error is returned. If a read property
+   name doesn't match any of the names in 'p_evals' OR the working buffer is
+   too small to store a checked property, SPEC_VAL_ERR error is returned.
 
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
    property's value as enum.
@@ -347,8 +346,8 @@ sp_errc_t sp_get_prop_enum(
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info);
 
 /* Find scope with 'name' and 'type' and write its detailed info under 'p_info'.
-   'path' and 'deftp' specify owning scope of the requested scope. If no scope
-   is found SPEC_NOTFOUND error is returned. The 'ind' argument enables to
+   'path' and 'deftp' specify the containing scope of the requested scope. If no
+   scope is found SPEC_NOTFOUND error is returned. The 'ind' argument enables to
    specify a split-scope index (SP_IND_LAST - the last one).
 
    NOTE: One of most useful members of 'sp_scope_info_ex_t' is 'lbody', allowing
@@ -373,7 +372,7 @@ sp_errc_t sp_get_scope_info(
 /* internal use only */
 #define SP_F_GET_SPIND(f)   ((unsigned long)(f) & 0x0f)
 
-/* Keep opening bracket of a scope body in separate line rather than in-lined
+/* Keep opening bracket of a scope body in a separate line rather than in-lined
    with the scope header. That is:
 
    scope
@@ -432,7 +431,7 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_EXTEOL     0x00000080UL
 
-/* If adding  element on the global scope's end, don't put an extra EOL after
+/* If adding an element on the global scope's end, don't put an extra EOL after
    it. Effectively, the element will be finished by EOF.
 
    NOTE: This flag is utilized by the transactional API and should not be used
@@ -458,32 +457,32 @@ sp_errc_t sp_get_scope_info(
    one in the destination scope if the property index being set ('ind') is:
     - SP_IND_LAST
     - SP_IND_ALL
-    - equal to the number of properties with the same name as the set one.
+    - equal to the number of properties with the same name as the one being set.
  */
 #define SP_F_NOADD      0x00001000UL
 
 /* Add (insert) a property of 'name' with value 'val' (may be NULL for a prop
    w/o a value) in location 'n_elem' (number of elements - scopes/props, before
-   inserted property) in a scope addressed by 'p_parsc', 'path' and 'deftp'.
+   the inserted property) in a scope addressed by 'p_parsc', 'path' and 'deftp'.
 
    If 'n_elem' is SP_ELM_LAST, the property is added as the last one in the
-   scope (that is after the last element). If modified scope is empty SP_ELM_LAST
-   is equivalent to 0.
+   scope (that is after the last element). If a modified scope is empty,
+   SP_ELM_LAST is equivalent to 0.
    If 'n_elem' is 0, the property is added as the first one in the scope. For
    split scopes the first component scope is modified (even if empty).
 
    Additional 'flags' may be used to tune performed formatting (SP_F_SPIND,
    SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
 
-   NOTE 1: If 'p_parsc' is used as a constraint of performed modification, the
-   output is confined only to the location specified by the argument. For the
-   global scope 'p_parsc' shall be NULL (most typical use case). Basically,
+   NOTE 1: If 'p_parsc' is used as a constraint of the performed modification,
+   the output is confined only to the location specified by the argument. For
+   the global scope 'p_parsc' shall be NULL (most typical use case). Basically,
    usage of this argument is reserved for the transactional API.
-   NOTE 2: There is possible to use usual @-addressing in the 'path'
-   specification to reach a specific component scope inside its split scope.
+   NOTE 2: There is possible to use @-addressing in the 'path' specification
+   to reach a specific component scope inside its split scope.
    NOTE 3: Contrary to 'in' which is a random access stream for every API of
    the library (therefore must not be 'stdin'), 'out' is written incrementally
-   by any updating function, w/o changing stream's position indicator (fseek())
+   by any write access function, w/o changing the stream position (fseek(3))
    during the writing process. This enables 'stdout' to be used as 'out'.
  */
 sp_errc_t sp_add_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
@@ -491,11 +490,11 @@ sp_errc_t sp_add_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
     const char *deftp, unsigned long flags);
 
 /* Add (insert) an empty scope of 'name' and 'type' (may be NULL for a scope w/o
-   a type) in location 'n_elem' (number of elements - scopes/props before
-   inserted scope) in a scope addressed by 'p_parsc', 'path' and 'deftp'. The
-   added scope may be later populated by sp_add_prop() and sp_add_scope().
-   Additional 'flags' may be used to tune performed formatting (SP_F_SPIND,
-   SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
+   a type) in 'n_elem' location (that is a number of elements - scopes/props
+   before the inserted scope) in a scope addressed by 'p_parsc', 'path' and
+   'deftp'. The added scope may be later populated by sp_add_prop() and
+   sp_add_scope(). Additional 'flags' may be used to tune performed formatting
+   (SP_F_SPIND, SP_F_SPLBRA, SP_F_EMPCPT, SP_F_EXTEOL, SP_F_NLSTEOL).
 
    See sp_add_prop() for more details.
  */
@@ -507,7 +506,7 @@ sp_errc_t sp_add_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
    'p_parsc', 'path' and 'deftp'. Additional 'flags' may be used to tune
    performed removal (SP_F_EXTEOL).
 
-   NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to remove all/last
+   NOTE 1: 'ind' may be set to SP_IND_ALL or SP_IND_LAST to remove all/last
    property identified by 'name'.
    NOTE 2: The function returns SPEC_NOTFOUND if the destination scope is not
    found. Nonetheless, the input is copied w/o any changes to the output in this
@@ -539,7 +538,7 @@ sp_errc_t sp_rm_scope(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
    the function may add the property to the scope if SP_F_NOADD flag is not
    specified in 'flags' (see SP_F_NOADD flag description for more details).
 
-   NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to set all/last property
+   NOTE 1: 'ind' may be set to SP_IND_ALL or SP_IND_LAST to set all/last property
    identified by 'name'.
    NOTE 2: 'flags' may contain additional flags controlling the addition of the
    property as for sp_add_prop(). Of course, they have only sense if SP_F_NOADD
@@ -557,7 +556,7 @@ sp_errc_t sp_set_prop(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
 /* Move (rename) to 'new_name' a property with 'name' and index 'ind' in a scope
    addressed by 'p_parsc', 'path' and 'deftp'.
 
-   NOTE 1: 'ind' me be set to SP_IND_ALL or SP_IND_LAST to move all/last
+   NOTE 1: 'ind' may be set to SP_IND_ALL or SP_IND_LAST to move all/last
    property identified by 'name'.
    NOTE 2: The function returns SPEC_NOTFOUND if the moved property is not found.
    NOTE 3: 'flags' are ignored (reserved for the future).

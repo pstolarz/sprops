@@ -12,7 +12,7 @@
 
 #include <assert.h>
 #include "../config.h"
-#include "sprops/props.h"
+#include "sprops/utils.h"
 
 #if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
     !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
@@ -171,23 +171,31 @@ int main(void)
     int ival;
     long lval;
     double dval;
-    char buf1[8];
+    char buf1[8], in_buf[2000];
 
     sp_prop_info_ex_t pi;
     sp_scope_info_ex_t si;
 
-    SP_FILE in;
-    int in_opn=0;
+    SP_FILE in_f, in;
+    long in_len;
 
     sp_enumval_t evals[] =
         {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
 
-    EXEC_RG(sp_fopen(&in, "c01-2.conf", "rb"));
+    EXEC_RG(sp_fopen(&in_f, "c01-2.conf", "rb"));
 #if 0
-    EXEC_RG(sp_fopen(&in, "c01-2_win.conf", "rb"));
-    EXEC_RG(sp_fopen(&in, "c01-2_1line.conf", "rb"));
+    EXEC_RG(sp_fopen(&in_f, "c01-2_win.conf", "rb"));
+    EXEC_RG(sp_fopen(&in_f, "c01-2_1line.conf", "rb"));
 #endif
-    in_opn++;
+
+    /* copy test's conf. file content into the memory stream (in_buf) */
+    sp_mopen(&in, in_buf, sizeof(in_buf));
+    ret = sp_util_cpy_to_out(&in_f, &in, 0, EOF, &in_len);
+    sp_fclose(&in_f);
+    if (ret!=SPEC_SUCCESS) goto finish;
+
+    /* re-init the stream with a new length and reset the stream position */
+    sp_mopen(&in, in_buf, in_len);
 
     printf("--- Properties info\n");
 
@@ -415,7 +423,5 @@ finish:
             printf("Error: %d\n", ret);
         }
     }
-    if (in_opn) sp_fclose(&in);
-
     return 0;
 }

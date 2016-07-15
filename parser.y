@@ -24,7 +24,7 @@
 #define is_space(c) (isspace(c) || (c)==EOL)
 
 /* NOTE: semicolon char is reserved even though CONFIG_NO_SEMICOL_ENDS_VAL
-   is defined, due to property w/o a value and scope w/o a body alternative
+   is defined, due to the property w/o a value and scope w/o a body alternative
    grammar rules. */
 #define RESERVED_CHRS   "={};#"
 
@@ -153,8 +153,8 @@ prop_scope:
         }
     }
   /* property with a value (semicolon finished)
-     NOTE: valid only if CONFIG_NO_SEMICOL_ENDS_VAL is not defined
-     NOTE: SP_TKN_VAL may be empty to define property w/o a value
+     NOTE 1: valid only if CONFIG_NO_SEMICOL_ENDS_VAL is not defined
+     NOTE 2: SP_TKN_VAL may be empty to define property w/o a value
    */
 | SP_TKN_ID '=' SP_TKN_VAL ';'
     {
@@ -494,14 +494,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
     if (c==EOF)
     {
         if (state==LXST_VAL_INIT) {
-            /* EOF occurs before SP_TKN_VAL token get started; return SP_TKN_VAL
-               empty token */
+            /* EOF occurs before SP_TKN_VAL token get started;
+               return empty SP_TKN_VAL token */
             __CHAR_TOKEN(SP_TKN_VAL);
             p_lval->beg++;
         } else
         if (token==SP_TKN_ID || token==SP_TKN_VAL) {
             /* EOF finishes SP_TKN_ID/SP_TKN_VAL tokens, except quoted
-               SP_TKN_ID which need to be finished by quotation mark */
+               SP_TKN_ID which need to be finished by the quotation mark */
             if (state==LXST_ID_QUOTED) {
                 p_hndl->err.syn = SPSYN_UNEXP_EOF;
                 token = YYERRCODE;
@@ -648,10 +648,10 @@ typedef struct _hndl_eschr_t
             /* SP_FILE stream (is_str == 0) */
             SP_FILE *f;
 
-            /* string; is_str!=0 */
+            /* string; is_str != 0 */
             struct {
                 const char *b;  /* string buffer */
-                size_t max_num; /* max number of chars to be read */
+                size_t num;     /* max number of chars to be read */
                 size_t i;       /* currently read char index */
             } str;
         };
@@ -692,12 +692,12 @@ static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
 }
 
 /* Initialize esc_getc() handler; string input */
-static void init_hndl_eschr_string(hndl_eschr_t *p_hndl, const char *str,
-    size_t max_num, sp_parser_token_t tkn)
+static void init_hndl_eschr_string(
+    hndl_eschr_t *p_hndl, const char *str, size_t num, sp_parser_token_t tkn)
 {
     p_hndl->input.is_str = 1;
     p_hndl->input.str.b = str;
-    p_hndl->input.str.max_num = max_num;
+    p_hndl->input.str.num = num;
     p_hndl->input.str.i = 0;
     unc_clean(&p_hndl->input.unc);
 
@@ -715,7 +715,7 @@ static int noesc_getc(hndl_eschr_t *p_hndl)
     if (p_hndl->input.is_str)
     {
         int str_c;
-        if (p_hndl->input.str.i < p_hndl->input.str.max_num)
+        if (p_hndl->input.str.i < p_hndl->input.str.num)
         {
             str_c = (int)p_hndl->input.str.b[p_hndl->input.str.i] & 0xff;
             if (!str_c) str_c=EOF;
@@ -825,8 +825,8 @@ static int esc_getc(hndl_eschr_t *p_hndl)
 #undef __GETC
 }
 
-/* Get and escape single char from hndl_eschr_t handle. If quotation char occurs
-   it's re-read.
+/* Get and escape single char from hndl_eschr_t handle. If quotation char
+   occurs it's re-read.
  */
 static int esc_reqout_getc(hndl_eschr_t *p_hndl)
 {
@@ -886,7 +886,7 @@ finish:
 /* exported; see header for details */
 sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
     sp_parser_token_t tkn, const sp_loc_t *p_loc, const char *str,
-    size_t max_num, int stresc, int *p_equ)
+    size_t num, int stresc, int *p_equ)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int c_tkn, c_str;
@@ -900,7 +900,7 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
 #define __EH_STR_GETC() \
     (stresc ? esc_getc(&eh_str) : noesc_getc(&eh_str))
 
-    if (!max_num && !llen) {
+    if (!num && !llen) {
         ret=SPEC_SUCCESS;
         if (p_equ) *p_equ=1;
         goto finish;
@@ -914,8 +914,8 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
     } else
         c_tkn=EOF;
 
-    if (max_num) {
-        init_hndl_eschr_string(&eh_str, str, max_num, tkn);
+    if (num) {
+        init_hndl_eschr_string(&eh_str, str, num, tkn);
         c_str = __EH_STR_GETC();
     } else
         c_str=EOF;
@@ -1028,7 +1028,7 @@ sp_errc_t sp_parser_tokenize_str(
 #endif
 #ifdef CONFIG_CUT_VAL_LEADING_SPACES
             /* space char need to be escaped if it's the first
-               char in SP_TKN_VAL token to avoid cut leading spaces */
+               char in SP_TKN_VAL token to avoid leading spaces cut */
             || (tkn==SP_TKN_VAL && isspace(c) && (in-1)==str)
 #endif
             /* space char need to be escaped if it's the last char in
