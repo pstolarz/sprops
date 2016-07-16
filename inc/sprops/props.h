@@ -117,9 +117,9 @@ typedef struct _SP_FILE
 
         /* SP_FILE_MEM */
         struct {
-            char *b;    /* pointer to the buffer */
+            char *b;    /* stream buffer */
             size_t num; /* number of chars in the buffer */
-            size_t i;   /* current position in the buffer */
+            size_t i;   /* current index in the buffer (stream position) */
         } m;
     };
 } SP_FILE;
@@ -145,12 +145,11 @@ sp_errc_t sp_fopen2(SP_FILE *f, FILE *cf);
    of chars 'num'. Always success if valid arguments are passed. The opened
    handle need not to be closed.
 
-   NOTE 1: The memory stream is constrained by the 'num' argument not a content
-   of the passed buffer (e.g. NULL termination char). As a consequence a caller
-   must properly set 'num' for the input stream as containing exact number of
-   chars constituting the parsed input.
+   NOTE 1: While reading, the memory stream is constrained by the 'num' argument
+   or a NULL termination char in the buffer (which first occurs). For writing,
+   'num' specifies number of chars which may be written to the buffer.
    NOTE 2: The function may be called multiple times for the same buffer to
-   reinitialize the handle with a new buffer length or to reset the stream
+   reinitialize the handle with a new buffer length and/or to reset the stream
    position to the buffer start.
  */
 sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num);

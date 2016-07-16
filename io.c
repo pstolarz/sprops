@@ -58,18 +58,29 @@ sp_errc_t sp_fclose(SP_FILE *f)
     }
 }
 
-/* fgetc(3) analogous */
+/* fgetc(3) analogous
+   NOTE: As for the text stream, NULL termination char translates to EOF.
+ */
 int sp_fgetc(SP_FILE *f)
 {
+    int c;
+
     if (f->typ==SP_FILE_C) {
-        return fgetc(f->f);
+        c = fgetc(f->f);
+        if (!c) {
+            ungetc(c, f->f);
+            c = EOF;
+        }
     } else {
         if (f->m.i < f->m.num) {
-            return (f->m.b[f->m.i++] & 0xff);
+            c = f->m.b[f->m.i] & 0xff;
+            if (!c) c = EOF;
+            else f->m.i++;
         } else {
-            return EOF;
+            c = EOF;
         }
     }
+    return c;
 }
 
 /* fputc(3) analogous */

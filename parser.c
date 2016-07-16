@@ -2180,8 +2180,8 @@ typedef struct _hndl_eschr_t
             /* string; is_str != 0 */
             struct {
                 const char *b;  /* string buffer */
-                size_t num;     /* max number of chars to be read */
-                size_t i;       /* currently read char index */
+                size_t num;     /* number of chars in the buffer */
+                size_t i;   /* current index in the buffer (char to be read) */
             } str;
         };
         unc_cache_t unc;    /* ungetc cache buffer */

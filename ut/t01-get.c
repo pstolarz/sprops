@@ -194,8 +194,10 @@ int main(void)
     sp_fclose(&in_f);
     if (ret!=SPEC_SUCCESS) goto finish;
 
-    /* re-init the stream with a new length and reset the stream position */
-    sp_mopen(&in, in_buf, in_len);
+    in_buf[in_len] = 0;
+
+    /* reset the stream position */
+    sp_mopen(&in, in_buf, sizeof(in_buf));
 
     printf("--- Properties info\n");
 
