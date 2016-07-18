@@ -56,6 +56,15 @@ int main(void)
         "/", NULL,
         indf));
 
+    printf("\n--- Prop added to: /, elm:1, flags:EOLBFR\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", "VAL",
+        1,
+        "/", NULL,
+        indf|SP_F_EOLBFR));
+
     printf("\n--- Scope added to: /scope:2, elm:0\n");
     EXEC_RG(sp_add_scope(
         &in, &out,
@@ -83,6 +92,15 @@ int main(void)
         "/2@1", "scope",
         indf|SP_F_EMPCPT));
 
+    printf("\n--- Scope added to: /scope:2, elm:1, flags:EMPCPT|EOLBFR\n");
+    EXEC_RG(sp_add_scope(
+        &in, &out,
+        NULL,
+        "TYPE", "SCOPE",
+        1,
+        "/scope:2", NULL,
+        indf|SP_F_EMPCPT|SP_F_EOLBFR));
+
     printf("\n--- Scope w/o type added to: "
         "/scope:2/scope:2, elm:LAST, flags:EMPCPT|SPLBRA|EXTEOL\n");
     EXEC_RG(sp_add_scope(
@@ -102,6 +120,15 @@ int main(void)
         "/2", "scope",
         indf|SP_F_SPLBRA));
 
+    printf("\n--- Prop added to: /scope:2, elm:LAST, flags:EOLBFR\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", "VAL",
+        SP_ELM_LAST,
+        "/scope:2", NULL,
+        indf|SP_F_EOLBFR));
+
     printf("\n--- Prop added to: /scope:2@$, elm:0, flags:EXTEOL|NVSRSP\n");
     EXEC_RG(sp_add_prop(
         &in, &out,
@@ -120,17 +147,45 @@ int main(void)
         "/", NULL,
         indf|SP_F_EXTEOL));
 
+    printf("\n--- Prop added to: /, elm:4, flags:EOLBFR\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", "VAL",
+        4,
+        "/", NULL,
+        indf|SP_F_EOLBFR));
+
+    printf("\n--- Prop added to: /, elm:5, flags:EOLBFR\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", "VAL",
+        5,
+        "/", NULL,
+        indf|SP_F_EOLBFR));
+
+    printf("\n--- Prop w/o value added to: /, elm:LAST, flags:EOLBFR\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", NULL,
+        SP_ELM_LAST,
+        "/", NULL,
+        indf|SP_F_EOLBFR));
+
     EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "2", 1, NULL, NULL, &sc2));
     assert(sc2.body_pres!=0);
 
-    printf("\n--- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL\n");
+    printf("\n--- Scope added, "
+        "parsing scope /scope:2, elm:0, flags:EXTEOL|EOLBFR\n");
     EXEC_RG(sp_add_scope(
         &in, &out,
         &sc2.lbody,
         "TYPE", "SCOPE",
         0,
         "/", NULL,
-        indf|SP_F_EXTEOL));
+        indf|SP_F_EXTEOL|SP_F_EOLBFR));
 
     printf("\n--- Scope added, parsing scope /scope:2, elm:1, flags:EMPCPT\n");
     EXEC_RG(sp_add_scope(
@@ -142,14 +197,14 @@ int main(void)
         indf|SP_F_EMPCPT));
 
     printf("\n--- Scope added, "
-        "parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL\n");
+        "parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL|EOLBFR\n");
     EXEC_RG(sp_add_scope(
         &in, &out,
         &sc2.lbody,
         "TYPE", "SCOPE",
         SP_ELM_LAST,
         "/", NULL,
-        indf|SP_F_SPLBRA|SP_F_EXTEOL));
+        indf|SP_F_SPLBRA|SP_F_EXTEOL|SP_F_EOLBFR));
 
     /* not existing elements */
 
@@ -157,7 +212,7 @@ int main(void)
         &in, &out,
         NULL,
         "PROP", NULL,
-        5,
+        7,
         "/", NULL,
         indf)==SPEC_NOTFOUND);
 

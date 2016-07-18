@@ -11,6 +11,8 @@ scope 2 {
 }
 scope 2 {}
 
+3; 4;
+
 --- Prop w/o value added to: /, elm:1
 1;
 PROP;
@@ -22,6 +24,23 @@ scope 2 {
     }
 }
 scope 2 {}
+
+3; 4;
+
+--- Prop added to: /, elm:1, flags:EOLBFR
+1;
+
+PROP = VAL;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+3; 4;
 
 --- Scope added to: /scope:2, elm:0
 1;
@@ -37,6 +56,8 @@ scope 2 {
 }
 scope 2 {}
 
+3; 4;
+
 --- Scope added to: /scope:2@0, elm:LAST, flags:EMPCPT|EXTEOL
 1;
 scope 2 {
@@ -51,6 +72,8 @@ scope 2 {
 }
 scope 2 {}
 
+3; 4;
+
 --- Scope w/o type added to: /scope:2@1, elm:0, flags:EMPCPT
 1;
 scope 2;
@@ -62,6 +85,23 @@ scope 2 {
     }
 }
 scope 2 {}
+
+3; 4;
+
+--- Scope added to: /scope:2, elm:1, flags:EMPCPT|EOLBFR
+1;
+scope 2;
+scope 2 {
+    1;
+
+    TYPE SCOPE;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+3; 4;
 
 --- Scope w/o type added to: /scope:2/scope:2, elm:LAST, flags:EMPCPT|SPLBRA|EXTEOL
 1;
@@ -77,6 +117,8 @@ scope 2 {
 }
 scope 2 {}
 
+3; 4;
+
 --- Scope added to: /scope:2, elm:LAST, flags:SPLBRA
 1;
 scope 2;
@@ -90,6 +132,23 @@ scope 2 {
     }
 }
 scope 2 {}
+
+3; 4;
+
+--- Prop added to: /scope:2, elm:LAST, flags:EOLBFR
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+
+    PROP = VAL;
+}
+scope 2 {}
+
+3; 4;
 
 --- Prop added to: /scope:2@$, elm:0, flags:EXTEOL|NVSRSP
 1;
@@ -105,6 +164,8 @@ scope 2 {
 
 }
 
+3; 4;
+
 --- Prop w/o value added to: /, elm:LAST, flags:EXTEOL
 1;
 scope 2;
@@ -115,10 +176,56 @@ scope 2 {
     }
 }
 scope 2 {}
+
+3; 4;
 PROP;
 
 
---- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL
+--- Prop added to: /, elm:4, flags:EOLBFR
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+PROP = VAL;
+3; 4;
+
+--- Prop added to: /, elm:5, flags:EOLBFR
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+3;
+
+PROP = VAL; 4;
+
+--- Prop w/o value added to: /, elm:LAST, flags:EOLBFR
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+3; 4;
+
+PROP;
+
+--- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL|EOLBFR
 TYPE SCOPE {
     }
 
@@ -132,11 +239,12 @@ TYPE SCOPE {
     scope 2
     {
     }
---- Scope added, parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL
+--- Scope added, parsing scope /scope:2, elm:LAST, flags:SPLBRA|EXTEOL|EOLBFR
 1;
     scope 2
     {
     }
+
     TYPE SCOPE
     {
     }

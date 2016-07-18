@@ -430,13 +430,20 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_EXTEOL     0x00000080UL
 
+/* When adding an element after another one, this flags ensures an extra EOL
+   before the newly added element and after the previous one.
+   Primary usage of this flag is to use an extra EOL written by SP_F_EXTEOL
+   for already added element while adding a new element after it.
+ */
+#define SP_F_EOLBFR     0x00000100UL
+
 /* If adding an element on the global scope's end, don't put an extra EOL after
    it. Effectively, the element will be finished by EOF.
 
    NOTE: This flag is utilized by the transactional API and should not be used
    otherwise.
  */
-#define SP_F_NLSTEOL    0x00000100UL
+#define SP_F_NLSTEOL    0x00000200UL
 
 /* Use specific EOL (as for sp_eol_t enumeration) during modification process.
    If not specified, the same EOL is used as detected on the input (or
@@ -445,10 +452,10 @@ sp_errc_t sp_get_scope_info(
    NOTE: This flag is utilized by the transactional API and should not be used
    otherwise.
  */
-#define SP_F_USEEOL(eol)    ((((unsigned long)(eol)&3)+1)<<9)
+#define SP_F_USEEOL(eol)    ((((unsigned long)(eol)&3)+1)<<10)
 
 /* internal use only */
-#define SP_F_GET_USEEOL(f)  ((sp_eol_t)((((unsigned long)(f)>>9)&3)-1))
+#define SP_F_GET_USEEOL(f)  ((sp_eol_t)((((unsigned long)(f)>>10)&3)-1))
 
 /* If property being set doesn't exist, don't add it to the destination scope.
 
@@ -458,7 +465,8 @@ sp_errc_t sp_get_scope_info(
     - SP_IND_ALL
     - equal to the number of properties with the same name as the one being set.
  */
-#define SP_F_NOADD      0x00001000UL
+#define SP_F_NOADD      0x00002000UL
+
 
 /* Add (insert) a property of 'name' with value 'val' (may be NULL for a prop
    w/o a value) in location 'n_elem' (number of elements - scopes/props, before

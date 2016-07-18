@@ -13,3 +13,5 @@ TYPE SCOPE2 {
         PROP1 = VAL;
     }
 }
+
+TYPE SCOPE3;

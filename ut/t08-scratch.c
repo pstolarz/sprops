@@ -38,12 +38,6 @@ int main(void)
     tr_init++;
 
     EXEC_RG(sp_add_scope_tr(&trans,
-        "TYPE", "SCOPE2",
-        0,
-        "/", NULL,
-        indf));
-
-    EXEC_RG(sp_add_scope_tr(&trans,
         "TYPE", "SCOPE1",
         0,
         "/", NULL,
@@ -60,6 +54,18 @@ int main(void)
         0,
         "/", NULL,
         indf));
+
+    EXEC_RG(sp_add_scope_tr(&trans,
+        "TYPE", "SCOPE2",
+        SP_ELM_LAST,
+        "/", NULL,
+        indf|SP_F_EOLBFR));
+
+    EXEC_RG(sp_add_scope_tr(&trans,
+        "TYPE", "SCOPE3",
+        SP_ELM_LAST,
+        "/", NULL,
+        indf|SP_F_EOLBFR|SP_F_EMPCPT));
 
     EXEC_RG(sp_add_prop_tr(&trans,
         "PROP1", "VAL",

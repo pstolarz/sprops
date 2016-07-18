@@ -19,13 +19,11 @@ all: $(TESTS)
 clean:
 	rm -f $(TESTS)
 
-makelib ../libsprops.a:
+../libsprops.a: makelib
 	$(MAKE) -C..
 
 run: all
 	./ut-run.sh
 
-%: %.c makelib ../libsprops.a
-	@if [ "$?" != "makelib" ]; then \
-	  (PS4=; set -x; $(CC) $(CFLAGS) $< -o $@ ../libsprops.a;) \
-	fi
+%: %.c ../libsprops.a
+	$(CC) $(CFLAGS) $^ -o $@

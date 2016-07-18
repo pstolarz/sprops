@@ -1373,7 +1373,24 @@ static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
         /* add after n-th elem
          */
         EXEC_RG(__cpy_to_out(&bu, ldef_elem.end+1));
-        EXEC_RG(put_eol_ind(&bu, &ldef_elem, IND_F_TRIMSP));
+
+        if (flags & SP_F_EOLBFR)
+        {
+            long skip_n, skip_n2;
+            int eol_n, eol_n2;
+
+            EXEC_RG(put_eol(&bu));
+            EXEC_RG(put_eol_ind(&bu, &ldef_elem, 0));
+
+            EXEC_RG(skip_sp_to_eol(&bu, bu.in_off, &skip_n, &eol_n));
+            if (eol_n) {
+                EXEC_RG(
+                    skip_sp_to_eol(&bu, bu.in_off+skip_n, &skip_n2, &eol_n2));
+                bu.in_off += (!eol_n2 ? skip_n-eol_n : skip_n+skip_n2-eol_n2);
+            }
+        } else {
+            EXEC_RG(put_eol_ind(&bu, &ldef_elem, IND_F_TRIMSP));
+        }
 
         EXEC_RG(put_elem(
             &bu, prop_nm, prop_val, sc_typ, sc_nm, &ldef_elem, 0, &traileol));
