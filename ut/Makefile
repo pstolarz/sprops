@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -I../inc
 
-.PHONY: all clean makelib run
+.PHONY: all clean run FORCE
 
 TESTS= \
     t01-get \
@@ -19,7 +19,7 @@ all: $(TESTS)
 clean:
 	rm -f $(TESTS)
 
-../libsprops.a: makelib
+../libsprops.a: FORCE
 	$(MAKE) -C..
 
 run: all
