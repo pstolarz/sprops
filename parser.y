@@ -19,6 +19,8 @@
 #include "io.h"
 #include "sprops/parser.h"
 
+#define EXEC_RG(c) if ((ret=(c))!=SPEC_SUCCESS) goto finish;
+
 /* EOL char code (platform independent) */
 #define EOL (EOF-1)
 #define is_space(c) (isspace(c) || (c)==EOL)
@@ -50,6 +52,53 @@ typedef struct _lexval_t {
 #define YYTOKENTYPE sp_parser_token_t
 typedef sp_parser_token_t yytokentype;
 
+typedef
+struct _unc_cache_t
+{
+    size_t inbuf;   /* number of cached chars */
+    int buf[16];    /* cache buffer */
+} unc_cache_t;
+
+typedef struct _sp_parser_hndl_t
+{
+    /* parsed input */
+    SP_FILE *in;
+
+    struct {
+        /* next char to read */
+        int line;
+        int col;
+        long off;       /* input offset */
+
+        /* last input offset to parse; -1: end */
+        long end;
+
+        /* currently scope level (0-based) */
+        int scope_lev;
+
+        /* lexical context */
+        int ctx;
+
+        /* unget chars cache */
+        unc_cache_t unc;
+    } lex;
+
+    struct {
+        /* argument passed untouched */
+        void *arg;
+
+        /* parser callbacks */
+        sp_parser_cb_prop_t prop;
+        sp_parser_cb_scope_t scope;
+    } cb;
+
+    struct {
+        sp_errc_t code;
+        /* syntax error (SPEC_SYNTAX) detailed code and location */
+        sp_synerr_t syn;
+    } err;
+} sp_parser_hndl_t;
+
 }   /* code top */
 
 %code provides
@@ -72,7 +121,8 @@ static void set_loc(
  */
 #define __CALL_CB_PROP(nm, val, def) { \
     long pos = sp_ftell(p_hndl->in); \
-    sp_errc_t res = p_hndl->cb.prop(p_hndl, (nm), (val), (def)); \
+    sp_errc_t res = p_hndl->cb.prop( \
+        p_hndl->cb.arg, p_hndl->in, (nm), (val), (def)); \
     if (res==SPEC_SUCCESS && \
         (pos==-1L || sp_fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
@@ -81,8 +131,8 @@ static void set_loc(
 
 #define __CALL_CB_SCOPE(typ, nm, bdy, bdyenc, def) { \
     long pos = sp_ftell(p_hndl->in); \
-    sp_errc_t res = \
-        p_hndl->cb.scope(p_hndl, (typ), (nm), (bdy), (bdyenc), (def)); \
+    sp_errc_t res = p_hndl->cb.scope( \
+        p_hndl->cb.arg, p_hndl->in, (typ), (nm), (bdy), (bdyenc), (def)); \
     if (res==SPEC_SUCCESS && \
         (pos==-1L || sp_fseek(p_hndl->in, pos, SEEK_SET))) res=SPEC_ACCS_ERR; \
     if ((int)res>0) { p_hndl->err.code=res; YYABORT; } \
@@ -394,7 +444,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                     /* error: line continuation is not possible for SP_TKN_ID */
                     __MCHAR_TOKEN_END();
                     endloop=1;
-                    p_hndl->err.syn = SPSYN_UNEXP_EOL;
+                    p_hndl->err.syn.code = SPSYN_UNEXP_EOL;
                     token = YYERRCODE;
                 } else {
                     __MCHAR_UPDATE_TAIL();
@@ -411,7 +461,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                    NOTE: line continuation is not possible for SP_TKN_ID */
                 __MCHAR_TOKEN_END();
                 endloop=1;
-                p_hndl->err.syn = SPSYN_UNEXP_EOL;
+                p_hndl->err.syn.code = SPSYN_UNEXP_EOL;
                 token = YYERRCODE;
             } else {
                 __MCHAR_UPDATE_TAIL();
@@ -503,7 +553,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             /* EOF finishes SP_TKN_ID/SP_TKN_VAL tokens, except quoted
                SP_TKN_ID which need to be finished by the quotation mark */
             if (state==LXST_ID_QUOTED) {
-                p_hndl->err.syn = SPSYN_UNEXP_EOF;
+                p_hndl->err.syn.code = SPSYN_UNEXP_EOF;
                 token = YYERRCODE;
             } else {
                 __MCHAR_TOKEN_END();
@@ -517,7 +567,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         p_hndl->lex.scope_lev++;
 #ifdef CONFIG_MAX_SCOPE_LEVEL_DEPTH
         if (p_hndl->lex.scope_lev > CONFIG_MAX_SCOPE_LEVEL_DEPTH) {
-            p_hndl->err.syn = SPSYN_LEV_DEPTH;
+            p_hndl->err.syn.code = SPSYN_LEV_DEPTH;
             token = YYERRCODE;
         }
 #endif
@@ -537,7 +587,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 
     /* empty SP_TKN_ID tokens are not accepted */
     if (state==LXST_ID_QUOTED && p_lval->end-p_lval->beg+1<=2) {
-        p_hndl->err.syn = SPSYN_EMPTY_TKN;
+        p_hndl->err.syn.code = SPSYN_EMPTY_TKN;
         token = YYERRCODE;
     }
 
@@ -561,15 +611,15 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
 static void yyerror(YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl, char const *msg)
 {
     p_hndl->err.code = SPEC_SYNTAX;
-    /* err.syn code is already set */
-    p_hndl->err.loc.line = p_lloc->first_line;
-    p_hndl->err.loc.col = p_lloc->first_column;
+    /* err.syn.code is already set */
+    p_hndl->err.syn.loc.line = p_lloc->first_line;
+    p_hndl->err.syn.loc.col = p_lloc->first_column;
 }
 
-/* exported; see header for details */
-sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
+/* Initialize parser handle */
+static sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     SP_FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
-    sp_parser_cb_scope_t cb_scope, void *cb_arg)
+    sp_parser_cb_scope_t cb_scope, void *arg)
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_loc_t globsc = {0, -1L, 1, 1, -1, -1};
@@ -595,48 +645,50 @@ sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
     p_hndl->lex.ctx = LCTX_GLOBAL;
     unc_clean(&p_hndl->lex.unc);
 
-    p_hndl->cb.arg = cb_arg;
+    p_hndl->cb.arg = arg;
     p_hndl->cb.prop = cb_prop;
     p_hndl->cb.scope = cb_scope;
 
     p_hndl->err.code = SPEC_SUCCESS;
-    p_hndl->err.syn = SPSYN_GRAMMAR;    /* default syntax error code */
-    p_hndl->err.loc.line = 0;
-    p_hndl->err.loc.col = 0;
+    p_hndl->err.syn.code = SPSYN_GRAMMAR;   /* default syntax error code */
+    p_hndl->err.syn.loc.line = 0;
+    p_hndl->err.syn.loc.col = 0;
 
 finish:
     return ret;
 }
 
 /* exported; see header for details */
-sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl)
+sp_errc_t sp_parse(
+    SP_FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
+    sp_parser_cb_scope_t cb_scope, void *arg, sp_synerr_t *p_synerr)
 {
     sp_errc_t ret=SPEC_SUCCESS;
+    sp_parser_hndl_t hndl;
 
-    if (!p_hndl) {
-        ret=SPEC_INV_ARG;
-        goto finish;
-    }
+    EXEC_RG(sp_parser_hndl_init(&hndl, in, p_parsc, cb_prop, cb_scope, arg));
 
-    switch (yyparse(p_hndl))
+    switch (yyparse(&hndl))
     {
     case 0:
-        ret = p_hndl->err.code = SPEC_SUCCESS;
+        ret = hndl.err.code = SPEC_SUCCESS;
         break;
     default:
     case 1:
-        if (p_hndl->err.code==SPEC_SUCCESS) {
+        if (hndl.err.code==SPEC_SUCCESS) {
             /* probably will not happen */
-            ret = p_hndl->err.code = SPEC_SYNTAX;
+            ret = hndl.err.code = SPEC_SYNTAX;
         } else {
-            ret = p_hndl->err.code;
+            ret = hndl.err.code;
         }
         break;
     case 2:
-        ret = p_hndl->err.code = SPEC_NOMEM;
+        ret = hndl.err.code = SPEC_NOMEM;
         break;
     }
+
 finish:
+    if (ret==SPEC_SYNTAX && p_synerr) *p_synerr=hndl.err.syn;
     return ret;
 }
 
@@ -667,11 +719,11 @@ typedef struct _hndl_eschr_t
 } hndl_eschr_t;
 
 /* Initialize esc_getc() handler; stream input */
-static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
-    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn)
+static void init_hndl_eschr_stream(
+    hndl_eschr_t *p_hndl, SP_FILE *in, sp_parser_token_t tkn)
 {
     p_hndl->input.is_str = 0;
-    p_hndl->input.f = p_phndl->in;
+    p_hndl->input.f = in;
     unc_clean(&p_hndl->input.unc);
 
     p_hndl->tkn = tkn;
@@ -681,7 +733,7 @@ static void init_hndl_eschr_stream(hndl_eschr_t *p_hndl,
     p_hndl->escaped = 0;
 
     if (tkn==SP_TKN_ID) {
-        int c = sp_fgetc(p_phndl->in);
+        int c = sp_fgetc(in);
         if (c=='"' || c=='\'') {
             p_hndl->quot_chr = c;
             p_hndl->n_rdc++;
@@ -841,8 +893,7 @@ reread:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_parser_tkn_cpy(
-    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
+sp_errc_t sp_parser_tkn_cpy(SP_FILE *in, sp_parser_token_t tkn,
     const sp_loc_t *p_loc, char *buf, size_t buf_len, long *p_tklen)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
@@ -857,9 +908,9 @@ sp_errc_t sp_parser_tkn_cpy(
         goto finish;
     }
 
-    if (sp_fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
+    if (sp_fseek(in, p_loc->beg, SEEK_SET)) goto finish;
 
-    init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
+    init_hndl_eschr_stream(&eh_tkn, in, tkn);
 
     while (eh_tkn.n_rdc<(size_t)llen && (buf_len || p_tklen))
     {
@@ -884,9 +935,8 @@ finish:
 }
 
 /* exported; see header for details */
-sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
-    sp_parser_token_t tkn, const sp_loc_t *p_loc, const char *str,
-    size_t num, int stresc, int *p_equ)
+sp_errc_t sp_parser_tkn_cmp(SP_FILE *in, sp_parser_token_t tkn,
+    const sp_loc_t *p_loc, const char *str, size_t num, int stresc, int *p_equ)
 {
     sp_errc_t ret=SPEC_ACCS_ERR;
     int c_tkn, c_str;
@@ -907,8 +957,8 @@ sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
     }
 
     if (llen) {
-        if (sp_fseek(p_phndl->in, p_loc->beg, SEEK_SET)) goto finish;
-        init_hndl_eschr_stream(&eh_tkn, p_phndl, tkn);
+        if (sp_fseek(in, p_loc->beg, SEEK_SET)) goto finish;
+        init_hndl_eschr_stream(&eh_tkn, in, tkn);
         c_tkn = esc_reqout_getc(&eh_tkn);
         __CHK_STREAM();
     } else

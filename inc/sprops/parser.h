@@ -25,8 +25,6 @@ typedef enum _sp_parser_token_t
     SP_TKN_VAL
 } sp_parser_token_t;
 
-struct _sp_parser_hndl_t;
-
 /* Property callback provides location of a property name ('p_lname'), value
    ('p_lval'; may be NULL for property w/o a value) and the overall definition
    of the property (p_ldef).
@@ -36,7 +34,7 @@ struct _sp_parser_hndl_t;
        SPEC_SUCCESS: success; continue parsing
        >0 error codes: failure with code as returned; abort parsing
  */
-typedef sp_errc_t (*sp_parser_cb_prop_t)(const struct _sp_parser_hndl_t *p_hndl,
+typedef sp_errc_t (*sp_parser_cb_prop_t)(void *arg, SP_FILE *in,
     const sp_loc_t *p_lname, const sp_loc_t *p_lval, const sp_loc_t *p_ldef);
 
 /* Scope callback provides location of a scope type ('p_ltype'; may be NULL
@@ -44,81 +42,26 @@ typedef sp_errc_t (*sp_parser_cb_prop_t)(const struct _sp_parser_hndl_t *p_hndl,
    scope w/o a body), body with enclosing brackets ('lbdyenc') and the overall
    definition of the scope ('p_ldef').
  */
-typedef sp_errc_t (*sp_parser_cb_scope_t)(const struct _sp_parser_hndl_t *p_hndl,
+typedef sp_errc_t (*sp_parser_cb_scope_t)(void *arg, SP_FILE *in,
     const sp_loc_t *p_ltype, const sp_loc_t *p_lname, const sp_loc_t *p_lbody,
     const sp_loc_t *p_lbdyenc, const sp_loc_t *p_ldef);
 
-typedef
-struct _unc_cache_t
-{
-    size_t inbuf;   /* number of cached chars */
-    int buf[16];    /* cache buffer */
-} unc_cache_t;
-
-typedef struct _sp_parser_hndl_t
-{
-    /* parsed input */
-    SP_FILE *in;
-
-    struct {
-        /* next char to read */
-        int line;
-        int col;
-        long off;       /* input offset */
-
-        /* last input offset to parse; -1: end */
-        long end;
-
-        /* currently scope level (0-based) */
-        int scope_lev;
-
-        /* lexical context */
-        int ctx;
-
-        /* unget chars cache */
-        unc_cache_t unc;
-    } lex;
-
-    struct {
-        /* argument passed untouched */
-        void *arg;
-
-        /* parser callbacks */
-        sp_parser_cb_prop_t prop;
-        sp_parser_cb_scope_t scope;
-    } cb;
-
-    struct {
-        sp_errc_t code;
-
-        /* syntax error (SPEC_SYNTAX) detailed code and location */
-        sp_errsyn_t syn;
-        struct {
-            int line;
-            int col;
-        } loc;
-    } err;
-} sp_parser_hndl_t;
-
-/* Initialize parser handle under 'p_hndl' for an input 'in' to parse. Parsing
-   scope is constrained to 'p_parsc' (if NULL: the entire input). Property/scope
-   callbacks are provided by 'cb_prop' and 'cb_scope' respectively, with caller
-   specific argument passed untouched to these functions ('cb_arg').
+/* Parse an input 'in'. The parsing scope is constrained to 'p_parsc' (if NULL:
+   the entire input). Property/scope callbacks are provided by 'cb_prop' and
+   'cb_scope' respectively, with caller specific argument passed untouched to
+   these functions ('arg'). If 'p_synerr' is not NULL it will be filled with
+   the syntax error (SPEC_SYNTAX) related info, in case such error occurs.
  */
-sp_errc_t sp_parser_hndl_init(sp_parser_hndl_t *p_hndl,
+sp_errc_t sp_parse(
     SP_FILE *in, const sp_loc_t *p_parsc, sp_parser_cb_prop_t cb_prop,
-    sp_parser_cb_scope_t cb_scope, void *cb_arg);
-
-/* Parser method */
-sp_errc_t sp_parse(sp_parser_hndl_t *p_hndl);
+    sp_parser_cb_scope_t cb_scope, void *arg, sp_synerr_t *p_synerr);
 
 /* Copy a token of type 'tkn' from location 'p_loc' into buffer 'p_buf' with
    length as set in 'buf_len'. If there is enough space the copied string is
    NULL terminated. If 'p_tklen' is not NULL it will be provided with token's
    content length occupied in the stream.
  */
-sp_errc_t sp_parser_tkn_cpy(
-    const sp_parser_hndl_t *p_phndl, sp_parser_token_t tkn,
+sp_errc_t sp_parser_tkn_cpy(SP_FILE *in, sp_parser_token_t tkn,
     const sp_loc_t *p_loc, char *buf, size_t buf_len, long *p_tklen);
 
 /* Compare a token of type 'tkn' from location 'p_loc' with string 'str'.
@@ -128,9 +71,8 @@ sp_errc_t sp_parser_tkn_cpy(
    In case of success (SPEC_SUCCESS) the function sets 'p_equ' to the comparison
    result: 1:equal, 0:not equal.
  */
-sp_errc_t sp_parser_tkn_cmp(const sp_parser_hndl_t *p_phndl,
-    sp_parser_token_t tkn, const sp_loc_t *p_loc, const char *str,
-    size_t num, int stresc, int *p_equ);
+sp_errc_t sp_parser_tkn_cmp(SP_FILE *in, sp_parser_token_t tkn,
+    const sp_loc_t *p_loc, const char *str, size_t num, int stresc, int *p_equ);
 
 #define SPAR_MIN_CV_LEN     10
 

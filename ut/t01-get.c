@@ -417,10 +417,10 @@ int main(void)
 finish:
     if (ret) {
         if (ret==SPEC_SYNTAX) {
-            int line, col;
-            sp_errsyn_t syn_code;
-            sp_check_syntax(&in, NULL, &line, &col, &syn_code);
-            printf("Syntax error: line:%d, col:%d\n", line, col);
+            sp_synerr_t synerr;
+            sp_check_syntax(&in, NULL, &synerr);
+            printf("Syntax error: line:%d, col:%d, code:%d\n",
+                synerr.loc.line, synerr.loc.col, synerr.code);
         } else {
             printf("Error: %d\n", ret);
         }

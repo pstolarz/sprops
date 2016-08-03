@@ -59,7 +59,7 @@ typedef enum _sp_errc_t
 /* The following codes specify additional information related to
    the syntax error (SPEC_SYNTAX).
  */
-typedef enum _sp_errsyn_t
+typedef enum _sp_syncode_t
 {
     SPSYN_GRAMMAR = 1,  /* Grammar error */
     SPSYN_UNEXP_EOL,    /* Unexpected EOL,
@@ -68,7 +68,19 @@ typedef enum _sp_errsyn_t
                            token has not been properly finished */
     SPSYN_EMPTY_TKN,    /* Empty token error */
     SPSYN_LEV_DEPTH     /* Allowed level depth exceeded */
-} sp_errsyn_t;
+} sp_syncode_t;
+
+/* syntax error related info */
+typedef struct _sp_synerr_t
+{
+    sp_syncode_t code;
+
+    /* syntax error location */
+    struct {
+        int line;
+        int col;
+    } loc;
+} sp_synerr_t;
 
 /* EOL types */
 typedef enum _sp_eol_t {
@@ -161,12 +173,11 @@ sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num);
 sp_errc_t sp_fclose(SP_FILE *f);
 
 /* Check syntax of a properties set read from an input 'in' with a given parsing
-   scope 'p_parsc'. In case of the syntax error (SPEC_SYNTAX) 'p_line', 'p_col'
-   and 'p_syn_code' will be provided with a location of the error and detailed
-   informational code.
+   scope 'p_parsc'. In case of the syntax error (SPEC_SYNTAX) 'p_synerr' is
+   filled with the error related info.
  */
-sp_errc_t sp_check_syntax(SP_FILE *in, const sp_loc_t *p_parsc,
-    int *p_line, int *p_col, sp_errsyn_t *p_syn_code);
+sp_errc_t sp_check_syntax(
+    SP_FILE *in, const sp_loc_t *p_parsc, sp_synerr_t *p_synerr);
 
 /* Macro calculating length occupied by a given location */
 #define sp_loc_len(loc) (!(loc) ? 0L : ((loc)->end-(loc)->beg+1))
