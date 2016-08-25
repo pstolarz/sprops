@@ -23,23 +23,25 @@ clean:
 ut_run:
 	make -C./ut run
 
-config.h=config.h
-inc/sprops/props.h=inc/sprops/props.h
-io.h=io.h $(inc/sprops/props.h)
-inc/sprops/utils.h=inc/sprops/utils.h $(inc/sprops/props.h)
-inc/sprops/parser.h=inc/sprops/parser.h $(inc/sprops/props.h)
-inc/sprops/trans.h=inc/sprops/trans.h $(inc/sprops/props.h)
+# headers dependencies
+io.h: inc/sprops/props.h
+inc/sprops/parser.h: inc/sprops/props.h
+inc/sprops/trans.h: inc/sprops/props.h
+inc/sprops/utils.h: inc/sprops/props.h
 
-io.o: $(io.h)
-utils.o: $(inc/sprops/utils.h)
-parser.o: $(inc/sprops/parser.h)
-props.o: $(inc/sprops/parser.h) $(inc/sprops/utils.h)
-trans.o: $(inc/sprops/trans.h) $(inc/sprops/utils.h)
+%.h:
+	@touch -c $@
 
-parser.c: parser.y
+io.o: io.h
+parser.o: config.h io.h inc/sprops/parser.h
+props.o: config.h io.h inc/sprops/parser.h inc/sprops/utils.h
+trans.o: config.h io.h inc/sprops/trans.h inc/sprops/utils.h
+utils.o: config.h io.h inc/sprops/utils.h
+
+%.c: %.y
 	$(YACC) $< -o $@
 
-%.o: %.c $(config.h) $(io.h)
+%.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
 libsprops.a: $(OBJS)
