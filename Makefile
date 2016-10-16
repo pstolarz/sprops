@@ -13,16 +13,22 @@ OBJS = \
     props.o \
     trans.o
 
-.PHONY: all clean ut_run
+.PHONY: all clean ut_run ctags
 
 all: libsprops.a
 
 clean:
-	rm -f libsprops.a $(OBJS) $(OBJS:.o=.d)
+	rm -f libsprops.a $(OBJS) $(OBJS:.o=.d) tags
 	$(MAKE) -C./ut clean
 
 ut_run:
 	make -C./ut run
+
+ctags:
+	ctags -R --c-kinds=+px --c++-kinds=+px .
+
+libsprops.a: $(OBJS)
+	ar rcs $@ $(OBJS)
 
 %.c: %.y
 	$(YACC) $< -o $@
@@ -30,12 +36,11 @@ ut_run:
 %.o: %.c
 	$(CC) -c $(CFLAGS) $< -o $@
 
-libsprops.a: $(OBJS)
-	ar rcs $@ $(OBJS)
-
 %.d: %.c
 	$(MAKEDEP)
 
 ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),ctags)
 -include $(OBJS:.o=.d)
+endif
 endif
