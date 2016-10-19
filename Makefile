@@ -13,7 +13,7 @@ OBJS = \
     props.o \
     trans.o
 
-.PHONY: all clean ut_run ctags
+.PHONY: all clean ut_run tags
 
 all: libsprops.a
 
@@ -24,7 +24,7 @@ clean:
 ut_run:
 	make -C./ut run
 
-ctags:
+tags:
 	ctags -R --c-kinds=+px --c++-kinds=+px .
 
 libsprops.a: $(OBJS)
@@ -40,7 +40,7 @@ libsprops.a: $(OBJS)
 	$(MAKEDEP)
 
 ifneq ($(MAKECMDGOALS),clean)
-ifneq ($(MAKECMDGOALS),ctags)
+ifneq ($(MAKECMDGOALS),tags)
 -include $(OBJS:.o=.d)
 endif
 endif
