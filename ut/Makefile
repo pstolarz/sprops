@@ -1,5 +1,5 @@
-CC=gcc
-CFLAGS=-Wall -I../inc
+CC = $(CROSS_COMPILE)gcc
+CFLAGS += -Wall -I../inc
 
 .PHONY: all clean run FORCE
 
@@ -17,7 +17,7 @@ TESTS= \
 all: $(TESTS)
 
 clean:
-	rm -f $(TESTS)
+	$(RM) $(TESTS)
 
 ../libsprops.a: FORCE
 	$(MAKE) -C..

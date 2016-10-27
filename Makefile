@@ -1,10 +1,11 @@
-YACC=bison
-CC=gcc
-CFLAGS=-Wall -I./inc
-MAKEDEP=gcc $(CFLAGS) $< -MM -MT "$@ $*.o" -MF $@
-
+CC = $(CROSS_COMPILE)gcc
+CFLAGS += -Wall -I./inc
 # use alloca() instead of malloc() for the grammar parser stack allocations
-CFLAGS+=-DYYSTACK_USE_ALLOCA
+CFLAGS += -DYYSTACK_USE_ALLOCA
+
+AR = $(CROSS_COMPILE)ar
+YACC = bison
+MAKEDEP = $(CROSS_COMPILE)gcc $(CFLAGS) $< -MM -MT "$@ $*.o" -MF $@
 
 OBJS = \
     io.o \
@@ -18,17 +19,17 @@ OBJS = \
 all: libsprops.a
 
 clean:
-	rm -f libsprops.a $(OBJS) $(OBJS:.o=.d) tags
+	$(RM) libsprops.a $(OBJS) $(OBJS:.o=.d) tags
 	$(MAKE) -C./ut clean
 
 ut_run:
-	make -C./ut run
+	$(MAKE) -C./ut run
 
 tags:
 	ctags -R --c-kinds=+px --c++-kinds=+px .
 
 libsprops.a: $(OBJS)
-	ar rcs $@ $(OBJS)
+	$(AR) rcs $@ $(OBJS)
 
 %.c: %.y
 	$(YACC) $< -o $@

@@ -56,7 +56,8 @@ Compilation
 
 Prerequisites:
 
- - GNU Make,
+ - Standard building tool-set as part of the `build-essential` packet: `gcc`,
+   GNU Make etc.,
  - Bison parser generator of version 3 or higher (only in case of regenerating
    `parser.c` grammar definition file).
 
@@ -68,6 +69,11 @@ produces static library `libsprops.a` which may be linked into an application.
 Unit tests are contained in `./ut` directory and are launched by
 
     make ut_run
+
+There is possible to cross-compile the library by setting `CROSS_COMPILE` (for
+the project `Makefile`) to the tool-chain prefix:
+
+    CROSS_COMPILE=<tool-chain-prefix> make
 
 Configuration file format
 -------------------------
