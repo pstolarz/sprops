@@ -309,7 +309,7 @@ sp_errc_t sp_get_prop(SP_FILE *in, const sp_loc_t *p_parsc, const char *name,
     sp_prop_info_ex_t *p_info);
 
 /* Find integer property with 'name' and write its value under 'p_val'. In case
-   of integer format SPEC_VAL_ERR error is returned.
+   of string format problem SPEC_VAL_ERR error is returned.
 
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
    property's value as an integer.
@@ -319,7 +319,7 @@ sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
     sp_prop_info_ex_t *p_info);
 
 /* Find float property with 'name' and write its value under 'p_val'. In case
-   of float format SPEC_VAL_ERR error is returned.
+   of string format problem SPEC_VAL_ERR error is returned.
 
    NOTE: This method is a simple wrapper around sp_get_prop() to treat
    property's value as a float.

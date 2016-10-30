@@ -11,9 +11,6 @@
  */
 
 #include <ctype.h>
-#include <errno.h>
-#include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "config.h"
@@ -668,15 +665,6 @@ finish:
 
 }
 
-/* Update 'str' by trimming trailing spaces. Updated string length is returned.
- */
-static size_t strtrim(char *str)
-{
-    size_t len = strlen(str);
-    for (; len && isspace((int)str[len-1]); len--) str[len-1]=0;
-    return len;
-}
-
 /* exported; see header for details */
 sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp, long *p_val,
@@ -684,25 +672,24 @@ sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_prop_info_ex_t info;
-    char val[80], *end;
-    long v=0L;
+
+    char val[80];
+    char *strv = &val[0];
 
     EXEC_RG(sp_get_prop(
         in, p_parsc, name, ind, path, deftp, val, sizeof(val), &info));
-    if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
+
+    if (!info.val_pres || info.tkval.len>=sizeof(val) ||
+        !sp_util_strtrim(&strv, 1))
+    {
         ret=SPEC_VAL_ERR;
         goto finish;
     }
 
-    errno = 0;
-    v = strtol(val, &end, 0);
-    if (errno==ERANGE) { ret=SPEC_VAL_ERR; goto finish; }
-
-    if (*end) ret=SPEC_VAL_ERR;
+    if (p_val) ret=sp_util_parse_int(strv, p_val);
 
 finish:
     if (p_info) *p_info=info;
-    if (p_val) *p_val=v;
     return ret;
 }
 
@@ -713,35 +700,24 @@ sp_errc_t sp_get_prop_float(SP_FILE *in, const sp_loc_t *p_parsc,
 {
     sp_errc_t ret=SPEC_SUCCESS;
     sp_prop_info_ex_t info;
-    char val[80], *end;
-    double v=0.0;
+
+    char val[80];
+    char *strv = &val[0];
 
     EXEC_RG(sp_get_prop(
         in, p_parsc, name, ind, path, deftp, val, sizeof(val), &info));
-    if (!info.val_pres || info.tkval.len>=sizeof(val) || !strtrim(val)) {
+
+    if (!info.val_pres || info.tkval.len>=sizeof(val) ||
+        !sp_util_strtrim(&strv, 1))
+    {
         ret=SPEC_VAL_ERR;
         goto finish;
     }
 
-    errno = 0;
-    v = strtod(val, &end);
-    if (errno==ERANGE) { ret=SPEC_VAL_ERR; goto finish; }
-
-    if (*end) ret=SPEC_VAL_ERR;
+    if (p_val) ret=sp_util_parse_float(strv, p_val);
 
 finish:
     if (p_info) *p_info=info;
-    if (p_val) *p_val=v;
-    return ret;
-}
-
-static int __stricmp(const char *str1, const char *str2)
-{
-    int ret;
-    size_t i=0;
-
-    for (; !((ret=tolower((int)str1[i])-tolower((int)str2[i]))) &&
-        str1[i] && str2[i]; i++);
     return ret;
 }
 
@@ -752,33 +728,31 @@ sp_errc_t sp_get_prop_enum(
     int igncase, char *buf, size_t blen, int *p_val, sp_prop_info_ex_t *p_info)
 {
     sp_errc_t ret=SPEC_SUCCESS;
-    int v=0;
-
     sp_prop_info_ex_t info;
+
+    char *strv = &buf[0];
+    const sp_enumval_t *p_eval;
 
     if (!p_evals) { ret=SPEC_INV_ARG; goto finish; }
 
-    memset(&info, 0, sizeof(info));
-
-    EXEC_RG(sp_get_prop(in, p_parsc, name, ind, path, deftp, buf, blen, &info));
-
-    /* remove leading/trailing spaces */
-    for (; isspace((int)*buf); buf++);
-    strtrim(buf);
-
-    for (; p_evals->name; p_evals++)
-    {
-        if (strlen(p_evals->name) >= blen) { ret=SPEC_SIZE; goto finish; }
-
-        if (!(igncase ? __stricmp(p_evals->name, buf) :
-            strcmp(p_evals->name, buf))) { v=p_evals->val; break; }
+    for (p_eval=p_evals; p_eval->name; p_eval++) {
+        if (strlen(p_eval->name) >= blen) { ret=SPEC_SIZE; goto finish; }
     }
-    if (!p_evals->name || (info.val_pres && info.tkval.len>=blen))
+
+    EXEC_RG(sp_get_prop(
+        in, p_parsc, name, ind, path, deftp, buf, blen, &info));
+
+    if (!info.val_pres || info.tkval.len>=blen ||
+        !sp_util_strtrim(&strv, 1))
+    {
         ret=SPEC_VAL_ERR;
+        goto finish;
+    }
+
+    if (p_val) ret=sp_util_parse_enum(strv, p_evals, igncase, p_val);
 
 finish:
     if (p_info) *p_info=info;
-    if (p_val) *p_val=v;
     return ret;
 }
 

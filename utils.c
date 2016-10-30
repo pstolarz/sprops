@@ -10,6 +10,11 @@
    See the License for more information.
  */
 
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 #include "config.h"
 #include "io.h"
 #include "sprops/utils.h"
@@ -79,4 +84,90 @@ sp_errc_t sp_util_detect_eol(SP_FILE *in, sp_eol_t *p_eol_typ)
     }
 finish:
     return ret;
+}
+
+/* exported; see header for details */
+int sp_util_stricmp(const char *str1, const char *str2)
+{
+    int ret;
+    size_t i=0;
+
+    if (!str1 && !str2) return 0;
+    if (!str1) return INT_MIN;
+    if (!str2) return INT_MAX;
+
+    for (; !((ret=tolower((int)str1[i])-tolower((int)str2[i]))) &&
+        str1[i] && str2[i]; i++);
+    return ret;
+}
+
+/* exported; see header for details */
+size_t sp_util_strtrim(char **p_str, int trim_lead)
+{
+    size_t len;
+
+    if (!p_str || !*p_str) return 0;
+
+    if (trim_lead)
+        for (; isspace((int)**p_str); (*p_str)++);
+
+    len = strlen(*p_str);
+    for (; len && isspace((int)(*p_str)[len-1]); len--);
+
+    (*p_str)[len] = 0;
+    return len;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_util_parse_int(const char *str, long *p_val)
+{
+    char *end;
+    *p_val = 0L;
+
+    if (!str || !p_val)
+        return SPEC_INV_ARG;
+
+    errno = 0;
+    *p_val = strtol(str, &end, 0);
+
+    if (errno==ERANGE)
+        return SPEC_VAL_ERR;
+    else if (*end)
+        return SPEC_VAL_ERR;
+
+    return SPEC_SUCCESS;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_util_parse_float(const char *str, double *p_val)
+{
+    char *end;
+    *p_val=0.0;
+
+    if (!str || !p_val)
+        return SPEC_INV_ARG;
+
+    errno = 0;
+    *p_val = strtod(str, &end);
+
+    if (errno==ERANGE)
+        return SPEC_VAL_ERR;
+    else if (*end)
+        return SPEC_VAL_ERR;
+
+    return SPEC_SUCCESS;
+}
+
+/* exported; see header for details */
+sp_errc_t sp_util_parse_enum(
+    const char *str, const sp_enumval_t *p_evals, int igncase, int *p_val)
+{
+    if (!str || !p_evals || !p_val)
+        return SPEC_INV_ARG;
+
+    for (; p_evals->name; p_evals++) {
+        if (!(igncase ? sp_util_stricmp(p_evals->name, str) :
+            strcmp(p_evals->name, str))) { *p_val=p_evals->val; break; }
+    }
+    return (!p_evals->name ? SPEC_VAL_ERR : SPEC_SUCCESS);
 }
