@@ -138,6 +138,8 @@ typedef struct _SP_FILE
 
 /* Open a file with 'filename' and fopen(3) 'mode'. Populate SP_FILE handle
    pointed by 'f' appropriately. The handle may be closed by sp_fclose().
+   In case of error SPEC_FOPEN_ERR is returned and 'errno' may be checked
+   against the problem root cause.
 
    NOTE: A file must be always opened in the binary mode with at least read
    access for input, and read/write access for output.
@@ -168,7 +170,8 @@ sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num);
 
 /* If SP_FILE was opened as an ANSI C stream (by sp_fopen() or sp_fopen2()),
    this function merely calls fclose(3) to close it. In case of other stream
-   type SPEC_INV_ARG is returned.
+   type SPEC_INV_ARG is returned. If fclose(3) fails SPEC_ACCS_ERR is returned
+   and 'errno' may be checked against the problem root cause.
  */
 sp_errc_t sp_fclose(SP_FILE *f);
 

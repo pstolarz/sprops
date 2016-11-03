@@ -169,7 +169,7 @@ typedef struct _iter_hndl_t
         size_t sz;
     } buf1;
 
-    /* buffer 2 (property vale/scope name; const) */
+    /* buffer 2 (property value/scope name; const) */
     struct {
         char *ptr;
         size_t sz;

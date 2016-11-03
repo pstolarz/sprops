@@ -133,7 +133,8 @@ int sp_fseek(SP_FILE *f, long int offset, int origin)
             return 0;
 
         default:
-            return (errno=EINVAL);
+            errno = EINVAL;
+            return -1;
         }
     }
 }
