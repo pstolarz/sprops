@@ -57,21 +57,28 @@ size_t sp_util_strtrim(char **p_str, int trim_lead);
 
 /* Parse string 'str' as an integer and return the value under 'p_val'. In case
    of string format problem SPEC_VAL_ERR error is returned.
+
+   NOTE: The function guarantees not to modify memory under 'p_val' in case
+   of failure.
  */
 sp_errc_t sp_util_parse_int(const char *str, long *p_val);
 
 /* Parse string 'str' as a float number and return the value under 'p_val'. In
    case of string format problem SPEC_VAL_ERR error is returned.
+
+   NOTE: The function guarantees not to modify memory under 'p_val' in case
+   of failure.
  */
 sp_errc_t sp_util_parse_float(const char *str, double *p_val);
 
 /* Parse string 'str' as an enumeration and return the value under 'p_val'.
    Matching enumeration names to their values is done via 'p_evals' table with
    the last element filled with zeros. The matching is case insensitive if
-   'igncase' is !=0.
+   'igncase' is !=0. If the parsed string doesn't match any of the names in
+   'p_evals' SPEC_VAL_ERR error is returned.
 
-   If the parsed string doesn't match any of the names in 'p_evals' SPEC_VAL_ERR
-   error is returned.
+   NOTE: The function guarantees not to modify memory under 'p_val' in case
+   of failure.
  */
 sp_errc_t sp_util_parse_enum(
     const char *str, const sp_enumval_t *p_evals, int igncase, int *p_val);

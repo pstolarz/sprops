@@ -14,13 +14,17 @@ OBJS = \
     props.o \
     trans.o
 
-.PHONY: all clean ut_run tags
+.PHONY: all clean examples ut_run tags
 
 all: libsprops.a
 
 clean:
 	$(RM) libsprops.a $(OBJS) $(OBJS:.o=.d) tags
+	$(MAKE) -C./examples clean
 	$(MAKE) -C./ut clean
+
+examples:
+	$(MAKE) -C./examples
 
 ut_run:
 	$(MAKE) -C./ut run

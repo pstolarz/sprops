@@ -122,19 +122,20 @@ size_t sp_util_strtrim(char **p_str, int trim_lead)
 sp_errc_t sp_util_parse_int(const char *str, long *p_val)
 {
     char *end;
-    *p_val = 0L;
+    long v;
 
     if (!str || !p_val)
         return SPEC_INV_ARG;
 
     errno = 0;
-    *p_val = strtol(str, &end, 0);
+    v = strtol(str, &end, 0);
 
     if (errno==ERANGE)
         return SPEC_VAL_ERR;
     else if (*end)
         return SPEC_VAL_ERR;
 
+    *p_val = v;
     return SPEC_SUCCESS;
 }
 
@@ -142,19 +143,20 @@ sp_errc_t sp_util_parse_int(const char *str, long *p_val)
 sp_errc_t sp_util_parse_float(const char *str, double *p_val)
 {
     char *end;
-    *p_val=0.0;
+    double v;
 
     if (!str || !p_val)
         return SPEC_INV_ARG;
 
     errno = 0;
-    *p_val = strtod(str, &end);
+    v = strtod(str, &end);
 
     if (errno==ERANGE)
         return SPEC_VAL_ERR;
     else if (*end)
         return SPEC_VAL_ERR;
 
+    *p_val = v;
     return SPEC_SUCCESS;
 }
 

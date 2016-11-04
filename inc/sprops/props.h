@@ -314,8 +314,10 @@ sp_errc_t sp_get_prop(SP_FILE *in, const sp_loc_t *p_parsc, const char *name,
 /* Find integer property with 'name' and write its value under 'p_val'. In case
    of string format problem SPEC_VAL_ERR error is returned.
 
-   NOTE: This method is a simple wrapper around sp_get_prop() to treat
+   NOTE 1: This function is a simple wrapper around sp_get_prop() to treat
    property's value as an integer.
+   NOTE 2: The function guarantees not to modify memory under 'p_val' in case
+   of failure.
  */
 sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp, long *p_val,
@@ -324,8 +326,10 @@ sp_errc_t sp_get_prop_int(SP_FILE *in, const sp_loc_t *p_parsc,
 /* Find float property with 'name' and write its value under 'p_val'. In case
    of string format problem SPEC_VAL_ERR error is returned.
 
-   NOTE: This method is a simple wrapper around sp_get_prop() to treat
+   NOTE 1: This function is a simple wrapper around sp_get_prop() to treat
    property's value as a float.
+   NOTE 2: The function guarantees not to modify memory under 'p_val' in case
+   of failure.
  */
 sp_errc_t sp_get_prop_float(SP_FILE *in, const sp_loc_t *p_parsc,
     const char *name, int ind, const char *path, const char *deftp,
@@ -350,8 +354,10 @@ typedef struct _sp_enumval_t
    name doesn't match any of the names in 'p_evals' OR the working buffer is
    too small to store a checked property, SPEC_VAL_ERR error is returned.
 
-   NOTE: This method is a simple wrapper around sp_get_prop() to treat
+   NOTE 1: This function is a simple wrapper around sp_get_prop() to treat
    property's value as enum.
+   NOTE 2: The function guarantees not to modify memory under 'p_val' in case
+   of failure.
  */
 sp_errc_t sp_get_prop_enum(
     SP_FILE *in, const sp_loc_t *p_parsc, const char *name, int ind,

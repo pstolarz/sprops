@@ -51,6 +51,13 @@ Notes
    safe way (such approach is much more effective than the classical mutext
    usage).
 
+Quick start
+-----------
+
+Refer to `./examples` for some simple examples presenting usage of the library
+in typical cases. Thorough API specification is contained in C headers located
+in `./inc/sprops`.
+
 Compilation
 -----------
 
@@ -66,6 +73,11 @@ Compilation:
     make
 
 produces static library `libsprops.a` which may be linked into an application.
+
+    make examples
+
+will compile examples in `./examples`.
+
 Unit tests are contained in `./ut` directory and are launched by
 
     make ut_run
@@ -200,8 +212,7 @@ enumerations, namely:
 
 Lists may be easily emulated by iterating over dedicated scopes content.
 
-Refer to the mentioned header files for complete API specification and the unit
-tests located in `./ut` directory for an example of usage.
+Refer to the mentioned header files for complete API specification.
 
 Transactional support
 ---------------------
