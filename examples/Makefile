@@ -3,7 +3,8 @@ CFLAGS += -Wall -I../inc
 
 EXAMPLES = \
     basic \
-    store
+    store \
+    store-upd
 
 .PHONY: all clean FORCE
 

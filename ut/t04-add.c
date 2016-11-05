@@ -33,7 +33,7 @@ int main(void)
     SP_FILE in, out;
     int in_opn=0;
 
-    EXEC_RG(sp_fopen(&in, "c04.conf", "rb"));
+    EXEC_RG(sp_fopen(&in, "c04.conf", SP_MODE_READ));
     in_opn++;
 
     sp_fopen2(&out, stdout);
@@ -165,6 +165,15 @@ int main(void)
         "/", NULL,
         indf|SP_F_EOLBFR));
 
+    printf("\n--- Prop added to: /, elm:5, flags:NOSEMC\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", "VAL",
+        5,
+        "/", NULL,
+        indf|SP_F_NOSEMC));
+
     printf("\n--- Prop w/o value added to: /, elm:LAST, flags:EOLBFR\n");
     EXEC_RG(sp_add_prop(
         &in, &out,
@@ -173,6 +182,15 @@ int main(void)
         SP_ELM_LAST,
         "/", NULL,
         indf|SP_F_EOLBFR));
+
+    printf("\n--- Prop added to: /, elm:LAST, flags:NOSEMC\n");
+    EXEC_RG(sp_add_prop(
+        &in, &out,
+        NULL,
+        "PROP", "VAL",
+        SP_ELM_LAST,
+        "/", NULL,
+        indf|SP_F_NOSEMC));
 
     EXEC_RG(sp_get_scope_info(&in, NULL, "scope", "2", 1, NULL, NULL, &sc2));
     assert(sc2.body_pres!=0);

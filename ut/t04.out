@@ -210,6 +210,21 @@ scope 2 {}
 
 PROP = VAL; 4;
 
+--- Prop added to: /, elm:5, flags:NOSEMC
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+3;
+PROP = VAL
+4;
+
 --- Prop w/o value added to: /, elm:LAST, flags:EOLBFR
 1;
 scope 2;
@@ -224,6 +239,20 @@ scope 2 {}
 3; 4;
 
 PROP;
+
+--- Prop added to: /, elm:LAST, flags:NOSEMC
+1;
+scope 2;
+scope 2 {
+    1;
+    scope 2
+    {
+    }
+}
+scope 2 {}
+
+3; 4;
+PROP = VAL
 
 --- Scope added, parsing scope /scope:2, elm:0, flags:EXTEOL|EOLBFR
 TYPE SCOPE {

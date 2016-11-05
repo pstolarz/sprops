@@ -31,15 +31,24 @@ static sp_errc_t country_iter_cb(
     long volt=0, freq=0;
 
     if (p_lbody) {
-        sp_get_prop_int(in, p_lbody, "voltage", 0, NULL, NULL, &volt, NULL);
-        sp_get_prop_int(in, p_lbody, "freq", 0, NULL, NULL, &freq, NULL);
+        sp_get_prop_int(in,
+            p_lbody,        /* parse iterated scope */
+            "voltage", 0,
+            NULL,           /* root path */
+            NULL, &volt, NULL);
+
+        sp_get_prop_int(in,
+            p_lbody,
+            "freq", 0,
+            NULL,
+            NULL, &freq, NULL);
     }
 
     printf("%s:\n", name);
     printf("  Voltage: %d, Frequency: %d\n",
         (int)(volt>0 ? volt : def_volt), (int)(freq>0 ? freq : def_freq));
 
-    /* iterate for the next scope */
+    /* continue iteration */
     return SPEC_SUCCESS;
 }
 
@@ -51,25 +60,44 @@ int main(void)
     /* temp buf for scopes iteration callback */
     char nm_buf[32];
 
-    /* an input file must be opened in the binary mode */
-    if (sp_fopen(&in, "basic.conf", "rb") != SPEC_SUCCESS) {
+    if (sp_fopen(&in, "basic.conf", SP_MODE_READ) != SPEC_SUCCESS) {
         printf("Can't open the confing: %s\n", strerror(errno));
         return 1;
     }
 
     /* get default values defined in the global scope */
-    sp_get_prop_int(&in, NULL, "voltage", 0, NULL, NULL, &def_volt, NULL);
-    sp_get_prop_int(&in, NULL, "freq", 0, NULL, NULL, &def_freq, NULL);
+    sp_get_prop_int(&in,
+        NULL,               /* parse global scope */
+        "voltage", 0,
+        NULL,               /* root path */
+        NULL, &def_volt, NULL);
+
+    sp_get_prop_int(&in,
+        NULL,
+        "freq", 0,
+        NULL,
+        NULL, &def_freq, NULL);
 
     printf("Default values are:\n  Voltage: %d, Frequency: %d\n\n",
         (int)def_volt, (int)def_freq);
 
     /* iterate over countries (scopes in the config) */
-    sp_iterate(&in, NULL, NULL, NULL, NULL, country_iter_cb, NULL,
+    sp_iterate(&in,
+        NULL,               /* global scope */
+        NULL,               /* root path */
+        NULL,
+        NULL,               /* no prop-iteration callback */
+        country_iter_cb,
+        NULL,               /* no custom args */
         NULL, 0, nm_buf, sizeof(nm_buf));
 
     /* there is possible to get property located in a specific place */
-    sp_get_prop_int(&in, NULL, "voltage", 0, "USA", NULL, &volt, NULL);
+    sp_get_prop_int(&in,
+        NULL,
+        "voltage", 0,
+        "USA",              /* path to country specific scope */
+        NULL, &volt, NULL);
+
     printf("\nVoltage in USA: %d\n", (int)volt);
 
     sp_fclose(&in);

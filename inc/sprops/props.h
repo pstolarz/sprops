@@ -136,13 +136,17 @@ typedef struct _SP_FILE
     };
 } SP_FILE;
 
+#define SP_MODE_READ        "rb"
+#define SP_MODE_WRITE_NEW   "wb+"
+
 /* Open a file with 'filename' and fopen(3) 'mode'. Populate SP_FILE handle
    pointed by 'f' appropriately. The handle may be closed by sp_fclose().
    In case of error SPEC_FOPEN_ERR is returned and 'errno' may be checked
    against the problem root cause.
 
    NOTE: A file must be always opened in the binary mode with at least read
-   access for input, and read/write access for output.
+   access for input, and read/write access for output (if possible use
+   SP_MODE_XXX predefined modes).
  */
 sp_errc_t sp_fopen(SP_FILE *f, const char *filename, const char *mode);
 
@@ -487,6 +491,10 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_NOADD      0x00002000UL
 
+/* When possible try to avoid semicolons. EOLs are used as parameter value
+   terminators.
+ */
+#define SP_F_NOSEMC     0x00004000UL
 
 /* Add (insert) a property of 'name' with value 'val' (may be NULL for a prop
    w/o a value) in location 'n_elem' (number of elements - scopes/props, before

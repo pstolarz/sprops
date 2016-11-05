@@ -7,6 +7,16 @@ scope {
     3=x
 }
 1 = x
+--- Set prop 1, own-scope: /, elm:0, flags:NOSEMC
+1 = VAL
+2=x
+scope {
+    1=
+    1;
+    2=;
+    3=x
+}
+1 = x
 
 --- Set prop 1, own-scope: /, elm:1, flags:NVSRSP
 1; 2=x

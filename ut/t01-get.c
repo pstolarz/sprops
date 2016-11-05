@@ -182,10 +182,10 @@ int main(void)
     sp_enumval_t evals[] =
         {{"false", 0}, {"0", 0}, {"true", 1}, {"1", 1}, {NULL, 0}};
 
-    EXEC_RG(sp_fopen(&in_f, "c01-2.conf", "rb"));
+    EXEC_RG(sp_fopen(&in_f, "c01-2.conf", SP_MODE_READ));
 #if 0
-    EXEC_RG(sp_fopen(&in_f, "c01-2_win.conf", "rb"));
-    EXEC_RG(sp_fopen(&in_f, "c01-2_1line.conf", "rb"));
+    EXEC_RG(sp_fopen(&in_f, "c01-2_win.conf", SP_MODE_READ));
+    EXEC_RG(sp_fopen(&in_f, "c01-2_1line.conf", SP_MODE_READ));
 #endif
 
     /* copy test's conf. file content into the memory stream (in_buf) */

@@ -30,7 +30,7 @@ int main(void)
     SP_FILE in, out;
     int in_opn=0;
 
-    EXEC_RG(sp_fopen(&in, "c06.conf", "rb"));
+    EXEC_RG(sp_fopen(&in, "c06.conf", SP_MODE_READ));
     in_opn++;
 
     sp_fopen2(&out, stdout);
@@ -42,6 +42,14 @@ int main(void)
         0,
         "/", NULL,
         0));
+
+    printf("--- Set prop 1, own-scope: /, elm:0, flags:NOSEMC\n");
+    EXEC_RG(sp_set_prop(&in, &out,
+        NULL,
+        "1", "VAL",
+        0,
+        "/", NULL,
+        SP_F_NOSEMC));
 
     printf("\n--- Set prop 1, own-scope: /, elm:1, flags:NVSRSP\n");
     EXEC_RG(sp_set_prop(&in, &out,

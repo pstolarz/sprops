@@ -44,18 +44,28 @@ static sp_errc_t store_iter_cb(
         /* empty store item - finish with error */
         return ERR_EMPTY_STORE_ITM;
 
-    /* get properties from the iterated item (book or movie) */
-    sp_get_prop_int(in, p_lbody, "price", 0, NULL, NULL, &price, NULL);
-    sp_get_prop_int(in, p_lbody, "stock", 0, NULL, NULL, &stock, NULL);
+    /* get properties from the iterated item (book or movie)
+     */
+    sp_get_prop_int(in,
+        p_lbody,            /* parse iterated scope */
+        "price", 0,
+        NULL,               /* root path */
+        NULL, &price, NULL);
+
+    sp_get_prop_int(in,
+        p_lbody,
+        "stock", 0,
+        NULL,
+        NULL, &stock, NULL);
 
     /* scope type specifies if it's a book or movie */
     if (!strcmp(type, "book")) {
-        p_sc = &sc_books;       /* preserved scope to parse: "items/books" */
+        p_sc = &sc_books;   /* preserved scope to parse: "items/books" */
         audir_nm = "author";
         printf("  Book:\n");
     } else
     if (!strcmp(type, "movie")) {
-        p_sc = &sc_movies;      /* preserved scope to parse: "items/movies" */
+        p_sc = &sc_movies;  /* preserved scope to parse: "items/movies" */
         audir_nm = "director";
         printf("  Movie:\n");
     } else
@@ -68,11 +78,23 @@ static sp_errc_t store_iter_cb(
        to get an item related props with more efficient way (there is no
        need to parse the whole configuration to find a scope of interest).
      */
-    if (sp_get_prop(in, p_sc, "title", 0, name, NULL,
-        title, sizeof(title), NULL)!=SPEC_SUCCESS) *title=0;
-    if (sp_get_prop(in, p_sc, audir_nm, 0, name, NULL,
-        audir, sizeof(audir), NULL)!=SPEC_SUCCESS) *audir=0;
-    sp_get_prop_int(in, p_sc, "year", 0, name, NULL, &year, NULL);
+    if (sp_get_prop(in,
+        p_sc,               /* parse preserved scope */
+        "title", 0,
+        name,               /* iterated scope name as an item id */
+        NULL, title, sizeof(title), NULL)!=SPEC_SUCCESS) *title=0;
+
+    if (sp_get_prop(in,
+        p_sc,
+        audir_nm, 0,
+        name,
+        NULL, audir, sizeof(audir), NULL)!=SPEC_SUCCESS) *audir=0;
+
+    sp_get_prop_int(in,
+        p_sc,
+        "year", 0,
+        name,
+        NULL, &year, NULL);
 
     printf(
         "    title: %s\n    %s: %s\n    year: %d\n"
@@ -95,8 +117,7 @@ int main(void)
     /* temp bufs for scopes iteration callback */
     char tp_buf[32], nm_buf[32];
 
-    /* an input file must be opened in the binary mode */
-    if (sp_fopen(&in, "store.conf", "rb") != SPEC_SUCCESS) {
+    if (sp_fopen(&in, "store.conf", SP_MODE_READ) != SPEC_SUCCESS) {
         printf("Can't open the confing: %s\n", strerror(errno));
         return 1;
     }
@@ -110,19 +131,33 @@ int main(void)
 
     /* get sub-scopes body locations of "items" super-scope to
        effectively reach for their content in further part of the example */
-    assert(sp_get_scope_info(
-            &in, NULL, NULL, "books", 0, "items", NULL, &sci)==SPEC_SUCCESS &&
+    assert(sp_get_scope_info(&in,
+            NULL,           /* global scope */
+            NULL, "books",  /* untyped scope "books" */
+            0,
+            "items",        /* path to super-scope */
+            NULL, &sci)==SPEC_SUCCESS &&
         sci.body_pres);
     sc_books = sci.lbody;
 
-    assert(sp_get_scope_info(
-            &in, NULL, NULL, "movies", 0, "items", NULL, &sci)==SPEC_SUCCESS &&
+    assert(sp_get_scope_info(&in,
+            NULL,
+            NULL, "movies",
+            0,
+            "items",
+            NULL, &sci)==SPEC_SUCCESS &&
         sci.body_pres);
     sc_movies = sci.lbody;
 
     /* iterate store items */
     printf("Store items:\n");
-    sp_iterate(&in, NULL, "store", NULL, NULL, store_iter_cb, NULL,
+    sp_iterate(&in,
+        NULL,               /* global scope */
+        "store",
+        NULL,
+        NULL,               /* no prop-iteration callback */
+        store_iter_cb,
+        NULL,               /* no custom args */
         tp_buf, sizeof(tp_buf), nm_buf, sizeof(nm_buf));
 
     /* The library allows to reach for specific properties inside
@@ -136,7 +171,9 @@ int main(void)
         NULL,           /* no default scope type */
         &pr, NULL) == SPEC_SUCCESS);
 
-    assert(sp_get_prop_int(&in, NULL, "price", 0,
+    assert(sp_get_prop_int(&in,
+        NULL,
+        "price", 0,
         ":store/1",     /* "store" scope is untyped therefore need to be
                            preceded by ':' to avoid default scope type usage */
         "book",         /* "book" as default scope type */
@@ -145,18 +182,22 @@ int main(void)
     assert(pr==pr2);
     printf("\nPrice of book with id 1 is: %d\n", (int)pr);
 
-    assert(sp_get_prop_int(&in, NULL, "price", 0,
-        "store/movie:1", NULL, &pr, NULL) == SPEC_SUCCESS);
+    assert(sp_get_prop_int(&in,
+        NULL,
+        "price", 0,
+        "store/movie:1",
+        NULL, &pr, NULL) == SPEC_SUCCESS);
     printf("Price of movie with id 1 is: %d\n", (int)pr);
 
     /* reach for the books inventory directly from the global scope
        (not via the preserved scope as in store_iter_cb() callback) */
-    assert(sp_get_prop(&in, NULL, "title", 0,
+    assert(sp_get_prop(&in,
+        NULL,
+        "title", 0,
         "items/books/2",    /* book with id "2" in books items scope */
-        NULL,               /* no default scope type */
-        title, sizeof(title), NULL)==SPEC_SUCCESS);
+        NULL, title, sizeof(title), NULL)==SPEC_SUCCESS);
 
-    printf("Title of book with id 1: %s\n", title);
+    printf("Title of book with id 2: %s\n", title);
 
     sp_fclose(&in);
     return 0;

@@ -134,10 +134,10 @@ int main(void)
     SP_FILE in;
     int in_opn=0;
 
-    EXEC_RG(sp_fopen(&in, "c01-2.conf", "rb"));
+    EXEC_RG(sp_fopen(&in, "c01-2.conf", SP_MODE_READ));
 #if 0
-    EXEC_RG(sp_fopen(&in, "c01-2_win.conf", "rb"));
-    EXEC_RG(sp_fopen(&in, "c01-2_1line.conf", "rb"));
+    EXEC_RG(sp_fopen(&in, "c01-2_win.conf", SP_MODE_READ));
+    EXEC_RG(sp_fopen(&in, "c01-2_1line.conf", SP_MODE_READ));
 #endif
     in_opn++;
 

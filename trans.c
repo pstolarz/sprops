@@ -237,7 +237,7 @@ sp_errc_t sp_commit2_tr(sp_trans_t *p_trans, const char *new_file)
 
     if (new_file) {
         SP_FILE out;
-        ret = sp_fopen(&out, new_file, "wb+");
+        ret = sp_fopen(&out, new_file, SP_MODE_WRITE_NEW);
         if (ret==SPEC_SUCCESS)
             ret = sp_commit_tr(p_trans, &out);
     } else {

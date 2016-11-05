@@ -6,3 +6,6 @@ Examples of the sprops library usage
 
 * `store`:
     More advanced scopes usage.
+
+* `store-upd`:
+    Transactional update example (bases on the `store` example).
