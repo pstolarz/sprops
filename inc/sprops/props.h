@@ -435,8 +435,8 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_EMPCPT     0x00000020UL
 
-/* Don't add extra surrounding spaces around '=' char while adding a value to a
-   property. That is:
+/* Don't add extra surrounding spaces around '=' char while adding a value for
+   a property. That is:
 
    prop=val
 
@@ -444,8 +444,8 @@ sp_errc_t sp_get_scope_info(
 
    prop = val
 
-   This flag is ignored if not configured with CONFIG_CUT_VAL_LEADING_SPACES,
-   since in this case surrounding spaces for an added value are never placed.
+   This flag has no sense if not configured with CONFIG_CUT_VAL_LEADING_SPACES,
+   since in such case surrounding spaces are never placed for an added value.
  */
 #define SP_F_NVSRSP     0x00000040UL
 
@@ -491,8 +491,17 @@ sp_errc_t sp_get_scope_info(
  */
 #define SP_F_NOADD      0x00002000UL
 
-/* When possible try to avoid semicolons. EOLs are used as parameter value
-   terminators.
+/* While adding a property with value OR changing a property w/o value by
+   adding a value for it, don't use a trailing semicolon but an EOL. That is:
+
+   prop = val
+
+     RATHER THAN
+
+   prop = val;
+
+   This flag has no sense if configured with CONFIG_NO_SEMICOL_ENDS_VAL, since
+   in such case the trailing semicolon is never placed for an added value.
  */
 #define SP_F_NOSEMC     0x00004000UL
 

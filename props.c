@@ -1225,12 +1225,11 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
             if (!(p_bu->flags & SP_F_NOSEMC)) {
                 CHK_FERR(sp_fputc(';', p_bu->out));
             } else {
-                /* use EOL instead of semicolon */
+#endif
+                /* added value need to be finished by EOL */
                 *p_traileol = 1;
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             }
-#else
-            /* added value need to be finished by EOL */
-            *p_traileol = 1;
 #endif
         } else {
             CHK_FERR(sp_fputc(';', p_bu->out));
@@ -1835,12 +1834,11 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
             if (!(p_bu->flags & SP_F_NOSEMC)) {
                 CHK_FERR(sp_fputc(';', p_bu->out));
             } else {
-                /* use EOL instead of semicolon */
+#endif
+                /* added value need to be finished by EOL */
                 EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
             }
-#else
-            /* added value need to be finished by EOL */
-            EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
 #endif
         }
     }

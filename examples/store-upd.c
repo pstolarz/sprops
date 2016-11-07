@@ -30,8 +30,8 @@ int main(void)
         SP_F_SPIND(4) | /* 4 spaces as an indent (instead of default tab) */
         SP_F_NOSEMC;    /* avoid semicolons */
 
-    /* update will be done later via separate stream, therefore the updated
-       config file is opened in reading mode only.
+    /* update will be done later via a separate stream, therefore the updated
+       config file is opened in the reading mode only.
      */
     if (sp_fopen(&in, "store.conf", SP_MODE_READ) != SPEC_SUCCESS) {
         printf("Can't open the confing: %s\n", strerror(errno));
