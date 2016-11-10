@@ -14,20 +14,20 @@ OBJS = \
     props.o \
     trans.o
 
-.PHONY: all clean examples ut_run tags
+.PHONY: all clean examples test tags
 
 all: libsprops.a
 
 clean:
 	$(RM) libsprops.a $(OBJS) $(OBJS:.o=.d) tags
 	$(MAKE) -C./examples clean
-	$(MAKE) -C./ut clean
+	$(MAKE) -C./tests clean
 
 examples:
 	$(MAKE) -C./examples
 
-ut_run:
-	$(MAKE) -C./ut run
+test:
+	$(MAKE) -C./tests
 
 tags:
 	ctags -R --c-kinds=+px --c++-kinds=+px .

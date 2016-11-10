@@ -33,7 +33,7 @@ int main(void)
     SP_FILE in, out;
     int in_opn=0;
 
-    EXEC_RG(sp_fopen(&in, "c04.conf", SP_MODE_READ));
+    EXEC_RG(sp_fopen(&in, "t04.conf", SP_MODE_READ));
     in_opn++;
 
     sp_fopen2(&out, stdout);

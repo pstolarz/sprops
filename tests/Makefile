@@ -1,7 +1,7 @@
 CC = $(CROSS_COMPILE)gcc
 CFLAGS += -Wall -I../inc
 
-.PHONY: all clean run FORCE
+.PHONY: all clean test FORCE
 
 TESTS= \
     t01-get \
@@ -14,7 +14,7 @@ TESTS= \
     t08-scratch \
     t09-trans
 
-all: $(TESTS)
+all: test
 
 clean:
 	$(RM) $(TESTS)
@@ -22,7 +22,7 @@ clean:
 ../libsprops.a: FORCE
 	$(MAKE) -C..
 
-run: all
+test: $(TESTS)
 	@chk_diff() { \
 	  echo -n "$$1: "; \
 	  if [ `./$$1 | diff - ./$$2 | wc -c` -gt 0 ]; \

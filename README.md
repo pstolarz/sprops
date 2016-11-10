@@ -78,9 +78,9 @@ produces static library `libsprops.a` which may be linked into an application.
 
 will compile examples in `./examples`.
 
-Unit tests are contained in `./ut` directory and are launched by
+Unit tests are contained in `./tests` directory and are launched by
 
-    make ut_run
+    make test
 
 There is possible to cross-compile the library by setting `CROSS_COMPILE` (for
 the project `Makefile`) to the tool-chain prefix:
