@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -18,6 +18,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* parsing scope modification variants (CONFIG_TRANS_PARSC_MOD config) */
+#define PARSC_EXTIND    1
+#define PARSC_AS_INPUT  2
 
 /* Temporary stream open/close handlers.
  */

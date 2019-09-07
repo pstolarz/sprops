@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015,2016 Piotr Stolarz
+   Copyright (c) 2015,2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -286,11 +286,13 @@ prop_scope:
         }
     }
   /* scope w/o a body (alternative)
-     NOTE: to avoid ambiguity with no value property, the
+     NOTE 1: valid only if CONFIG_NO_EMPTY_SCOPE_ALT is not defined
+     NOTE 2: to avoid ambiguity with no value property, the
      only way to define untyped scope w/o a body is: SP_TKN_ID '{' '}'
    */
 | SP_TKN_ID SP_TKN_ID ';'
     {
+#ifndef CONFIG_NO_EMPTY_SCOPE_ALT
         $$.beg = $1.beg;
         $$.end = $3.end;
         $$.scope_lev = $1.scope_lev;
@@ -307,6 +309,14 @@ prop_scope:
             __CALL_CB_SCOPE(
                 &ltype, &lname, (sp_loc_t*)NULL, &lbdyenc, &ldef);
         }
+#else
+        /* report a syntax error */
+        p_hndl->err.code = SPEC_SYNTAX;
+        p_hndl->err.syn.code=SPSYN_GRAMMAR;
+        p_hndl->err.syn.loc.line = @3.first_line;
+        p_hndl->err.syn.loc.col = @3.first_column;
+        YYERROR;
+#endif
     }
 ;
 

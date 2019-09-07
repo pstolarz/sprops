@@ -6,128 +6,128 @@ PROP }'"{, val-str "1": NAME len:4 loc:1.11|1.18 [0x0a|0x11], VAL len:1 loc:1.22
 PROP ;"'#, val-str "2": NAME len:4 loc:1.25|1.30 [0x18|0x1d], VAL len:1 loc:1.34|1.34 [0x21|0x21], DEF loc:1.25|1.35 [0x18|0x22]
 SCOPE ': /, type "": NAME len:4 loc:1.36|1.41 [0x23|0x28], TYPE not present, BODY loc 1.44|1.49 [0x2b|0x30], ENC-BODY loc 1.43|1.50 [0x2a|0x31], DEF loc 1.36|1.50 [0x23|0x31]
 SCOPE 1, type "scope": NAME len:1 loc:1.57|1.57 [0x38|0x38], TYPE len:5 loc:1.51|1.55 [0x32|0x36], BODY loc 1.60|1.152 [0x3b|0x97], ENC-BODY loc 1.59|1.153 [0x3a|0x98], DEF loc 1.51|1.153 [0x32|0x98]
-SCOPE 2, type "scope": NAME len:1 loc:1.160|1.160 [0x9f|0x9f], TYPE len:5 loc:1.154|1.158 [0x99|0x9d], BODY loc 1.162|1.184 [0xa1|0xb7], ENC-BODY loc 1.161|1.185 [0xa0|0xb8], DEF loc 1.154|1.185 [0x99|0xb8]
-SCOPE scope, type "": NAME len:5 loc:1.186|1.190 [0xb9|0xbd], TYPE not present, BODY loc 1.193|1.203 [0xc0|0xca], ENC-BODY loc 1.192|1.204 [0xbf|0xcb], DEF loc 1.186|1.204 [0xb9|0xcb]
-SCOPE 1, type "": NAME len:1 loc:1.205|1.205 [0xcc|0xcc], TYPE not present, BODY loc 1.208|1.227 [0xcf|0xe2], ENC-BODY loc 1.206|1.228 [0xcd|0xe3], DEF loc 1.205|1.228 [0xcc|0xe3]
-SCOPE 1, type "": NAME len:1 loc:1.229|1.229 [0xe4|0xe4], TYPE not present, BODY loc 1.231|1.260 [0xe6|0x103], ENC-BODY loc 1.230|1.261 [0xe5|0x104], DEF loc 1.229|1.261 [0xe4|0x104]
-SCOPE 1, type "": NAME len:1 loc:1.262|1.262 [0x105|0x105], TYPE not present, BODY loc 1.265|1.329 [0x108|0x148], ENC-BODY loc 1.263|1.330 [0x106|0x149], DEF loc 1.262|1.330 [0x105|0x149]
-SCOPE 3, type "scope": NAME len:1 loc:1.338|1.338 [0x151|0x151], TYPE len:5 loc:1.332|1.336 [0x14b|0x14f], BODY loc 1.341|1.351 [0x154|0x15e], ENC-BODY loc 1.340|1.352 [0x153|0x15f], DEF loc 1.332|1.352 [0x14b|0x15f]
-SCOPE 3, type "scope": NAME len:1 loc:1.359|1.359 [0x166|0x166], TYPE len:5 loc:1.353|1.357 [0x160|0x164], BODY loc 1.361|1.368 [0x168|0x16f], ENC-BODY loc 1.360|1.369 [0x167|0x170], DEF loc 1.353|1.369 [0x160|0x170]
-PROP c, val-str "": NAME len:1 loc:1.370|1.370 [0x171|0x171], VAL not present, DEF loc:1.370|1.371 [0x171|0x172]
+SCOPE 2, type "scope": NAME len:1 loc:1.160|1.160 [0x9f|0x9f], TYPE len:5 loc:1.154|1.158 [0x99|0x9d], BODY loc 1.162|1.185 [0xa1|0xb8], ENC-BODY loc 1.161|1.186 [0xa0|0xb9], DEF loc 1.154|1.186 [0x99|0xb9]
+SCOPE scope, type "": NAME len:5 loc:1.187|1.191 [0xba|0xbe], TYPE not present, BODY loc 1.194|1.204 [0xc1|0xcb], ENC-BODY loc 1.193|1.205 [0xc0|0xcc], DEF loc 1.187|1.205 [0xba|0xcc]
+SCOPE 1, type "": NAME len:1 loc:1.206|1.206 [0xcd|0xcd], TYPE not present, BODY loc 1.209|1.228 [0xd0|0xe3], ENC-BODY loc 1.207|1.229 [0xce|0xe4], DEF loc 1.206|1.229 [0xcd|0xe4]
+SCOPE 1, type "": NAME len:1 loc:1.230|1.230 [0xe5|0xe5], TYPE not present, BODY loc 1.232|1.261 [0xe7|0x104], ENC-BODY loc 1.231|1.262 [0xe6|0x105], DEF loc 1.230|1.262 [0xe5|0x105]
+SCOPE 1, type "": NAME len:1 loc:1.263|1.263 [0x106|0x106], TYPE not present, BODY loc 1.266|1.330 [0x109|0x149], ENC-BODY loc 1.264|1.331 [0x107|0x14a], DEF loc 1.263|1.331 [0x106|0x14a]
+SCOPE 3, type "scope": NAME len:1 loc:1.339|1.339 [0x152|0x152], TYPE len:5 loc:1.333|1.337 [0x14c|0x150], BODY loc 1.342|1.352 [0x155|0x15f], ENC-BODY loc 1.341|1.353 [0x154|0x160], DEF loc 1.333|1.353 [0x14c|0x160]
+SCOPE 3, type "scope": NAME len:1 loc:1.360|1.360 [0x167|0x167], TYPE len:5 loc:1.354|1.358 [0x161|0x165], BODY loc 1.362|1.369 [0x169|0x170], ENC-BODY loc 1.361|1.370 [0x168|0x171], DEF loc 1.354|1.370 [0x161|0x171]
+PROP c, val-str "": NAME len:1 loc:1.371|1.371 [0x172|0x172], VAL not present, DEF loc:1.371|1.372 [0x172|0x173]
 
 
 --- Iterating scope /:1
-SCOPE 2, type "": NAME len:1 loc:1.208|1.208 [0xcf|0xcf], TYPE not present, BODY loc 1.210|1.226 [0xd1|0xe1], ENC-BODY loc 1.209|1.227 [0xd0|0xe2], DEF loc 1.208|1.227 [0xcf|0xe2]
-SCOPE 2, type "": NAME len:1 loc:1.231|1.231 [0xe6|0xe6], TYPE not present, BODY loc 1.233|1.259 [0xe8|0x102], ENC-BODY loc 1.232|1.260 [0xe7|0x103], DEF loc 1.231|1.260 [0xe6|0x103]
-SCOPE 2, type "": NAME len:1 loc:1.265|1.265 [0x108|0x108], TYPE not present, BODY loc 1.267|1.307 [0x10a|0x132], ENC-BODY loc 1.266|1.308 [0x109|0x133], DEF loc 1.265|1.308 [0x108|0x133]
-SCOPE 2, type "": NAME len:1 loc:1.310|1.310 [0x135|0x135], TYPE not present, BODY loc 1.313|1.328 [0x138|0x147], ENC-BODY loc 1.312|1.329 [0x137|0x148], DEF loc 1.310|1.329 [0x135|0x148]
+SCOPE 2, type "": NAME len:1 loc:1.209|1.209 [0xd0|0xd0], TYPE not present, BODY loc 1.211|1.227 [0xd2|0xe2], ENC-BODY loc 1.210|1.228 [0xd1|0xe3], DEF loc 1.209|1.228 [0xd0|0xe3]
+SCOPE 2, type "": NAME len:1 loc:1.232|1.232 [0xe7|0xe7], TYPE not present, BODY loc 1.234|1.260 [0xe9|0x103], ENC-BODY loc 1.233|1.261 [0xe8|0x104], DEF loc 1.232|1.261 [0xe7|0x104]
+SCOPE 2, type "": NAME len:1 loc:1.266|1.266 [0x109|0x109], TYPE not present, BODY loc 1.268|1.308 [0x10b|0x133], ENC-BODY loc 1.267|1.309 [0x10a|0x134], DEF loc 1.266|1.309 [0x109|0x134]
+SCOPE 2, type "": NAME len:1 loc:1.311|1.311 [0x136|0x136], TYPE not present, BODY loc 1.314|1.329 [0x139|0x148], ENC-BODY loc 1.313|1.330 [0x138|0x149], DEF loc 1.311|1.330 [0x136|0x149]
 
 --- Iterating scope /:1@0
-SCOPE 2, type "": NAME len:1 loc:1.208|1.208 [0xcf|0xcf], TYPE not present, BODY loc 1.210|1.226 [0xd1|0xe1], ENC-BODY loc 1.209|1.227 [0xd0|0xe2], DEF loc 1.208|1.227 [0xcf|0xe2]
+SCOPE 2, type "": NAME len:1 loc:1.209|1.209 [0xd0|0xd0], TYPE not present, BODY loc 1.211|1.227 [0xd2|0xe2], ENC-BODY loc 1.210|1.228 [0xd1|0xe3], DEF loc 1.209|1.228 [0xd0|0xe3]
 
 --- Iterating scope /:1@1
-SCOPE 2, type "": NAME len:1 loc:1.231|1.231 [0xe6|0xe6], TYPE not present, BODY loc 1.233|1.259 [0xe8|0x102], ENC-BODY loc 1.232|1.260 [0xe7|0x103], DEF loc 1.231|1.260 [0xe6|0x103]
+SCOPE 2, type "": NAME len:1 loc:1.232|1.232 [0xe7|0xe7], TYPE not present, BODY loc 1.234|1.260 [0xe9|0x103], ENC-BODY loc 1.233|1.261 [0xe8|0x104], DEF loc 1.232|1.261 [0xe7|0x104]
 
 --- Iterating scope /:1@2
-SCOPE 2, type "": NAME len:1 loc:1.265|1.265 [0x108|0x108], TYPE not present, BODY loc 1.267|1.307 [0x10a|0x132], ENC-BODY loc 1.266|1.308 [0x109|0x133], DEF loc 1.265|1.308 [0x108|0x133]
-SCOPE 2, type "": NAME len:1 loc:1.310|1.310 [0x135|0x135], TYPE not present, BODY loc 1.313|1.328 [0x138|0x147], ENC-BODY loc 1.312|1.329 [0x137|0x148], DEF loc 1.310|1.329 [0x135|0x148]
+SCOPE 2, type "": NAME len:1 loc:1.266|1.266 [0x109|0x109], TYPE not present, BODY loc 1.268|1.308 [0x10b|0x133], ENC-BODY loc 1.267|1.309 [0x10a|0x134], DEF loc 1.266|1.309 [0x109|0x134]
+SCOPE 2, type "": NAME len:1 loc:1.311|1.311 [0x136|0x136], TYPE not present, BODY loc 1.314|1.329 [0x139|0x148], ENC-BODY loc 1.313|1.330 [0x138|0x149], DEF loc 1.311|1.330 [0x136|0x149]
 
 --- Iterating scope /:1@$
-SCOPE 2, type "": NAME len:1 loc:1.265|1.265 [0x108|0x108], TYPE not present, BODY loc 1.267|1.307 [0x10a|0x132], ENC-BODY loc 1.266|1.308 [0x109|0x133], DEF loc 1.265|1.308 [0x108|0x133]
-SCOPE 2, type "": NAME len:1 loc:1.310|1.310 [0x135|0x135], TYPE not present, BODY loc 1.313|1.328 [0x138|0x147], ENC-BODY loc 1.312|1.329 [0x137|0x148], DEF loc 1.310|1.329 [0x135|0x148]
+SCOPE 2, type "": NAME len:1 loc:1.266|1.266 [0x109|0x109], TYPE not present, BODY loc 1.268|1.308 [0x10b|0x133], ENC-BODY loc 1.267|1.309 [0x10a|0x134], DEF loc 1.266|1.309 [0x109|0x134]
+SCOPE 2, type "": NAME len:1 loc:1.311|1.311 [0x136|0x136], TYPE not present, BODY loc 1.314|1.329 [0x139|0x148], ENC-BODY loc 1.313|1.330 [0x138|0x149], DEF loc 1.311|1.330 [0x136|0x149]
 
 
 --- Iterating scope /:1/:2
-SCOPE 3, type "": NAME len:1 loc:1.210|1.210 [0xd1|0xd1], TYPE not present, BODY loc 1.212|1.225 [0xd3|0xe0], ENC-BODY loc 1.211|1.226 [0xd2|0xe1], DEF loc 1.210|1.226 [0xd1|0xe1]
-SCOPE 3, type "": NAME len:1 loc:1.233|1.233 [0xe8|0xe8], TYPE not present, BODY loc 1.235|1.258 [0xea|0x101], ENC-BODY loc 1.234|1.259 [0xe9|0x102], DEF loc 1.233|1.259 [0xe8|0x102]
-SCOPE 3, type "": NAME len:1 loc:1.267|1.267 [0x10a|0x10a], TYPE not present, BODY loc 1.269|1.297 [0x10c|0x128], ENC-BODY loc 1.268|1.298 [0x10b|0x129], DEF loc 1.267|1.298 [0x10a|0x129]
-SCOPE 3, type "": NAME len:1 loc:1.300|1.300 [0x12b|0x12b], TYPE not present, BODY loc 1.303|1.306 [0x12e|0x131], ENC-BODY loc 1.302|1.307 [0x12d|0x132], DEF loc 1.300|1.307 [0x12b|0x132]
-SCOPE 3, type "": NAME len:1 loc:1.313|1.313 [0x138|0x138], TYPE not present, BODY loc 1.316|1.319 [0x13b|0x13e], ENC-BODY loc 1.315|1.320 [0x13a|0x13f], DEF loc 1.313|1.320 [0x138|0x13f]
-SCOPE 3, type "": NAME len:1 loc:1.322|1.322 [0x141|0x141], TYPE not present, BODY loc 1.324|1.327 [0x143|0x146], ENC-BODY loc 1.323|1.328 [0x142|0x147], DEF loc 1.322|1.328 [0x141|0x147]
+SCOPE 3, type "": NAME len:1 loc:1.211|1.211 [0xd2|0xd2], TYPE not present, BODY loc 1.213|1.226 [0xd4|0xe1], ENC-BODY loc 1.212|1.227 [0xd3|0xe2], DEF loc 1.211|1.227 [0xd2|0xe2]
+SCOPE 3, type "": NAME len:1 loc:1.234|1.234 [0xe9|0xe9], TYPE not present, BODY loc 1.236|1.259 [0xeb|0x102], ENC-BODY loc 1.235|1.260 [0xea|0x103], DEF loc 1.234|1.260 [0xe9|0x103]
+SCOPE 3, type "": NAME len:1 loc:1.268|1.268 [0x10b|0x10b], TYPE not present, BODY loc 1.270|1.298 [0x10d|0x129], ENC-BODY loc 1.269|1.299 [0x10c|0x12a], DEF loc 1.268|1.299 [0x10b|0x12a]
+SCOPE 3, type "": NAME len:1 loc:1.301|1.301 [0x12c|0x12c], TYPE not present, BODY loc 1.304|1.307 [0x12f|0x132], ENC-BODY loc 1.303|1.308 [0x12e|0x133], DEF loc 1.301|1.308 [0x12c|0x133]
+SCOPE 3, type "": NAME len:1 loc:1.314|1.314 [0x139|0x139], TYPE not present, BODY loc 1.317|1.320 [0x13c|0x13f], ENC-BODY loc 1.316|1.321 [0x13b|0x140], DEF loc 1.314|1.321 [0x139|0x140]
+SCOPE 3, type "": NAME len:1 loc:1.323|1.323 [0x142|0x142], TYPE not present, BODY loc 1.325|1.328 [0x144|0x147], ENC-BODY loc 1.324|1.329 [0x143|0x148], DEF loc 1.323|1.329 [0x142|0x148]
 
 --- Iterating scope /:1/:2@0
-SCOPE 3, type "": NAME len:1 loc:1.210|1.210 [0xd1|0xd1], TYPE not present, BODY loc 1.212|1.225 [0xd3|0xe0], ENC-BODY loc 1.211|1.226 [0xd2|0xe1], DEF loc 1.210|1.226 [0xd1|0xe1]
+SCOPE 3, type "": NAME len:1 loc:1.211|1.211 [0xd2|0xd2], TYPE not present, BODY loc 1.213|1.226 [0xd4|0xe1], ENC-BODY loc 1.212|1.227 [0xd3|0xe2], DEF loc 1.211|1.227 [0xd2|0xe2]
 
 --- Iterating scope /:1/:2@1
-SCOPE 3, type "": NAME len:1 loc:1.233|1.233 [0xe8|0xe8], TYPE not present, BODY loc 1.235|1.258 [0xea|0x101], ENC-BODY loc 1.234|1.259 [0xe9|0x102], DEF loc 1.233|1.259 [0xe8|0x102]
+SCOPE 3, type "": NAME len:1 loc:1.234|1.234 [0xe9|0xe9], TYPE not present, BODY loc 1.236|1.259 [0xeb|0x102], ENC-BODY loc 1.235|1.260 [0xea|0x103], DEF loc 1.234|1.260 [0xe9|0x103]
 
 --- Iterating scope /:1/:2@2
-SCOPE 3, type "": NAME len:1 loc:1.267|1.267 [0x10a|0x10a], TYPE not present, BODY loc 1.269|1.297 [0x10c|0x128], ENC-BODY loc 1.268|1.298 [0x10b|0x129], DEF loc 1.267|1.298 [0x10a|0x129]
-SCOPE 3, type "": NAME len:1 loc:1.300|1.300 [0x12b|0x12b], TYPE not present, BODY loc 1.303|1.306 [0x12e|0x131], ENC-BODY loc 1.302|1.307 [0x12d|0x132], DEF loc 1.300|1.307 [0x12b|0x132]
+SCOPE 3, type "": NAME len:1 loc:1.268|1.268 [0x10b|0x10b], TYPE not present, BODY loc 1.270|1.298 [0x10d|0x129], ENC-BODY loc 1.269|1.299 [0x10c|0x12a], DEF loc 1.268|1.299 [0x10b|0x12a]
+SCOPE 3, type "": NAME len:1 loc:1.301|1.301 [0x12c|0x12c], TYPE not present, BODY loc 1.304|1.307 [0x12f|0x132], ENC-BODY loc 1.303|1.308 [0x12e|0x133], DEF loc 1.301|1.308 [0x12c|0x133]
 
 --- Iterating scope /:1/:2@3
-SCOPE 3, type "": NAME len:1 loc:1.313|1.313 [0x138|0x138], TYPE not present, BODY loc 1.316|1.319 [0x13b|0x13e], ENC-BODY loc 1.315|1.320 [0x13a|0x13f], DEF loc 1.313|1.320 [0x138|0x13f]
-SCOPE 3, type "": NAME len:1 loc:1.322|1.322 [0x141|0x141], TYPE not present, BODY loc 1.324|1.327 [0x143|0x146], ENC-BODY loc 1.323|1.328 [0x142|0x147], DEF loc 1.322|1.328 [0x141|0x147]
+SCOPE 3, type "": NAME len:1 loc:1.314|1.314 [0x139|0x139], TYPE not present, BODY loc 1.317|1.320 [0x13c|0x13f], ENC-BODY loc 1.316|1.321 [0x13b|0x140], DEF loc 1.314|1.321 [0x139|0x140]
+SCOPE 3, type "": NAME len:1 loc:1.323|1.323 [0x142|0x142], TYPE not present, BODY loc 1.325|1.328 [0x144|0x147], ENC-BODY loc 1.324|1.329 [0x143|0x148], DEF loc 1.323|1.329 [0x142|0x148]
 
 --- Iterating scope /:1/:2@$
-SCOPE 3, type "": NAME len:1 loc:1.313|1.313 [0x138|0x138], TYPE not present, BODY loc 1.316|1.319 [0x13b|0x13e], ENC-BODY loc 1.315|1.320 [0x13a|0x13f], DEF loc 1.313|1.320 [0x138|0x13f]
-SCOPE 3, type "": NAME len:1 loc:1.322|1.322 [0x141|0x141], TYPE not present, BODY loc 1.324|1.327 [0x143|0x146], ENC-BODY loc 1.323|1.328 [0x142|0x147], DEF loc 1.322|1.328 [0x141|0x147]
+SCOPE 3, type "": NAME len:1 loc:1.314|1.314 [0x139|0x139], TYPE not present, BODY loc 1.317|1.320 [0x13c|0x13f], ENC-BODY loc 1.316|1.321 [0x13b|0x140], DEF loc 1.314|1.321 [0x139|0x140]
+SCOPE 3, type "": NAME len:1 loc:1.323|1.323 [0x142|0x142], TYPE not present, BODY loc 1.325|1.328 [0x144|0x147], ENC-BODY loc 1.324|1.329 [0x143|0x148], DEF loc 1.323|1.329 [0x142|0x148]
 
 
 --- Iterating scope /:1/:2/:3
 PROP a, val-str "	a	b	c
-": NAME len:1 loc:1.212|1.212 [0xd3|0xd3], VAL len:7 loc:1.214|1.224 [0xd5|0xdf], DEF loc:1.212|1.225 [0xd3|0xe0]
-PROP b, val-str ""123\;\n": NAME len:1 loc:1.235|1.235 [0xea|0xea], VAL len:8 loc:1.237|1.257 [0xec|0x100], DEF loc:1.235|1.258 [0xea|0x101]
-PROP c, val-str "true": NAME len:1 loc:1.269|1.269 [0x10c|0x10c], VAL len:4 loc:1.271|1.274 [0x10e|0x111], DEF loc:1.269|1.276 [0x10c|0x113]
-PROP d, val-str "a b \": NAME len:1 loc:1.277|1.277 [0x114|0x114], VAL len:5 loc:1.280|1.285 [0x117|0x11c], DEF loc:1.277|1.286 [0x114|0x11d]
-SCOPE xyz, type "scope": NAME len:3 loc:1.293|1.295 [0x124|0x126], TYPE len:5 loc:1.287|1.291 [0x11e|0x122], BODY empty, ENC-BODY loc 1.296|1.297 [0x127|0x128], DEF loc 1.287|1.297 [0x11e|0x128]
-PROP e, val-str "x": NAME len:1 loc:1.303|1.303 [0x12e|0x12e], VAL len:1 loc:1.305|1.305 [0x130|0x130], DEF loc:1.303|1.306 [0x12e|0x131]
-PROP f, val-str "y": NAME len:1 loc:1.316|1.316 [0x13b|0x13b], VAL len:1 loc:1.318|1.318 [0x13d|0x13d], DEF loc:1.316|1.319 [0x13b|0x13e]
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+": NAME len:1 loc:1.213|1.213 [0xd4|0xd4], VAL len:7 loc:1.215|1.225 [0xd6|0xe0], DEF loc:1.213|1.226 [0xd4|0xe1]
+PROP b, val-str ""123\;\n": NAME len:1 loc:1.236|1.236 [0xeb|0xeb], VAL len:8 loc:1.238|1.258 [0xed|0x101], DEF loc:1.236|1.259 [0xeb|0x102]
+PROP c, val-str "true": NAME len:1 loc:1.270|1.270 [0x10d|0x10d], VAL len:4 loc:1.272|1.275 [0x10f|0x112], DEF loc:1.270|1.277 [0x10d|0x114]
+PROP d, val-str "a b \": NAME len:1 loc:1.278|1.278 [0x115|0x115], VAL len:5 loc:1.281|1.286 [0x118|0x11d], DEF loc:1.278|1.287 [0x115|0x11e]
+SCOPE xyz, type "scope": NAME len:3 loc:1.294|1.296 [0x125|0x127], TYPE len:5 loc:1.288|1.292 [0x11f|0x123], BODY empty, ENC-BODY loc 1.297|1.298 [0x128|0x129], DEF loc 1.288|1.298 [0x11f|0x129]
+PROP e, val-str "x": NAME len:1 loc:1.304|1.304 [0x12f|0x12f], VAL len:1 loc:1.306|1.306 [0x131|0x131], DEF loc:1.304|1.307 [0x12f|0x132]
+PROP f, val-str "y": NAME len:1 loc:1.317|1.317 [0x13c|0x13c], VAL len:1 loc:1.319|1.319 [0x13e|0x13e], DEF loc:1.317|1.320 [0x13c|0x13f]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 --- Iterating scope /:1/:2/:3@0
 PROP a, val-str "	a	b	c
-": NAME len:1 loc:1.212|1.212 [0xd3|0xd3], VAL len:7 loc:1.214|1.224 [0xd5|0xdf], DEF loc:1.212|1.225 [0xd3|0xe0]
+": NAME len:1 loc:1.213|1.213 [0xd4|0xd4], VAL len:7 loc:1.215|1.225 [0xd6|0xe0], DEF loc:1.213|1.226 [0xd4|0xe1]
 
 --- Iterating scope /:1/:2/:3@1
-PROP b, val-str ""123\;\n": NAME len:1 loc:1.235|1.235 [0xea|0xea], VAL len:8 loc:1.237|1.257 [0xec|0x100], DEF loc:1.235|1.258 [0xea|0x101]
+PROP b, val-str ""123\;\n": NAME len:1 loc:1.236|1.236 [0xeb|0xeb], VAL len:8 loc:1.238|1.258 [0xed|0x101], DEF loc:1.236|1.259 [0xeb|0x102]
 
 --- Iterating scope /:1/:2/:3@2
-PROP c, val-str "true": NAME len:1 loc:1.269|1.269 [0x10c|0x10c], VAL len:4 loc:1.271|1.274 [0x10e|0x111], DEF loc:1.269|1.276 [0x10c|0x113]
-PROP d, val-str "a b \": NAME len:1 loc:1.277|1.277 [0x114|0x114], VAL len:5 loc:1.280|1.285 [0x117|0x11c], DEF loc:1.277|1.286 [0x114|0x11d]
-SCOPE xyz, type "scope": NAME len:3 loc:1.293|1.295 [0x124|0x126], TYPE len:5 loc:1.287|1.291 [0x11e|0x122], BODY empty, ENC-BODY loc 1.296|1.297 [0x127|0x128], DEF loc 1.287|1.297 [0x11e|0x128]
+PROP c, val-str "true": NAME len:1 loc:1.270|1.270 [0x10d|0x10d], VAL len:4 loc:1.272|1.275 [0x10f|0x112], DEF loc:1.270|1.277 [0x10d|0x114]
+PROP d, val-str "a b \": NAME len:1 loc:1.278|1.278 [0x115|0x115], VAL len:5 loc:1.281|1.286 [0x118|0x11d], DEF loc:1.278|1.287 [0x115|0x11e]
+SCOPE xyz, type "scope": NAME len:3 loc:1.294|1.296 [0x125|0x127], TYPE len:5 loc:1.288|1.292 [0x11f|0x123], BODY empty, ENC-BODY loc 1.297|1.298 [0x128|0x129], DEF loc 1.288|1.298 [0x11f|0x129]
 
 --- Iterating scope /:1/:2/:3@3
-PROP e, val-str "x": NAME len:1 loc:1.303|1.303 [0x12e|0x12e], VAL len:1 loc:1.305|1.305 [0x130|0x130], DEF loc:1.303|1.306 [0x12e|0x131]
+PROP e, val-str "x": NAME len:1 loc:1.304|1.304 [0x12f|0x12f], VAL len:1 loc:1.306|1.306 [0x131|0x131], DEF loc:1.304|1.307 [0x12f|0x132]
 
 --- Iterating scope /:1/:2/:3@4
-PROP f, val-str "y": NAME len:1 loc:1.316|1.316 [0x13b|0x13b], VAL len:1 loc:1.318|1.318 [0x13d|0x13d], DEF loc:1.316|1.319 [0x13b|0x13e]
+PROP f, val-str "y": NAME len:1 loc:1.317|1.317 [0x13c|0x13c], VAL len:1 loc:1.319|1.319 [0x13e|0x13e], DEF loc:1.317|1.320 [0x13c|0x13f]
 
 --- Iterating scope /:1/:2/:3@5
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 --- Iterating scope /:1/:2/:3@$
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 
 --- Iterating scope /:1@2/:2/:3
-PROP c, val-str "true": NAME len:1 loc:1.269|1.269 [0x10c|0x10c], VAL len:4 loc:1.271|1.274 [0x10e|0x111], DEF loc:1.269|1.276 [0x10c|0x113]
-PROP d, val-str "a b \": NAME len:1 loc:1.277|1.277 [0x114|0x114], VAL len:5 loc:1.280|1.285 [0x117|0x11c], DEF loc:1.277|1.286 [0x114|0x11d]
-SCOPE xyz, type "scope": NAME len:3 loc:1.293|1.295 [0x124|0x126], TYPE len:5 loc:1.287|1.291 [0x11e|0x122], BODY empty, ENC-BODY loc 1.296|1.297 [0x127|0x128], DEF loc 1.287|1.297 [0x11e|0x128]
-PROP e, val-str "x": NAME len:1 loc:1.303|1.303 [0x12e|0x12e], VAL len:1 loc:1.305|1.305 [0x130|0x130], DEF loc:1.303|1.306 [0x12e|0x131]
-PROP f, val-str "y": NAME len:1 loc:1.316|1.316 [0x13b|0x13b], VAL len:1 loc:1.318|1.318 [0x13d|0x13d], DEF loc:1.316|1.319 [0x13b|0x13e]
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP c, val-str "true": NAME len:1 loc:1.270|1.270 [0x10d|0x10d], VAL len:4 loc:1.272|1.275 [0x10f|0x112], DEF loc:1.270|1.277 [0x10d|0x114]
+PROP d, val-str "a b \": NAME len:1 loc:1.278|1.278 [0x115|0x115], VAL len:5 loc:1.281|1.286 [0x118|0x11d], DEF loc:1.278|1.287 [0x115|0x11e]
+SCOPE xyz, type "scope": NAME len:3 loc:1.294|1.296 [0x125|0x127], TYPE len:5 loc:1.288|1.292 [0x11f|0x123], BODY empty, ENC-BODY loc 1.297|1.298 [0x128|0x129], DEF loc 1.288|1.298 [0x11f|0x129]
+PROP e, val-str "x": NAME len:1 loc:1.304|1.304 [0x12f|0x12f], VAL len:1 loc:1.306|1.306 [0x131|0x131], DEF loc:1.304|1.307 [0x12f|0x132]
+PROP f, val-str "y": NAME len:1 loc:1.317|1.317 [0x13c|0x13c], VAL len:1 loc:1.319|1.319 [0x13e|0x13e], DEF loc:1.317|1.320 [0x13c|0x13f]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 --- Iterating scope /:1@2/:2@0/:3
-PROP c, val-str "true": NAME len:1 loc:1.269|1.269 [0x10c|0x10c], VAL len:4 loc:1.271|1.274 [0x10e|0x111], DEF loc:1.269|1.276 [0x10c|0x113]
-PROP d, val-str "a b \": NAME len:1 loc:1.277|1.277 [0x114|0x114], VAL len:5 loc:1.280|1.285 [0x117|0x11c], DEF loc:1.277|1.286 [0x114|0x11d]
-SCOPE xyz, type "scope": NAME len:3 loc:1.293|1.295 [0x124|0x126], TYPE len:5 loc:1.287|1.291 [0x11e|0x122], BODY empty, ENC-BODY loc 1.296|1.297 [0x127|0x128], DEF loc 1.287|1.297 [0x11e|0x128]
-PROP e, val-str "x": NAME len:1 loc:1.303|1.303 [0x12e|0x12e], VAL len:1 loc:1.305|1.305 [0x130|0x130], DEF loc:1.303|1.306 [0x12e|0x131]
+PROP c, val-str "true": NAME len:1 loc:1.270|1.270 [0x10d|0x10d], VAL len:4 loc:1.272|1.275 [0x10f|0x112], DEF loc:1.270|1.277 [0x10d|0x114]
+PROP d, val-str "a b \": NAME len:1 loc:1.278|1.278 [0x115|0x115], VAL len:5 loc:1.281|1.286 [0x118|0x11d], DEF loc:1.278|1.287 [0x115|0x11e]
+SCOPE xyz, type "scope": NAME len:3 loc:1.294|1.296 [0x125|0x127], TYPE len:5 loc:1.288|1.292 [0x11f|0x123], BODY empty, ENC-BODY loc 1.297|1.298 [0x128|0x129], DEF loc 1.288|1.298 [0x11f|0x129]
+PROP e, val-str "x": NAME len:1 loc:1.304|1.304 [0x12f|0x12f], VAL len:1 loc:1.306|1.306 [0x131|0x131], DEF loc:1.304|1.307 [0x12f|0x132]
 
 --- Iterating scope /:1@2/:2@1/:3
-PROP f, val-str "y": NAME len:1 loc:1.316|1.316 [0x13b|0x13b], VAL len:1 loc:1.318|1.318 [0x13d|0x13d], DEF loc:1.316|1.319 [0x13b|0x13e]
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP f, val-str "y": NAME len:1 loc:1.317|1.317 [0x13c|0x13c], VAL len:1 loc:1.319|1.319 [0x13e|0x13e], DEF loc:1.317|1.320 [0x13c|0x13f]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 
 --- Iterating scope /:1@$/:2@$/:3
-PROP f, val-str "y": NAME len:1 loc:1.316|1.316 [0x13b|0x13b], VAL len:1 loc:1.318|1.318 [0x13d|0x13d], DEF loc:1.316|1.319 [0x13b|0x13e]
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP f, val-str "y": NAME len:1 loc:1.317|1.317 [0x13c|0x13c], VAL len:1 loc:1.319|1.319 [0x13e|0x13e], DEF loc:1.317|1.320 [0x13c|0x13f]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 --- Iterating scope /:1@$/:2@$/:3@0
-PROP f, val-str "y": NAME len:1 loc:1.316|1.316 [0x13b|0x13b], VAL len:1 loc:1.318|1.318 [0x13d|0x13d], DEF loc:1.316|1.319 [0x13b|0x13e]
+PROP f, val-str "y": NAME len:1 loc:1.317|1.317 [0x13c|0x13c], VAL len:1 loc:1.319|1.319 [0x13e|0x13e], DEF loc:1.317|1.320 [0x13c|0x13f]
 
 --- Iterating scope /:1@$/:2@$/:3@1
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]
 
 --- Iterating scope /:1@$/:2@$/:3@$
-PROP g, val-str "z": NAME len:1 loc:1.324|1.324 [0x143|0x143], VAL len:1 loc:1.326|1.326 [0x145|0x145], DEF loc:1.324|1.327 [0x143|0x146]
+PROP g, val-str "z": NAME len:1 loc:1.325|1.325 [0x144|0x144], VAL len:1 loc:1.327|1.327 [0x146|0x146], DEF loc:1.325|1.328 [0x144|0x147]

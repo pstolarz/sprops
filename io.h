@@ -12,7 +12,7 @@
 
 /* Content of this header is not a part of the library API interface.
    It rather defines internal use (private) I/O interface for stream handling.
-   Public part of this interface is defined in the public 'props.h' header.
+   Public part of this interface is defined in the public props.h header.
  */
 
 #ifndef __SP_IO_H__

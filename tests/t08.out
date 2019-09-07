@@ -7,11 +7,11 @@ TYPE SCOPE1 {
 }
 
 TYPE SCOPE2 {
-    TYPE SCOPE1;
+    TYPE SCOPE1 {}
     TYPE SCOPE2
     {
         PROP1 = VAL;
     }
 }
 
-TYPE SCOPE3;
+TYPE SCOPE3 {}

@@ -1,10 +1,10 @@
 --- Move prop 1 -> PROP, own-scope: /, elm:0
 PROP=x; 2=x;
-scope 3;
+scope 3 {}
 scope 3 {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -14,11 +14,11 @@ scope 3 {
 
 --- Move prop 1 -> PROP, own-scope: /, elm:LAST
 1=x; 2=x;
-scope 3;
+scope 3 {}
 scope 3 {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -28,11 +28,11 @@ PROP;
 
 --- Move prop 1 -> PROP, own-scope: /scope:3, elm:ALL
 1=x; 2=x;
-scope 3;
+scope 3 {}
 scope 3 {
     PROP = x;
     PROP;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -42,11 +42,11 @@ scope 3 {
 
 --- Move prop 1 -> PROP, own-scope: /:4, elm:ALL
 1=x; 2=x;
-scope 3;
+scope 3 {}
 scope 3 {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -60,7 +60,7 @@ NAME {}
 scope 3 {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -70,11 +70,11 @@ scope 3 {
 
 --- Move scope /scope:3 -> /:NAME, own-scope: /, elm:LAST
 1=x; 2=x;
-scope 3;
+scope 3 {}
 NAME {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -88,7 +88,7 @@ NAME {}
 NAME {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -98,11 +98,11 @@ NAME {
 
 --- Move scope /scope:3 -> /TYPE:NAME, own-scope: /, elm:ALL
 1=x; 2=x;
-TYPE NAME;
+TYPE NAME {}
 TYPE NAME {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 4 {
@@ -112,11 +112,11 @@ TYPE NAME {
 
 --- Move scope /:4 -> /TYPE:NAME, own-scope: /, elm:0
 1=x; 2=x;
-scope 3;
+scope 3 {}
 scope 3 {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 TYPE NAME {
@@ -126,11 +126,11 @@ TYPE NAME {
 
 --- Move scope /:4 -> /:NAME, own-scope: /, elm:LAST
 1=x; 2=x;
-scope 3;
+scope 3 {}
 scope 3 {
     1 = x;
     1;
-    scope 2;
+    scope 2 {}
     3 {}
 }
 NAME {
@@ -141,7 +141,7 @@ NAME {
 --- Move prop 1 -> PROP, parsing scope /scope:3, elm:ALL
 PROP = x;
     PROP;
-    scope 2;
+    scope 2 {}
     3 {}
 --- Move scope /scope:2 -> /:NAME, own-scope: /scope:3, elm:0
 1 = x;
@@ -151,5 +151,5 @@ PROP = x;
 --- Move scope /:3 -> /TYPE:NAME, own-scope: /scope:3, elm:ALL
 1 = x;
     1;
-    scope 2;
+    scope 2 {}
     TYPE NAME {}

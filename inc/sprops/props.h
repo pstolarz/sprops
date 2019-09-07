@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015,2016 Piotr Stolarz
+   Copyright (c) 2015,2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -418,7 +418,7 @@ sp_errc_t sp_get_scope_info(
    scope
    {}
 
-    OR
+    OR (if CONFIG_NO_EMPTY_SCOPE_ALT is not defined)
 
    type scope;
 

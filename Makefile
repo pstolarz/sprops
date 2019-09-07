@@ -19,7 +19,7 @@ OBJS = \
 all: libsprops.a
 
 clean:
-	$(RM) libsprops.a $(OBJS) $(OBJS:.o=.d) tags
+	$(RM) libsprops.a $(OBJS) $(OBJS:.o=.d)
 	$(MAKE) -C./examples clean
 	$(MAKE) -C./tests clean
 
