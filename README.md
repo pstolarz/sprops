@@ -173,7 +173,7 @@ Basing on the previous example:
 
     2nd scope in split /scope_type:scope_name
         -> "/scope_type:scope_name/type:name"
-            which as a scope with an empty body
+            which is a scope with an empty body
 
 API specification
 -----------------

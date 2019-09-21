@@ -140,7 +140,7 @@ typedef struct _SP_FILE
 #define SP_MODE_WRITE_NEW   "wb+"
 
 /* Open a file with 'filename' and fopen(3) 'mode'. Populate SP_FILE handle
-   pointed by 'f' appropriately. The handle may be closed by sp_fclose().
+   pointed by 'f' appropriately. The handle shall be closed by sp_close().
    In case of error SPEC_FOPEN_ERR is returned and 'errno' may be checked
    against the problem root cause.
 
@@ -151,7 +151,7 @@ typedef struct _SP_FILE
 sp_errc_t sp_fopen(SP_FILE *f, const char *filename, const char *mode);
 
 /* Use already opened ANSI C stream (with a handle 'cf') to populate SP_FILE
-   handle pointed by 'f'. The handle may be closed by sp_fclose().
+   handle pointed by 'f'. The handle shall be closed by sp_close().
    Always success if valid arguments are passed.
 
    NOTE: The file corresponding to 'cf' must be opened in the binary mode with
@@ -160,8 +160,10 @@ sp_errc_t sp_fopen(SP_FILE *f, const char *filename, const char *mode);
 sp_errc_t sp_fopen2(SP_FILE *f, FILE *cf);
 
 /* Open SP_FILE memory stream handle with a buffer 'buf' and available number
-   of chars 'num'. Always success if valid arguments are passed. The opened
-   handle need not to be closed.
+   of chars 'num'. Always success if valid arguments are passed. Since the
+   routine doesn't acquire any resources the handle need not to be closed by
+   sp_close() (although if the handle has been closed it must not be used
+   anymore).
 
    NOTE 1: While reading, the memory stream is constrained by the 'num' argument
    or a NULL termination char in the buffer (which first occurs). For writing,
@@ -172,12 +174,17 @@ sp_errc_t sp_fopen2(SP_FILE *f, FILE *cf);
  */
 sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num);
 
-/* If SP_FILE was opened as an ANSI C stream (by sp_fopen() or sp_fopen2()),
-   this function merely calls fclose(3) to close it. In case of other stream
-   type SPEC_INV_ARG is returned. If fclose(3) fails SPEC_ACCS_ERR is returned
-   and 'errno' may be checked against the problem root cause.
+/* Close opened SP_FILE handle.
+   If SP_FILE was opened as an ANSI C stream (by sp_fopen() or sp_fopen2()),
+   this function merely calls fclose(3) to close it. If fclose(3) fails
+   SPEC_ACCS_ERR is returned and 'errno' may be checked against the problem
+   root cause.
+   In case of memory stream, the function removes a references to the memory
+   buffer in the handle being closed, therefore the handle must not be used
+   anymore. Note, since sp_mopen() doesn't acquire any resources, sp_close()
+   need not to be called for memory stream SP_FILE. 
  */
-sp_errc_t sp_fclose(SP_FILE *f);
+sp_errc_t sp_close(SP_FILE *f);
 
 /* Check syntax of a properties set read from an input 'in' with a given parsing
    scope 'p_parsc'. In case of the syntax error (SPEC_SYNTAX) 'p_synerr' is

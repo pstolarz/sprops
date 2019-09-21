@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -122,7 +122,7 @@ static sp_errc_t th_open(void *arg, SP_FILE *f) {
     return (cf ? sp_fopen2(f, cf) : SPEC_FOPEN_ERR);
 }
 static void th_close(void *arg, SP_FILE *f) {
-    sp_fclose(f);
+    sp_close(f);
 }
 
 /* exported; see header for details */

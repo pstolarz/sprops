@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -100,6 +100,6 @@ int main(void)
 
     printf("\nVoltage in USA: %d\n", (int)volt);
 
-    sp_fclose(&in);
+    sp_close(&in);
     return 0;
 }

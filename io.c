@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -46,16 +46,24 @@ sp_errc_t sp_mopen(SP_FILE *f, char *buf, size_t num)
 }
 
 /* exported; see props.h header for details */
-sp_errc_t sp_fclose(SP_FILE *f)
+sp_errc_t sp_close(SP_FILE *f)
 {
-    if (!f || f->typ!=SP_FILE_C  || !f->f) return SPEC_INV_ARG;
+    if (!f)
+       return SPEC_INV_ARG;
 
-    if (!fclose(f->f)) {
-        f->f = NULL;
-        return SPEC_SUCCESS;
+    if (f->typ==SP_FILE_C) {
+        if (f->f) {
+            if (fclose(f->f)) {
+                return SPEC_ACCS_ERR;
+            }
+            f->f = NULL;
+        }
     } else {
-        return SPEC_ACCS_ERR;
+        f->m.b = NULL;
+        f->m.num = 0;
+        f->m.i = 0;
     }
+    return SPEC_SUCCESS;
 }
 
 /* fgetc(3) analogous

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015,2016 Piotr Stolarz
+   Copyright (c) 2015,2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -191,7 +191,7 @@ int main(void)
     /* copy test's conf. file content into the memory stream (in_buf) */
     sp_mopen(&in, in_buf, sizeof(in_buf));
     ret = sp_util_cpy_to_out(&in_f, &in, 0, EOF, &in_len);
-    sp_fclose(&in_f);
+    sp_close(&in_f);
     if (ret!=SPEC_SUCCESS) goto finish;
 
     in_buf[in_len] = 0;

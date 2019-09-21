@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -138,7 +138,7 @@ int main(void)
 
 finish:
     if (tr_init) sp_discard_tr(&trans);
-    if (in_opn) sp_fclose(&in);
+    if (in_opn) sp_close(&in);
     if (ret) printf("Error: %d\n", ret);
     return 0;
 }

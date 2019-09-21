@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2019 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -41,7 +41,7 @@ int main(void)
     /* start the transaction */
     if (sp_init_tr(&trans, &in, NULL, NULL) != SPEC_SUCCESS) {
         printf("Can't initialize update-transaction\n");
-        sp_fclose(&in);
+        sp_close(&in);
         return 1;
     }
 
@@ -95,7 +95,7 @@ int main(void)
         "store/book:3",
         NULL, indf) == SPEC_SUCCESS);
 
-    sp_fclose(&in);
+    sp_close(&in);
 
     /* For the purpose of this example the updated config will be printed on
        stdio. In usual usage the original input file shall be re-opened in
