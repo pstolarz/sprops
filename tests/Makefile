@@ -1,7 +1,8 @@
-CC = $(CROSS_COMPILE)gcc
-CFLAGS += -Wall -I../inc
+.PHONY: all clean libsprops test
 
-.PHONY: all clean test FORCE
+LIBSPROPS_DIR=../src
+CC = $(CROSS_COMPILE)gcc
+CFLAGS += -Wall -I$(LIBSPROPS_DIR)/inc
 
 TESTS= \
     t01-get \
@@ -14,13 +15,13 @@ TESTS= \
     t08-scratch \
     t09-trans
 
-all: test
+all: libsprops test
 
 clean:
 	$(RM) $(TESTS)
 
-../libsprops.a: FORCE
-	$(MAKE) -C..
+libsprops:
+	$(MAKE) -C$(LIBSPROPS_DIR)
 
 test: $(TESTS)
 	@chk_diff() { \
@@ -48,5 +49,5 @@ test: $(TESTS)
 	chk_diff t08-scratch t08.out; \
 	chk_diff t09-trans t09.out;
 
-%: %.c ../libsprops.a
-	$(CC) $(CFLAGS) $^ -o $@
+%: %.c
+	$(CC) $(CFLAGS) $< -o $@ -L$(LIBSPROPS_DIR) -lsprops

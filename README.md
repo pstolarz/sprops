@@ -54,9 +54,9 @@ Notes
 Quick start
 -----------
 
-Refer to `./examples` for some simple examples presenting usage of the library
-in typical cases. Thorough API specification is contained in C headers located
-in `./inc/sprops`.
+Refer to [`examples`](examples) for some simple examples presenting usage of the
+library in typical cases. Thorough API specification is contained in C headers
+located in [`src/inc/sprops`](src/inc/sprops).
 
 Compilation
 -----------
@@ -66,19 +66,19 @@ Prerequisites:
  - Standard building tool-set as part of the `build-essential` packet: `gcc`,
    GNU Make etc.,
  - Bison parser generator of version 3 or higher (only in case of regenerating
-   `parser.c` grammar definition file).
+   `src/parser.c` grammar definition file).
 
 Compilation:
 
     make
 
-produces static library `libsprops.a` which may be linked into an application.
+produces static library `src/libsprops.a` which may be linked into an application.
 
     make examples
 
-will compile examples in `./examples`.
+will compile examples.
 
-Unit tests are contained in `./tests` directory and are launched by
+Unit tests are contained in [`tests`](tests) directory and are launched by
 
     make test
 
@@ -180,8 +180,8 @@ API specification
 
 The library provides two sets of API:
 
- - Low level parser API with header: `./inc/sprops/parser.h`,
- - High level functional API with header: `./inc/sprops/props.h`.
+ - Low level parser API with header: [`src/inc/sprops/parser.h`](src/inc/sprops/parser.h),
+ - High level functional API with header: [`src/inc/sprops/props.h`](src/inc/sprops/props.h).
 
 The first set of API defines low level, parser specific functionality and is
 not intended to be used unless, for some reason, there is a need for direct
@@ -211,7 +211,8 @@ Transactional support
 
 To handle wrong-state of the modified data issue, there has been provided
 a simple transactional support with an API specified in the header
-`./inc/sprops/trans.h`, implemented as a wrapper around the write access API.
+[`src/inc/sprops/trans.h`](src/inc/sprops/trans.h), implemented as a wrapper
+around the write access API.
 
 Apart from the transactions, the API provides a handy way for modification of
 a specific scope (block of configuration) inside a larger configuration file.
@@ -222,4 +223,4 @@ if a modifying caller is interested only in a specific block of configuration
 License
 -------
 
-2 clause BSD license. See LICENSE file for details.
+2 clause BSD license. See [`LICENSE`](LICENSE) file for details.

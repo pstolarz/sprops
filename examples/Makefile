@@ -1,20 +1,21 @@
+.PHONY: all clean libsprops
+
+LIBSPROPS_DIR=../src
 CC = $(CROSS_COMPILE)gcc
-CFLAGS += -Wall -I../inc
+CFLAGS += -Wall -I$(LIBSPROPS_DIR)/inc
 
 EXAMPLES = \
     basic \
     store \
     store-upd
 
-.PHONY: all clean FORCE
-
-all: $(EXAMPLES)
+all: libsprops $(EXAMPLES)
 
 clean:
 	$(RM) $(EXAMPLES)
 
-../libsprops.a: FORCE
-	$(MAKE) -C..
+libsprops:
+	$(MAKE) -C$(LIBSPROPS_DIR)
 
-%: %.c ../libsprops.a
-	$(CC) $(CFLAGS) $^ -o $@
+%: %.c
+	$(CC) $(CFLAGS) $< -o $@ -L$(LIBSPROPS_DIR) -lsprops
