@@ -1,3 +1,15 @@
+/*
+   Copyright (c) 2016,2021 Piotr Stolarz
+   Scoped properties configuration library
+
+   Distributed under the 2-clause BSD License (the License)
+   see accompanying file LICENSE for details.
+
+   This software is distributed WITHOUT ANY WARRANTY; without even the
+   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+   See the License for more information.
+ */
+
 #ifndef __SP_CONFIG_H__
 #define __SP_CONFIG_H__
 
@@ -7,20 +19,28 @@
    If not defined: End-of-line and a semicolon mark the property ending.
    If a property value needs to contain a semicolon, it must be escaped.
  */
-#undef CONFIG_NO_SEMICOL_ENDS_VAL
+#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+//# define CONFIG_NO_SEMICOL_ENDS_VAL
+#endif
 
 /* If defined: cut leading spaces in a property value.
  */
-#define CONFIG_CUT_VAL_LEADING_SPACES
+#ifndef CONFIG_CUT_VAL_LEADING_SPACES
+# define CONFIG_CUT_VAL_LEADING_SPACES
+#endif
 
 /* If defined: trim trailing spaces in a property value.
  */
-#define CONFIG_TRIM_VAL_TRAILING_SPACES
+#ifndef CONFIG_TRIM_VAL_TRAILING_SPACES
+# define CONFIG_TRIM_VAL_TRAILING_SPACES
+#endif
 
 /* Maximum nesting level of scopes. If 0 - only the global scope is allowed,
    if undefined - no restriction provided.
  */
-#undef CONFIG_MAX_SCOPE_LEVEL_DEPTH
+#ifndef CONFIG_MAX_SCOPE_LEVEL_DEPTH
+//# define CONFIG_MAX_SCOPE_LEVEL_DEPTH
+#endif
 
 /* If defined: forbid alternative version of empty scope with a type:
 
@@ -34,7 +54,9 @@
    to ambiguity with empty property syntax. For these reasons it's recommended
    to disable the alternative syntax.
  */
-#define CONFIG_NO_EMPTY_SCOPE_ALT
+#ifndef CONFIG_NO_EMPTY_SCOPE_ALT
+# define CONFIG_NO_EMPTY_SCOPE_ALT
+#endif
 
 /* Due to indentation issues observed (under some circumstances) for transactions
    with not a NULL parsing scopes and consisting of more than one modification,
@@ -44,6 +66,8 @@
    See trans.h header for more values for this configuration parameter.
    If not specified, not modified parsing scope is used.
  */
-#define CONFIG_TRANS_PARSC_MOD  PARSC_EXTIND
+#ifndef CONFIG_TRANS_PARSC_MOD
+# define CONFIG_TRANS_PARSC_MOD PARSC_EXTIND
+#endif
 
 #endif  /* __SP_CONFIG_H__ */
