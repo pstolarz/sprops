@@ -21,6 +21,11 @@ extern "C" {
 
 typedef enum _sp_parser_token_t
 {
+    YYEMPTY = -2,
+    YYEOF = 0,                     /* "end of file"  */
+    YYerror = 256,                 /* error  */
+    YYUNDEF = 257,                 /* "invalid token"  */
+
     SP_TKN_ID = 258,
     SP_TKN_VAL
 } sp_parser_token_t;

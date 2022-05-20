@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2022 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -13,8 +13,8 @@
 #include "../config.h"
 #include "sprops/trans.h"
 
-#if defined(CONFIG_NO_SEMICOL_ENDS_VAL) || \
-    !defined(CONFIG_CUT_VAL_LEADING_SPACES) || \
+#if CONFIG_NO_SEMICOL_ENDS_VAL || \
+    !CONFIG_CUT_VAL_LEADING_SPACES || \
     (CONFIG_MAX_SCOPE_LEVEL_DEPTH>0 && CONFIG_MAX_SCOPE_LEVEL_DEPTH<2)
 # error Bad configuration
 #endif

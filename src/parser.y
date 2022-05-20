@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015,2016,2019 Piotr Stolarz
+   Copyright (c) 2015,2016,2019,2022 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -26,8 +26,8 @@
 #define is_space(c) (isspace(c) || (c)==EOL)
 
 /* NOTE: semicolon char is reserved even though CONFIG_NO_SEMICOL_ENDS_VAL
-   is defined, due to the property w/o a value and scope w/o a body alternative
-   grammar rules. */
+   is configured, due to the property w/o a value and scope w/o a body
+   alternative grammar rules. */
 #define RESERVED_CHRS   "={};#"
 
 #define is_nq_idc(c) (!is_space(c) && !strchr(RESERVED_CHRS, (c)))
@@ -203,7 +203,7 @@ prop_scope:
         }
     }
   /* property with a value (semicolon finished)
-     NOTE 1: valid only if CONFIG_NO_SEMICOL_ENDS_VAL is not defined
+     NOTE 1: valid only if CONFIG_NO_SEMICOL_ENDS_VAL is not configured
      NOTE 2: SP_TKN_VAL may be empty to define property w/o a value
    */
 | SP_TKN_ID '=' SP_TKN_VAL ';'
@@ -286,13 +286,13 @@ prop_scope:
         }
     }
   /* scope w/o a body (alternative)
-     NOTE 1: valid only if CONFIG_NO_EMPTY_SCOPE_ALT is not defined
+     NOTE 1: valid only if CONFIG_NO_EMPTY_SCOPE_ALT is not configured
      NOTE 2: to avoid ambiguity with no value property, the
      only way to define untyped scope w/o a body is: SP_TKN_ID '{' '}'
    */
 | SP_TKN_ID SP_TKN_ID ';'
     {
-#ifndef CONFIG_NO_EMPTY_SCOPE_ALT
+#if !CONFIG_NO_EMPTY_SCOPE_ALT
         $$.beg = $1.beg;
         $$.end = $3.end;
         $$.scope_lev = $1.scope_lev;
@@ -371,7 +371,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         LXST_ID_QUOTED,     /* quoted */
 
         /* SP_TKN_VAL token; any chars up to the end of a line or semicolon
-           (if CONFIG_NO_SEMICOL_ENDS_VAL is not defined); line continuation
+           (if CONFIG_NO_SEMICOL_ENDS_VAL is not configured); line continuation
            allowed */
         LXST_VAL_INIT,      /* value tracking initial state */
         LXST_VAL            /* value tracking */
@@ -486,7 +486,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL_INIT:
           {
             __USE_ESC();
-#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
+#if CONFIG_NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
             if ((c==EOL || c==';') && !esc)
@@ -496,14 +496,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
                 __CHAR_TOKEN(SP_TKN_VAL);
                 p_lval->beg++;
                 endloop=1;
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
                     continue;
                 }
 #endif
             } else
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
             if (!isspace(c))
 #endif
             {
@@ -516,7 +516,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
         case LXST_VAL:
           {
             __USE_ESC();
-#ifdef CONFIG_NO_SEMICOL_ENDS_VAL
+#if CONFIG_NO_SEMICOL_ENDS_VAL
             if (c==EOL && !esc)
 #else
             if ((c==EOL || c==';') && !esc)
@@ -524,14 +524,14 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
             {
                 __MCHAR_TOKEN_END();
                 endloop=1;
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
                 if (c==';') {
                     unc_ungetc(&p_hndl->lex.unc, c);
                     continue;
                 }
 #endif
             } else
-#ifdef CONFIG_TRIM_VAL_TRAILING_SPACES
+#if CONFIG_TRIM_VAL_TRAILING_SPACES
             if (!isspace(c))
 #endif
             {
@@ -575,7 +575,7 @@ static int yylex(YYSTYPE *p_lval, YYLTYPE *p_lloc, sp_parser_hndl_t *p_hndl)
     p_lval->scope_lev = p_hndl->lex.scope_lev;
     if (token=='{') {
         p_hndl->lex.scope_lev++;
-#ifdef CONFIG_MAX_SCOPE_LEVEL_DEPTH
+#if CONFIG_MAX_SCOPE_LEVEL_DEPTH >= 0
         if (p_hndl->lex.scope_lev > CONFIG_MAX_SCOPE_LEVEL_DEPTH) {
             p_hndl->err.syn.code = SPSYN_LEV_DEPTH;
             token = YYERRCODE;
@@ -1083,10 +1083,10 @@ sp_errc_t sp_parser_tokenize_str(
     for (i=bfs, cvi=0; (c=(*in++ & 0xff))!=0;)
     {
         if (!isprint(c) || c=='\\' || c==quot_chr
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
             || (tkn==SP_TKN_VAL && c==';')
 #endif
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
             /* space char need to be escaped if it's the first
                char in SP_TKN_VAL token to avoid leading spaces cut */
             || (tkn==SP_TKN_VAL && isspace(c) && (in-1)==str)

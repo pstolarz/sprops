@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015,2016,2019 Piotr Stolarz
+   Copyright (c) 2015,2016,2019,2022 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -1211,24 +1211,24 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
         EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_ID, prop_nm, 0));
         if (prop_val && *prop_val)
         {
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
             if (!(p_bu->flags & SP_F_NVSRSP)) {
                 CHK_FERR(sp_fputs(" = ", p_bu->out));
             } else {
 #endif
                 CHK_FERR(sp_fputc('=', p_bu->out));
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
             }
 #endif
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, prop_val, 0));
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
             if (!(p_bu->flags & SP_F_NOSEMC)) {
                 CHK_FERR(sp_fputc(';', p_bu->out));
             } else {
 #endif
                 /* added value need to be finished by EOL */
                 *p_traileol = 1;
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
             }
 #endif
         } else {
@@ -1248,7 +1248,7 @@ static sp_errc_t put_elem(base_updt_hndl_t *p_bu, const char *prop_nm,
             EXEC_RG(put_eol_ind(p_bu, p_ind_ldef, ind_flgs));
             CHK_FERR(sp_fputc('{', p_bu->out));
         } else {
-#ifndef CONFIG_NO_EMPTY_SCOPE_ALT
+#if !CONFIG_NO_EMPTY_SCOPE_ALT
             if (sc_typ && *sc_typ && (p_bu->flags & SP_F_EMPCPT)) {
                 CHK_FERR(sp_fputc(';', p_bu->out));
                 goto finish;
@@ -1376,7 +1376,7 @@ static sp_errc_t add_elem(SP_FILE *in, SP_FILE *out, const sp_loc_t *p_parsc,
 
             if (bdyenc_sz==1)
             {
-#ifndef CONFIG_NO_EMPTY_SCOPE_ALT
+#if !CONFIG_NO_EMPTY_SCOPE_ALT
                 /* body as ; */
                 EXEC_RG(__cpy_to_out(&bu, frst_sc.lbdyenc.beg));
                 if (frst_sc.lbdyenc.beg-frst_sc.lname.end <= 1) {
@@ -1829,24 +1829,24 @@ static sp_errc_t cpy_mod_prop(base_updt_hndl_t *p_bu,
         if (new_val && *new_val) {
             p_bu->in_off = p_ldef->end+1;
 
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
             if (!(p_bu->flags & SP_F_NVSRSP)) {
                 CHK_FERR(sp_fputs(" = ", p_bu->out));
             } else {
 #endif
                 CHK_FERR(sp_fputc('=', p_bu->out));
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
             }
 #endif
             EXEC_RG(sp_parser_tokenize_str(p_bu->out, SP_TKN_VAL, new_val, 0));
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
             if (!(p_bu->flags & SP_F_NOSEMC)) {
                 CHK_FERR(sp_fputc(';', p_bu->out));
             } else {
 #endif
                 /* added value need to be finished by EOL */
                 EXEC_RG(put_eol_ind(p_bu, p_ldef, IND_F_CUTGAP|IND_F_CHKEOL));
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
             }
 #endif
         }

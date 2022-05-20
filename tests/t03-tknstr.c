@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016 Piotr Stolarz
+   Copyright (c) 2016,2022 Piotr Stolarz
    Scoped properties configuration library
 
    Distributed under the 2-clause BSD License (the License)
@@ -76,14 +76,14 @@ int main(void)
     __TEST(SP_TKN_VAL, "\n\t\a\\", "\\n\\t\\a\\\\", 0);
 
     /* semicolon escaping */
-#ifndef CONFIG_NO_SEMICOL_ENDS_VAL
+#if !CONFIG_NO_SEMICOL_ENDS_VAL
     __TEST(SP_TKN_VAL, "abc;", "abc\\;", 0);
 #else
     __TEST(SP_TKN_VAL, "abc;", "abc;", 0);
 #endif
 
     /* val with leading spaces */
-#ifdef CONFIG_CUT_VAL_LEADING_SPACES
+#if CONFIG_CUT_VAL_LEADING_SPACES
     __TEST(SP_TKN_VAL, "  abc", "\\  abc", 0);
 #else
     __TEST(SP_TKN_VAL, "  abc", "  abc", 0);
